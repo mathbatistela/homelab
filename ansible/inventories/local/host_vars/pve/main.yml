@@ -1,0 +1,14 @@
+pve_cluster_node: pve
+pve_default_storage: local-lvm
+pve_default_bridge: vmbr0
+pve_node: m0
+
+pve_iso_storage: "iac-isos"
+pve_storage_path_iso: "/var/lib/vz/iac"
+
+pve_snippets_storage: "iac-snippets"
+pve_storage_path_snippets: "/var/lib/vz/iac"
+
+pve_template_storage: "iac-templates"
+pve_storage_path_templates: "/var/lib/vz/iac"
+

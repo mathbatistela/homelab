@@ -1,0 +1,14 @@
+- name: Create ISO storage if missing
+  ansible.builtin.command:
+    cmd: pvesm add dir {{ pve_iso_storage }} --path {{ pve_storage_path_iso }} --content iso
+    creates: "{{ pve_storage_path_iso }}/template/iso"
+
+- name: Create snippets storage if missing
+  ansible.builtin.command:
+    cmd: pvesm add dir {{ pve_snippets_storage }} --path {{ pve_storage_path_snippets }} --content snippets
+    creates: "{{ pve_storage_path_snippets }}/snippets"
+
+- name: Create template storage if missing
+  ansible.builtin.command:
+    cmd: pvesm add dir {{ pve_template_storage }} --path {{ pve_storage_path_templates }} --content images
+    creates: "{{ pve_storage_path_templates }}/images"

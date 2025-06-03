@@ -1,0 +1,103 @@
+- name: Get ISO storage directory
+  community.general.proxmox_storage_info:
+    api_host: "{{ pve_api_host }}"
+    api_user: "{{ pve_api_user }}"
+    api_password: "{{ pve_api_password }}"
+    storage: "{{ pve_iso_storage }}"
+  register: iso_store
+  delegate_to: localhost
+
+- name: Set ISO directory fact
+  ansible.builtin.set_fact:
+    pve_iso_dir: "{{ iso_store.proxmox_storages[0].path }}/template/iso"
+
+- name: Ensure ISO directory exists with correct permissions
+  ansible.builtin.file:
+    path: "{{ pve_iso_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Get snippets storage directory
+  community.general.proxmox_storage_info:
+    api_host: "{{ pve_api_host }}"
+    api_user: "{{ pve_api_user }}"
+    api_password: "{{ pve_api_password }}"
+    storage: "{{ pve_snippets_storage }}"
+  register: snippets_store
+  delegate_to: localhost
+
+- name: Set snippets directory fact
+  ansible.builtin.set_fact:
+    pve_snippets_dir: "{{ snippets_store.proxmox_storages[0].path }}/snippets"
+
+- name: Ensure snippets directory exists with correct permissions
+  ansible.builtin.file:
+    path: "{{ pve_snippets_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Download cloud images
+  ansible.builtin.get_url:
+    url: "{{ item.value.iso_url }}"
+    dest: "{{ pve_iso_dir }}/{{ item.value.iso_url | basename | splitext | first }}.img"
+    checksum: "{{ item.value.checksum_algorithm }}:{{ lookup('ansible.builtin.url', item.value.checksum_url) | regex_search(item.value.checksum_regexp, '\\1') | first}}"
+    validate_certs: true
+    timeout: 60
+  loop: "{{ pve_templates_list | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Create cloud-init for each image
+  ansible.builtin.template:
+    src: "{{ item.key }}_cloudconfig.yml.j2"
+    dest: "{{ pve_snippets_dir }}/{{ item.key }}_cloudconfig.yml"
+    mode: "0644"
+  loop: "{{ pve_templates_list | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Create VM templates on Proxmox
+  community.general.proxmox_kvm:
+    api_host: "{{ pve_api_host }}"
+    api_user: "{{ pve_api_user }}"
+    api_password: "{{ pve_api_password }}"
+    node: "{{ pve_node }}"
+    vmid: "{{ item.value.vmid }}"
+    name: "{{ item.value.name }}"
+    storage: "{{ pve_template_storage }}"
+    cores: 2
+    memory: 2048
+    ide:
+      ide2: "{{ pve_template_storage }}:cloudinit,format=raw"
+    net:
+      net0: virtio,bridge=vmbr0
+    ipconfig:
+      ipconfig0: ip=dhcp
+    cicustom: "user={{ pve_snippets_storage }}:snippets/{{ item.key }}_cloudconfig.yml"
+    agent: true
+    ostype: l26
+    scsihw: virtio-scsi-pci
+    boot: c
+    bootdisk: virtio0
+    template: true
+    state: present
+  loop: "{{ pve_templates_list | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  delegate_to: localhost
+
+- name: Import downloaded image into VM disk
+  community.general.proxmox_disk:
+    api_host: "{{ pve_api_host }}"
+    api_user: "{{ pve_api_user }}"
+    api_password: "{{ pve_api_password }}"
+    vmid: "{{ item.value.vmid }}"
+    import_from: "{{ pve_iso_dir }}/{{ item.value.iso_url | basename | splitext | first }}.img"
+    format: "{{ pve_templates_disk_format }}"
+    disk: virtio0
+    storage: "{{ pve_template_storage }}"
+    state: present
+  loop: "{{ pve_templates_list | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  delegate_to: localhost

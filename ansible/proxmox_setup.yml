@@ -1,0 +1,8 @@
+---
+- name: Proxmox setup storage
+  hosts: pve
+  gather_facts: false
+
+  roles:
+    - pve_storage
+    - pve_templates

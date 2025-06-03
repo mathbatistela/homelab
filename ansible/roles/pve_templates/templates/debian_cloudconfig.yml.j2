@@ -1,0 +1,33 @@
+#cloud-config
+
+ssh_pwauth: true
+preserve_hostname: true
+prefer_fqdn_over_hostname: false
+timezone: UTC
+locale: en_US.UTF-8
+
+users:
+  - name: {{ pve_templates_ci_user_name }}
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - "{{ pve_templates_ssh_public_key }}"
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: false
+    passwd: "{{ pve_templates_ci_user_password_hash }}"
+
+package_update: true
+package_upgrade: true
+packages:
+  - qemu-guest-agent
+  - htop
+  - vim
+  - sudo
+  - git
+  - curl
+  - ufw
+
+bootcmd:
+  - [ systemctl, enable, qemu-guest-agent ]
+  - [ systemctl, start, qemu-guest-agent ]
+
+final_message: "The system is finally up, after $UPTIME seconds"

@@ -35,3 +35,5 @@ terraform.rc
 
 ## Generated files:
 infrastructure/vms/proxmox/data/**
+ansible/collections/**
+**.pass

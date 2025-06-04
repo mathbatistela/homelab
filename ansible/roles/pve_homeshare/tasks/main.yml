@@ -1,0 +1,27 @@
+- name: Display Starting Message For PVE Homeshare Setup
+  ansible.builtin.debug:
+    msg: >
+      Starting homeshare partition and Proxmox VE configuration for
+      '{{ pve_homeshare_partition_device }}' ({{ pve_homeshare_mount_point }}).
+
+- name: Check If Partition Exists For {{ pve_homeshare_partition_device }}
+  ansible.builtin.stat:
+    path: "{{ pve_homeshare_partition_device }}"
+  register: homeshare_partition_stat
+  become: true
+
+- name: Display Skip PVE Homeshare If Partition Already Exists
+  ansible.builtin.debug:
+    msg: "Partition {{ pve_homeshare_partition_device }} already exists; skipping pve_homeshare."
+  when: homeshare_partition_stat.stat.exists
+
+- name: Include Partition Tasks For PVE Homeshare
+  ansible.builtin.import_tasks: partition.yml
+  when: not homeshare_partition_stat.stat.exists
+
+- name: Display Completion Message For PVE Homeshare Setup
+  ansible.builtin.debug:
+    msg: >
+      Homeshare partition and mount point setup complete for
+      '{{ pve_homeshare_partition_device }}' ({{ pve_homeshare_mount_point }}).
+  when: not homeshare_partition_stat.stat.exists

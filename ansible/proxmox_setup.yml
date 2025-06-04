@@ -5,4 +5,12 @@
 
   roles:
     - pve_storage
+    - pve_homeshare
+    - pve_vmstorage
+
+- name: Proxmox setup templates
+  hosts: pve
+  gather_facts: false
+
+  roles:
     - pve_templates

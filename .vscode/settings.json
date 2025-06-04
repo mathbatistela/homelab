@@ -1,3 +1,6 @@
 {
-    "ansible.python.interpreterPath": "/home/mathbatistela/.asdf/shims/python"
+    "ansible.python.interpreterPath": "/home/mathbatistela/.asdf/shims/python",
+    "yaml.schemas": {
+        "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/ansible.json#/$defs/tasks": "file:///home/mathbatistela/personal/programming/homelab/ansible/roles/pve_homeshare/tasks/partition.yml"
+    }
 }

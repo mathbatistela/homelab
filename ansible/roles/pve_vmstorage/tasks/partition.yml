@@ -1,0 +1,125 @@
+- name: "Validate that disk exists: {{ pve_vmstorage_disk }}"
+  ansible.builtin.stat:
+    path: "{{ pve_vmstorage_disk }}"
+  register: vmstorage_disk_stat
+  become: true
+  failed_when: not vmstorage_disk_stat.stat.exists
+
+- name: "Validate fstype is supported: {{ pve_vmstorage_fstype }}"
+  ansible.builtin.assert:
+    that:
+      - "'{{ pve_vmstorage_fstype }}' in pve_vmstorage_fstype_choices"
+    fail_msg: >
+      Invalid fstype '{{ pve_vmstorage_fstype }}'.
+      Choose one of {{ pve_vmstorage_fstype_choices }}.
+
+- name: "Install required packages for VM storage"
+  ansible.builtin.apt:
+    name:
+      - parted
+      - util-linux
+      - "{{ 'e2fsprogs' if pve_vmstorage_fstype == 'ext4' else 'xfsprogs' }}"
+    state: present
+    update_cache: true
+  become: true
+
+- name: "Check current partition table type on {{ pve_vmstorage_disk }}"
+  ansible.builtin.command:
+    cmd: "lsblk -no PTTYPE {{ pve_vmstorage_disk }}"
+  register: vmstorage_current_pttype
+  changed_when: false
+  failed_when: false
+  become: true
+
+- name: "Ensure GPT partition table on {{ pve_vmstorage_disk }}"
+  community.general.parted:
+    device: "{{ pve_vmstorage_disk }}"
+    label: gpt
+  when: vmstorage_current_pttype.stdout.strip() != "gpt"
+  become: true
+
+- name: "Create partition: {{ pve_vmstorage_partition_device }}"
+  community.general.parted:
+    device: "{{ pve_vmstorage_disk }}"
+    number: "{{ pve_vmstorage_partition_number }}"
+    state: present
+    part_type: primary
+    part_start: "{{ pve_vmstorage_partition_start }}"
+    part_end: "{{ pve_vmstorage_partition_end }}"
+  register: pve_vmstorage_parted_result
+  become: true
+
+- name: "Inform kernel of partition changes: {{ pve_vmstorage_disk }}"
+  ansible.builtin.command:
+    cmd: "partprobe {{ pve_vmstorage_disk }}"
+  when: pve_vmstorage_parted_result.changed 
+  changed_when: false
+  become: true
+
+- name: "Wait for partition device to appear: {{ pve_vmstorage_partition_device }}" # ansible-lint: disable=no-handler
+  ansible.builtin.wait_for:
+    path: "{{ pve_vmstorage_partition_device }}"
+    state: present
+    timeout: 30
+  when: pve_vmstorage_parted_result.changed
+
+- name: "Check filesystem type on {{ pve_vmstorage_partition_device }}"
+  ansible.builtin.command:
+    cmd: "blkid -o value -s TYPE {{ pve_vmstorage_partition_device }}"
+  register: vmstorage_blkid
+  changed_when: false
+  failed_when: false
+  become: true
+
+- name: "Determine if formatting needed: {{ pve_vmstorage_partition_device }}"
+  ansible.builtin.set_fact:
+    pve_vmstorage_needs_format: >-
+      (
+        (vmstorage_blkid.rc != 0) or
+        ((vmstorage_blkid.stdout | trim | default('')) != pve_vmstorage_fstype)
+      )
+      and (pve_vmstorage_format | bool)
+
+- name: "Wipe old filesystem signatures: {{ pve_vmstorage_partition_device }}"
+  ansible.builtin.command:
+    cmd: "wipefs --all --force {{ pve_vmstorage_partition_device }}"
+  when: pve_vmstorage_needs_format
+  register: pve_vmstorage_wipefs
+  become: true
+  changed_when: pve_vmstorage_wipefs.rc == 0
+
+- name: "Create fresh filesystem: {{ pve_vmstorage_partition_device }}"
+  community.general.filesystem:
+    fstype: "{{ pve_vmstorage_fstype }}"
+    dev: "{{ pve_vmstorage_partition_device }}"
+    force: true
+  when: pve_vmstorage_needs_format
+  become: true
+
+- name: "Ensure VM storage mount point directory exists: {{ pve_vmstorage_mount_point }}"
+  ansible.builtin.file:
+    path: "{{ pve_vmstorage_mount_point }}"
+    state: directory
+    owner: "{{ pve_vmstorage_owner }}"
+    group: "{{ pve_vmstorage_group }}"
+    mode: "{{ pve_vmstorage_mode }}"
+  become: true
+
+- name: "Ensure fstab entry for partition: {{ pve_vmstorage_partition_device }}"
+  ansible.posix.mount:
+    path: "{{ pve_vmstorage_mount_point }}"
+    src: "{{ pve_vmstorage_partition_device }}"
+    fstype: "{{ pve_vmstorage_fstype }}"
+    opts: "{{ pve_vmstorage_mount_opts }}"
+    state: present
+    dump: "0"
+    passno: "2"
+  become: true
+
+- name: "Mount VM storage partition"
+  ansible.posix.mount:
+    path: "{{ pve_vmstorage_mount_point }}"
+    src: "{{ pve_vmstorage_partition_device }}"
+    fstype: "{{ pve_vmstorage_fstype }}"
+    state: mounted
+  become: true

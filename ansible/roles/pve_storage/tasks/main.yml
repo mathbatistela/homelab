@@ -8,7 +8,12 @@
     cmd: pvesm add dir {{ pve_snippets_storage }} --path {{ pve_storage_path_snippets }} --content snippets
     creates: "{{ pve_storage_path_snippets }}/snippets"
 
-- name: Create template storage if missing
+- name: Create VM template storage if missing
   ansible.builtin.command:
     cmd: pvesm add dir {{ pve_template_storage }} --path {{ pve_storage_path_templates }} --content images
     creates: "{{ pve_storage_path_templates }}/images"
+
+- name: Create LXC template storage if missing
+  ansible.builtin.command:
+    cmd: pvesm add dir {{ pve_lxc_template_storage }} --path {{ pve_storage_path_lxc_templates }} --content iso,vztmpl
+    creates: "{{ pve_storage_path_lxc_templates }}/template/cache"

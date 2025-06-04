@@ -1,0 +1,17 @@
+pve_homeshare_disk: "/dev/sda"
+pve_homeshare_partition_number: 1
+pve_homeshare_partition_device: "{{ pve_homeshare_disk }}{{ pve_homeshare_partition_number }}"
+
+pve_homeshare_partition_start: "0%"
+pve_homeshare_partition_end: "50%"
+
+pve_homeshare_fstype: "ext4"
+pve_homeshare_format: true
+
+pve_homeshare_mount_point: "/mnt/homeshare"
+pve_homeshare_mount_opts: "defaults"
+
+pve_homeshare_owner: "root"
+pve_homeshare_group: "root"
+pve_homeshare_mode: "0755"
+pve_homeshare_nested_dir_mode: "0775"

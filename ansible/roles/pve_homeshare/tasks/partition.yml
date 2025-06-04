@@ -1,0 +1,101 @@
+- name: "Install required packages for pve_homeshare"
+  ansible.builtin.apt:
+    name:
+      - parted
+      - util-linux
+      - e2fsprogs
+    state: present
+    update_cache: true
+  become: true
+
+- name: "Ensure GPT partition table on {{ pve_homeshare_disk }}"
+  community.general.parted:
+    device: "{{ pve_homeshare_disk }}"
+    label: gpt
+  become: true
+
+- name: "Create partition: {{ pve_homeshare_partition_device }}"
+  community.general.parted:
+    device: "{{ pve_homeshare_disk }}"
+    number: "{{ pve_homeshare_partition_number }}"
+    state: present
+    part_type: primary
+    part_start: "{{ pve_homeshare_partition_start }}"
+    part_end: "{{ pve_homeshare_partition_end }}"
+  register: pve_homeshare_parted_result
+  become: true
+
+- name: "Inform kernel of partition changes for pve_homeshare"
+  ansible.builtin.command:
+    cmd: "partprobe {{ pve_homeshare_disk }}"
+  when: pve_homeshare_parted_result.changed
+  changed_when: false
+  become: true
+
+- name: "Wait for partition device: {{ pve_homeshare_partition_device }}"
+  ansible.builtin.wait_for:
+    path: "{{ pve_homeshare_partition_device }}"
+    state: present
+    timeout: 30
+  when: pve_homeshare_parted_result.changed
+
+- name: "Check filesystem type on {{ pve_homeshare_partition_device }}"
+  ansible.builtin.command:
+    cmd: "blkid -o value -s TYPE {{ pve_homeshare_partition_device }}"
+  register: pve_homeshare_blkid
+  changed_when: false
+  failed_when: false
+  become: true
+
+- name: "Determine if formatting is needed for {{ pve_homeshare_partition_device }}"
+  ansible.builtin.set_fact:
+    pve_homeshare_needs_format: >-
+      (
+        (pve_homeshare_blkid.rc != 0) or
+        ((pve_homeshare_blkid.stdout | trim | default('')) != pve_homeshare_fstype)
+      )
+      and (pve_homeshare_format | bool)
+
+- name: "Wipe old filesystem signatures if needed for pve_homeshare"
+  ansible.builtin.command:
+    cmd: "wipefs --all --force {{ pve_homeshare_partition_device }}"
+  when: pve_homeshare_needs_format
+  register: pve_homeshare_wipefs
+  become: true
+  changed_when: pve_homeshare_wipefs.rc == 0
+
+- name: "Create fresh filesystem if needed for pve_homeshare ({{ pve_homeshare_fstype }})"
+  community.general.filesystem:
+    fstype: "{{ pve_homeshare_fstype }}"
+    dev: "{{ pve_homeshare_partition_device }}"
+    force: true
+  when: pve_homeshare_needs_format
+  become: true
+
+- name: "Ensure homeshare mount point directory exists"
+  ansible.builtin.file:
+    path: "{{ pve_homeshare_mount_point }}"
+    state: directory
+    owner: "{{ pve_homeshare_owner }}"
+    group: "{{ pve_homeshare_group }}"
+    mode: "{{ pve_homeshare_mode }}"
+  become: true
+
+- name: "Ensure device in /etc/fstab for homeshare ({{ pve_homeshare_partition_device }})"
+  ansible.posix.mount:
+    path: "{{ pve_homeshare_mount_point }}"
+    src: "{{ pve_homeshare_partition_device }}"
+    fstype: "{{ pve_homeshare_fstype }}"
+    opts: "{{ pve_homeshare_mount_opts }}"
+    state: present
+    dump: "0"
+    passno: "2"
+  become: true
+
+- name: "Mount device on mount point ({{ pve_homeshare_mount_point }})"
+  ansible.posix.mount:
+    path: "{{ pve_homeshare_mount_point }}"
+    src: "{{ pve_homeshare_partition_device }}"
+    fstype: "{{ pve_homeshare_fstype }}"
+    state: mounted
+  become: true

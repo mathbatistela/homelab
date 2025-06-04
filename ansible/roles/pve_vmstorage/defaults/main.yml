@@ -1,0 +1,25 @@
+pve_vmstorage_disk: "/dev/sda"
+pve_vmstorage_partition_number: 2
+pve_vmstorage_partition_device: "{{ pve_vmstorage_disk }}{{ pve_vmstorage_partition_number }}"
+
+pve_vmstorage_partition_start: "50%"
+pve_vmstorage_partition_end: "100%"
+
+pve_vmstorage_fstype: "ext4"
+pve_vmstorage_format: true
+pve_vmstorage_fstype_choices:
+  - ext4
+  - xfs
+
+pve_vmstorage_mount_point: "/mnt/vm_disks"
+pve_vmstorage_mount_opts: "defaults"
+
+pve_vmstorage_owner: "root"
+pve_vmstorage_group: "root"
+pve_vmstorage_mode: "0755"
+
+pve_vmstorage_storage_id: "iac-vmdisks"
+pve_vmstorage_content_types: "images,rootdir"
+pve_vmstorage_nodes: ""
+pve_vmstorage_enable: true
+pve_vmstorage_shared: 0

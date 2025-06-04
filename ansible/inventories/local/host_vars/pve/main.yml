@@ -9,6 +9,16 @@ pve_storage_path_iso: "/var/lib/vz/iac"
 pve_snippets_storage: "iac-snippets"
 pve_storage_path_snippets: "/var/lib/vz/iac"
 
-pve_template_storage: "iac-templates"
+pve_template_storage: "iac-vm-templates"
 pve_storage_path_templates: "/var/lib/vz/iac"
+
+pve_lxc_template_storage: "iac-lxc-templates"
+pve_storage_path_lxc_templates: "/var/lib/vz/iac"
+
+pve_homeshare_disk: "/dev/sda"
+pve_homeshare_partition_number: 1
+
+pve_vmstorage_disk: "/dev/sda"
+pve_vmstorage_partition_number: 2
+
 

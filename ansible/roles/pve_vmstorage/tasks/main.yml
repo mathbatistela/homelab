@@ -1,0 +1,31 @@
+- name: display starting message for VM storage setup
+  ansible.builtin.debug:
+    msg: >
+      Starting VM storage partition and Proxmox VE configuration for
+      '{{ pve_vmstorage_storage_id }}' ({{ pve_vmstorage_partition_device }} → {{ pve_vmstorage_mount_point }}).
+
+- name: check if {{ pve_vmstorage_partition_device }} exists
+  ansible.builtin.stat:
+    path: "{{ pve_vmstorage_partition_device }}"
+  register: vmstorage_partition_stat
+  become: true
+
+- name: display skip pve_vmstorage if partition already exists
+  ansible.builtin.debug:
+    msg: "Partition {{ pve_vmstorage_partition_device }} already exists; skipping pve_vmstorage."
+  when: vmstorage_partition_stat.stat.exists
+
+- name: include VM storage partition tasks
+  import_tasks: partition.yml
+  when: not vmstorage_partition_stat.stat.exists
+
+- name: include Proxmox VE storage tasks
+  import_tasks: storage.yml
+  when: not vmstorage_partition_stat.stat.exists
+
+- name: display completion message for VM storage setup
+  ansible.builtin.debug:
+    msg: >
+      VM storage partition and Proxmox VE configuration complete for
+      '{{ pve_vmstorage_storage_id }}' ({{ pve_vmstorage_partition_device }} → {{ pve_vmstorage_mount_point }}).
+  when: not vmstorage_partition_stat.stat.exists

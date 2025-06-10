@@ -72,15 +72,6 @@
   when: pve_homeshare_needs_format
   become: true
 
-- name: "Ensure homeshare mount point directory exists"
-  ansible.builtin.file:
-    path: "{{ pve_homeshare_mount_point }}"
-    state: directory
-    owner: "{{ pve_homeshare_owner }}"
-    group: "{{ pve_homeshare_group }}"
-    mode: "{{ pve_homeshare_mode }}"
-  become: true
-
 - name: "Ensure device in /etc/fstab for homeshare ({{ pve_homeshare_partition_device }})"
   ansible.posix.mount:
     path: "{{ pve_homeshare_mount_point }}"
@@ -97,5 +88,14 @@
     path: "{{ pve_homeshare_mount_point }}"
     src: "{{ pve_homeshare_partition_device }}"
     fstype: "{{ pve_homeshare_fstype }}"
+    opts: "defaults"
     state: mounted
+  become: true
+
+- name: Fix mount permissions for unprivileged container
+  ansible.builtin.file:
+    path: "{{ pve_homeshare_mount_point }}"
+    owner: 100000
+    group: 100000
+    mode: "0755"
   become: true

@@ -1,0 +1,2 @@
+infra_traefik_cert_resolver_name: cloudflareLocal
+infra_local_domain: local.batistela.tech

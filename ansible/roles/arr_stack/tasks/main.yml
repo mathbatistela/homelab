@@ -1,0 +1,87 @@
+- name: "Ensure /mnt/homeshare exists (host bind-mount point)"
+  ansible.builtin.file:
+    path: "{{ arr_stack_host_bind_mount_point }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: "Ensure ARR path directory exists {{ arr_stack_config_path }}"
+  ansible.builtin.file:
+    path: "{{ arr_stack_config_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: "Ensure data path directory exists {{ arr_stack_data_path }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+    recurse: true
+  loop:
+    - "{{ arr_stack_data_path }}/torrents/books"
+    - "{{ arr_stack_data_path }}/torrents/movies"
+    - "{{ arr_stack_data_path }}/torrents/music"
+    - "{{ arr_stack_data_path }}/torrents/tv"
+    - "{{ arr_stack_data_path }}/media/books"
+    - "{{ arr_stack_data_path }}/media/movies"
+    - "{{ arr_stack_data_path }}/media/music"
+    - "{{ arr_stack_data_path }}/media/tv"
+
+- name: "Ensure required apt transport & certificates are installed"
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+    update_cache: true
+  become: true
+
+- name: "Ensure Docker service is enabled and started"
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+  become: true
+
+- name: "Create media compose directory {{ arr_stack_compose_dir }}"
+  ansible.builtin.file:
+    path: "{{ arr_stack_compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: "Copy .env file into {{ arr_stack_compose_dir }}/.env"
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ arr_stack_compose_dir }}/.env"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: "Copy docker-compose.yml into {{ arr_stack_compose_dir }}/docker-compose.yml"
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ arr_stack_compose_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: "Pull and start all services with Docker Compose v2"
+  community.docker.docker_compose_v2:
+    project_src: "{{ arr_stack_compose_dir }}"
+    pull: "always"
+    state: present
+  become: true
+  

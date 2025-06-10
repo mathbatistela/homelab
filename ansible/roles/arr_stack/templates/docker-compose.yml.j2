@@ -1,0 +1,145 @@
+version: "3.8"
+
+services:
+
+  prowlarr:
+    image: linuxserver/prowlarr:latest
+    container_name: prowlarr
+    hostname: prowlarr
+    volumes:
+      - "{{ arr_stack_config_path }}/prowlarr/config:/config"
+      - "{{ arr_stack_config_path }}/prowlarr/backup:/data/backup"
+      - "{{ arr_stack_data_path }}:/data"
+    ports:
+      - "9696:9696"
+    restart: unless-stopped
+    env_file:
+      - .env
+
+  sonarr:
+    image: linuxserver/sonarr:latest
+    container_name: sonarr
+    hostname: sonarr
+    volumes:
+      - "{{ arr_stack_config_path }}/sonarr/config:/config"
+      - "{{ arr_stack_config_path }}/sonarr/backup:/data/backup"
+      - "{{ arr_stack_data_path }}:/data"
+    ports:
+      - "8989:8989"
+    restart: unless-stopped
+    env_file:
+      - .env
+
+  radarr:
+    image: linuxserver/radarr:latest
+    container_name: radarr
+    hostname: radarr
+    volumes:
+      - "{{ arr_stack_config_path }}/radarr/config:/config"
+      - "{{ arr_stack_config_path }}/radarr/backup:/data/backup"
+      - "{{ arr_stack_data_path }}:/data"
+    ports:
+      - "7878:7878"
+    restart: unless-stopped
+    env_file:
+      - .env
+
+  readarr:
+    image: linuxserver/readarr:develop
+    container_name: readarr
+    hostname: readarr
+    volumes:
+      - "{{ arr_stack_config_path }}/readarr/config:/config"
+      - "{{ arr_stack_config_path }}/readarr/backup:/data/backup"
+      - "{{ arr_stack_data_path }}:/data"
+    ports:
+      - "8787:8787"
+    restart: unless-stopped
+    env_file:
+      - .env
+
+  bazarr:
+    image: linuxserver/bazarr:latest
+    container_name: bazarr
+    hostname: bazarr
+    volumes:
+      - "{{ arr_stack_config_path }}/bazarr/config:/config"
+      - "{{ arr_stack_config_path }}/bazarr/backup:/data/backup"
+      - "{{ arr_stack_data_path }}:/data"
+    ports:
+      - "6767:6767"
+    restart: unless-stopped
+    env_file:
+      - .env
+
+  recyclarr:
+    image: ghcr.io/recyclarr/recyclarr:latest
+    container_name: recyclarr
+    hostname: recyclarr
+    user: 0:0
+    volumes:
+      - "{{ arr_stack_config_path }}/recyclarr/config:/config"
+    restart: unless-stopped
+
+  homarr:
+    image: ghcr.io/ajnart/homarr:latest
+    container_name: homarr
+    hostname: homarr
+    volumes:
+      - "{{ arr_stack_config_path }}/homarr/configs:/app/data/configs"
+      - "{{ arr_stack_config_path }}/homarr/icons:/app/public/icons"
+      - "{{ arr_stack_config_path }}/homarr/data:/data"
+    ports:
+      - "7575:7575"
+    restart: unless-stopped
+    env_file:
+      - .env
+
+  jellyfin:
+    image: linuxserver/jellyfin:latest
+    container_name: jellyfin
+    hostname: jellyfin
+    ports:
+      - "8096:8096"
+    volumes:
+      - "{{ arr_stack_config_path }}/jellyfin/config:/config"
+      - "{{ arr_stack_data_path }}:/data"
+    restart: unless-stopped
+    env_file:
+      - .env
+
+  qbittorrent:
+    image: linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    hostname: qbittorrent
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    volumes:
+      - "{{ arr_stack_config_path }}/qbittorrent/config:/config"
+      - "{{ arr_stack_data_path }}/torrents:/data/torrents"
+    ports:
+      - "8080:8080"
+      - "6881:6881"
+      - "6881:6881/udp"
+    environment:
+      - WEBUI_PORT=8080
+      - TORRENTING_PORT=6881
+    healthcheck:
+      start_period: 15s
+    env_file:
+      - .env
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_HTML=${LOG_HTML:-false}
+      - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
+      - TZ=${TZ:-UTC}
+    ports:
+      - "8191:8191"
+    restart: unless-stopped
+    env_file:
+      - .env

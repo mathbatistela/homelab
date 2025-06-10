@@ -1,0 +1,7 @@
+arr_stack_host_bind_mount_point: "/mnt/homeshare"
+arr_stack_config_path: "{{ arr_stack_host_bind_mount_point }}/arr"
+arr_stack_data_path: "{{ arr_stack_host_bind_mount_point }}/data"
+arr_stack_compose_dir: "/opt/media_server"
+arr_stack_lazydocker_install_dir: "/usr/local/bin"
+arr_stack_puid: 0
+arr_stack_pgid: 0

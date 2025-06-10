@@ -1,0 +1,27 @@
+---
+- name: Install Samba
+  apt:
+    name: samba
+    state: present
+    update_cache: yes
+
+- name: Ensure Samba share path exists
+  file:
+    path: "{{ samba_share_path }}"
+    state: directory
+    mode: "0775"
+
+- name: Configure smb.conf
+  template:
+    src: smb.conf.j2
+    dest: /etc/samba/smb.conf
+    mode: "0644"
+    owner: root
+    group: root
+  notify: Restart smbd
+
+- name: Ensure smbd is running and enabled
+  systemd:
+    name: smbd
+    enabled: yes
+    state: started

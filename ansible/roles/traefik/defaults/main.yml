@@ -1,0 +1,13 @@
+traefik_version: "v3.4.1"
+traefik_bin_path: /usr/local/bin/traefik
+traefik_config_path: /etc/traefik
+traefik_config_file: "{{ traefik_config_path }}/traefik.yml"
+traefik_service_file: /etc/systemd/system/traefik.service
+traefik_log_file: /var/log/traefik.log
+traefik_access_log_file: /var/log/traefik_access.log
+traefik_acme_email: "matheus@batistela.tech"
+traefik_cloudflare_email: "matheus@batistela.tech"
+traefik_cloudflare_token: "{{ infra_traefik_cloudflare_token }}"
+traefik_dashboard_credentials: "{{ infra_traefik_dashboard_credentials | default('admin:admin') }}"
+traefik_cert_resolver_name: "{{ infra_traefik_cert_resolver_name | default('cloudflareLocal') }}"
+traefik_local_domain: "{{ infra_local_domain | default('local.batistela.tech') }}"

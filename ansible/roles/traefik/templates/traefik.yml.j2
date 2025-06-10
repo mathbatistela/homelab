@@ -1,0 +1,36 @@
+log:
+  filePath: "{{ traefik_log_file }}"
+  level: INFO
+
+accessLog:
+  filePath: "{{ traefik_access_log_file }}"
+  bufferingSize: 100
+
+entryPoints:
+  http:
+    address: ":80"
+    http:
+      redirections:
+        entrypoint:
+          to: https
+          scheme: https
+  https:
+    address: ":443"
+
+api: {}
+
+providers:
+  file:
+    directory: "{{ traefik_config_path }}/conf.d"
+    watch: true
+
+certificatesResolvers:
+  {{ traefik_cert_resolver_name }}:
+    acme:
+      email: "{{ traefik_acme_email }}"
+      storage: "{{ traefik_config_path }}/acme.json"
+      dnsChallenge:
+        provider: cloudflare
+        resolvers:
+          - "1.1.1.1:53"
+          - "1.0.0.1:53"

@@ -1,0 +1,99 @@
+- name: Ensure Traefik binary is installed
+  ansible.builtin.get_url:
+    url: "https://github.com/traefik/traefik/releases/download/{{ traefik_version }}/traefik_{{ traefik_version }}_linux_amd64.tar.gz"
+    dest: /tmp/traefik.tar.gz
+    mode: "0644"
+  register: traefik_download
+  when: not ansible_facts.packages['traefik'] is defined
+
+- name: Extract traefik binary
+  ansible.builtin.unarchive:
+    src: /tmp/traefik.tar.gz
+    dest: /usr/local/bin/
+    remote_src: true
+  when: traefik_download is changed
+
+- name: Ensure config directory exists
+  ansible.builtin.file:
+    path: "{{ traefik_config_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy traefik config file
+  ansible.builtin.template:
+    src: traefik.yml.j2
+    dest: "{{ traefik_config_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Traefik
+
+- name: Create environment file
+  ansible.builtin.copy:
+    dest: "{{ traefik_config_path }}/traefik.env"
+    content: |
+      CF_DNS_API_TOKEN={{ traefik_cloudflare_token }}
+      CF_DNS_API_EMAIL={{ traefik_cloudflare_email }}
+      TRAEFIK_DASHBOARD_CREDENTIALS={{ traefik_dashboard_credentials }}
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Restart Traefik
+
+- name: Ensure Traefik dynamic config dir exists
+  ansible.builtin.file:
+    path: "{{ traefik_config_path }}/conf.d"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+
+- name: Add Proxmox dynamic config
+  include_role:
+    name: traefik
+    tasks_from: configure_service
+  vars:
+    traefik_conf:
+      filename: traefik_api.yml
+      content: |
+        http:
+          routers:
+            dashboard:
+              entryPoints:
+                - https
+              rule: Host(`traefik.{{ traefik_local_domain }}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+              service: api@internal
+              tls:
+                certResolver: {{ traefik_cert_resolver_name }}
+                domains:
+                  - main: "{{ traefik_local_domain }}"
+                    sans:
+                      - "*.{{ traefik_local_domain }}"
+              middlewares:
+                - auth
+
+          middlewares:
+            auth:
+              basicAuth:
+                users:
+                  - "{{ traefik_dashboard_credentials }}"
+
+
+
+- name: Install systemd service unit
+  ansible.builtin.copy:
+    src: traefik.service
+    dest: "{{ traefik_service_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Enable and start traefik service
+  ansible.builtin.systemd:
+    name: traefik
+    enabled: true
+    state: started

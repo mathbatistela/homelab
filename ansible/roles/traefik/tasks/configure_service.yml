@@ -1,0 +1,16 @@
+- name: Ensure conf.d directory exists for dynamic services
+  ansible.builtin.file:
+    path: "{{ traefik_config_path }}/conf.d"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy inline Traefik config to conf.d
+  ansible.builtin.copy:
+    dest: "{{ traefik_config_path }}/conf.d/{{ traefik_conf.filename | default('dynamic.yml') }}"
+    content: "{{ traefik_conf.content | trim }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Traefik

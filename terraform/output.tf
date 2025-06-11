@@ -15,3 +15,13 @@ output "infra_server" {
     ip       = proxmox_lxc.infra_server.network[0].ip
   }
 }
+
+output "database_server" {
+  description = "Attributes of the database-server LXC"
+  value = {
+    vmid     = proxmox_lxc.database_server.vmid
+    hostname = proxmox_lxc.database_server.hostname
+    ip       = proxmox_lxc.database_server.network[0].ip
+  }
+  
+}

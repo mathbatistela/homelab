@@ -1,0 +1,38 @@
+- name: Add official PostgreSQL 17 repository (Debian 12)
+  hosts: database
+  become: yes
+  tasks:
+    - name: Ensure sudo is installed
+      apt:
+        name: sudo
+        state: present
+        update_cache: yes
+
+    - name: Create pgdg keyring directory
+      file:
+        path: /usr/share/postgresql-common/pgdg
+        state: directory
+        mode: '0755'
+
+    - name: Download PostgreSQL repository public key
+      get_url:
+        url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+        dest: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+        mode: '0644'
+
+    - name: Add official PostgreSQL repository to sources.list.d
+      copy:
+        dest: /etc/apt/sources.list.d/pgdg.list
+        content: "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main\n"
+        mode: '0644'
+
+    - name: Update APT cache
+      apt:
+        update_cache: yes
+
+- name: Install and configure PostgreSQL databases
+  hosts: database
+  become: true
+
+  roles:
+     - geerlingguy.postgresql

@@ -1,0 +1,4 @@
+- name: Monitoring Setup
+  hosts: monitred
+  roles:
+    - role: checkmk_agent

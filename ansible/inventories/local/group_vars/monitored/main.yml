@@ -1,0 +1,13 @@
+checkmk:
+  edition: cce
+  version: "2.4.0p3"
+  server:
+    ip: "{{ hostvars['infra']['ansible_host'] }}"
+    dns: "checkmk.{{ local_domain }}"
+    port: 5000
+    site: homelab
+    user_admin: "{{ vault.infra.checkmk_user_admin }}"
+    user_admin_password: "{{ vault.infra.checkmk_user_admin_pw }}"
+    user_automation: "{{ vault.infra.checkmk_user_automation }}"
+    user_automation_secret: "{{ vault.infra.checkmk_user_automation_secret }}"
+    

@@ -5,3 +5,5 @@ collections:
     version: "7.4.7"
   - name: geerlingguy.postgresql
     version: "4.0.0"
+  - name: checkmk.general
+    version: "5.10.0"

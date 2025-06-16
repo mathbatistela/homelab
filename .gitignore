@@ -36,6 +36,7 @@ terraform.rc
 ## Generated files:
 infrastructure/vms/proxmox/data/**
 ansible/collections/**
+.cache
 **.pass
 
 __pycache__/

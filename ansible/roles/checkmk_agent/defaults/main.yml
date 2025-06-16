@@ -1,0 +1,22 @@
+checkmk_settings:
+
+  server:
+    protocol: http
+    validate_certs: true
+    port: "{{ checkmk.server.port }}"
+    address: "{{ checkmk.server.ip }}"
+    user_automation:    "{{ checkmk.server.user_automation }}"
+    user_automation_secret:  "{{ checkmk.server.user_automation_secret }}"
+    bakery:
+      signature_key_id: "{{ vault.infra.checkmk_automation_signature_key_id}}"
+      signature_key_passphrase: "{{ vault.infra.checkmk_automation_signature_key_passphrase }}"
+
+  agent:
+    registration:
+      server:   "{{ checkmk.server.dns }}"
+      protocol: https
+      delegate: true
+
+    site:           "{{ checkmk.server.site }}"
+    version:      "{{ checkmk.version }}"
+    edition:      "{{ checkmk.edition }}"

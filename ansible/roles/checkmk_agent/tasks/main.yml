@@ -1,0 +1,77 @@
+- name: "Check connectivity to infra server"
+  ansible.builtin.ping:
+  delegate_to: infra
+
+- name: "Verify Checkmk site '{{ checkmk_settings.agent.site }}' is running"
+  ansible.builtin.command:
+    cmd: "omd status {{ checkmk_settings.agent.site }}"
+  register: omd_status
+  failed_when:
+    - omd_status.rc != 0
+    - omd_status.stdout is not regex('^Overall state:\\s*running', multiline=False)
+  delegate_to: infra
+
+- name: "Register host '{{ inventory_hostname }}' in Checkmk"
+  checkmk.general.host:
+    server_url:    "{{ checkmk_settings.server.protocol }}://{{ checkmk_settings.server.address }}:{{ checkmk_settings.server.port }}"
+    site:          "{{ checkmk_settings.agent.site }}"
+    automation_user:   "{{ checkmk_settings.server.user_automation }}"
+    automation_secret: "{{ checkmk_settings.server.user_automation_secret }}"
+    name:     "{{ inventory_hostname }}"
+    attributes:
+      ipaddress:  "{{ ansible_host }}"
+    state: present
+
+- name: "Activate site changes for '{{ inventory_hostname }}' host"
+  checkmk.general.activation:
+    server_url:    "{{ checkmk_settings.server.protocol }}://{{ checkmk_settings.server.address }}:{{ checkmk_settings.server.port }}"
+    site:          "{{ checkmk_settings.agent.site }}"
+    automation_user:   "{{ checkmk_settings.server.user_automation }}"
+    automation_secret: "{{ checkmk_settings.server.user_automation_secret }}"
+    force_foreign_changes: 'true'
+  run_once: 'true'
+
+- name: "Bake and sign all agents for Checkmk site '{{ checkmk_settings.agent.site }}'"
+  checkmk.general.bakery:
+    server_url:    "{{ checkmk_settings.server.protocol }}://{{ checkmk_settings.server.address }}:{{ checkmk_settings.server.port }}"
+    site:          "{{ checkmk_settings.agent.site }}"
+    automation_user:   "{{ checkmk_settings.server.user_automation }}"
+    automation_secret: "{{ checkmk_settings.server.user_automation_secret }}"
+    signature_key_id: "{{ checkmk_settings.server.bakery.signature_key_id }}"
+    signature_key_passphrase: "{{ checkmk_settings.server.bakery.signature_key_passphrase }}"
+    state: "baked_signed"
+  
+- name: "Install, configure, and register Checkmk agent"
+  ansible.builtin.include_role:
+    name: checkmk.general.agent
+  vars:
+    checkmk_agent_version: "{{ checkmk_settings.agent.version }}"
+    checkmk_agent_edition: "{{ checkmk_settings.agent.edition }}"
+    checkmk_agent_server_protocol: "{{ checkmk_settings.server.protocol }}"
+    checkmk_agent_server_validate_certs: "{{ checkmk_settings.server.validate_certs }}"
+    checkmk_agent_server_port: "{{ checkmk_settings.server.port }}"
+    checkmk_agent_server: "{{ checkmk_settings.server.address }}"
+    checkmk_agent_registration_server: "{{ checkmk_settings.agent.registration.server }}"
+    checkmk_agent_site: "{{ checkmk_settings.agent.site }}"
+    checkmk_agent_mode: pull
+    checkmk_agent_add_host: false
+    checkmk_agent_update: true
+    checkmk_agent_tls: true
+    checkmk_agent_discover: true
+    checkmk_agent_user: "{{ checkmk_settings.server.user_automation }}"
+    checkmk_agent_secret: "{{ checkmk_settings.server.user_automation_secret }}"
+    checkmk_agent_host_name: "{{ inventory_hostname }}"
+    checkmk_agent_host_ip: "{{ ansible_host }}"
+    checkmk_agent_no_log: false
+    checkmk_agent_delegate_registration: true
+    checkmk_agent_registration_server_protocol: https
+    checkmk_agent_force_foreign_changes: true
+
+- name: "Activate site changes for '{{ inventory_hostname }}' Checkmk agent registration"
+  checkmk.general.activation:
+    server_url:    "{{ checkmk_settings.server.protocol }}://{{ checkmk_settings.server.address }}:{{ checkmk_settings.server.port }}"
+    site:          "{{ checkmk_settings.agent.site }}"
+    automation_user:   "{{ checkmk_settings.server.user_automation }}"
+    automation_secret: "{{ checkmk_settings.server.user_automation_secret }}"
+    force_foreign_changes: 'true'
+  run_once: 'true'

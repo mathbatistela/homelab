@@ -1,8 +1,8 @@
 - name: Get ISO storage directory
   community.general.proxmox_storage_info:
-    api_host: "{{ pve_api_host }}"
-    api_user: "{{ pve_api_user }}"
-    api_password: "{{ pve_api_password }}"
+    api_host: "{{ vault.pve.api_host }}"
+    api_user: "{{ vault.pve.api_user }}"
+    api_password: "{{ vault.pve.api_password }}"
     storage: "{{ pve_iso_storage }}"
   register: iso_store
   delegate_to: localhost
@@ -19,9 +19,9 @@
 
 - name: Get snippets storage directory
   community.general.proxmox_storage_info:
-    api_host: "{{ pve_api_host }}"
-    api_user: "{{ pve_api_user }}"
-    api_password: "{{ pve_api_password }}"
+    api_host: "{{ vault.pve.api_host }}"
+    api_user: "{{ vault.pve.api_user }}"
+    api_password: "{{ vault.pve.api_password }}"
     storage: "{{ pve_snippets_storage }}"
   register: snippets_store
   delegate_to: localhost
@@ -58,9 +58,9 @@
 
 - name: Create VM templates on Proxmox
   community.general.proxmox_kvm:
-    api_host: "{{ pve_api_host }}"
-    api_user: "{{ pve_api_user }}"
-    api_password: "{{ pve_api_password }}"
+    api_host: "{{ vault.pve.api_host }}"
+    api_user: "{{ vault.pve.api_user }}"
+    api_password: "{{ vault.pve.api_password }}"
     node: "{{ pve_node }}"
     vmid: "{{ item.value.vmid }}"
     name: "{{ item.value.name }}"
@@ -88,9 +88,9 @@
 
 - name: Import downloaded image into VM disk
   community.general.proxmox_disk:
-    api_host: "{{ pve_api_host }}"
-    api_user: "{{ pve_api_user }}"
-    api_password: "{{ pve_api_password }}"
+    api_host: "{{ vault.pve.api_host }}"
+    api_user: "{{ vault.pve.api_user }}"
+    api_password: "{{ vault.pve.api_password }}"
     vmid: "{{ item.value.vmid }}"
     import_from: "{{ pve_iso_dir }}/{{ item.value.iso_url | basename | splitext | first }}.img"
     format: "{{ pve_templates_disk_format }}"

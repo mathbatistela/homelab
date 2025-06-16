@@ -1,5 +1,5 @@
 pve_templates_ci_user_name: "vm"
-pve_templates_ssh_public_key: "{{ ssh_public_key | default('') }}"
+pve_templates_ssh_public_key: "{{ vault.all.ssh_public_key | default('') }}"
 pve_templates_ci_user_password_hash: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           65643334333636336633663137656530386231333130363562366534663663653462396363363663

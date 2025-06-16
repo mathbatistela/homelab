@@ -1,0 +1,20 @@
+- name: "Deploy *arr media stack under Docker"
+  hosts: media
+  gather_facts: true
+  become: true
+  roles:
+    - arr_stack
+
+- name: "Adds samba for homeshare"
+  hosts: media
+  gather_facts: true
+  become: true
+  roles:
+    - samba_share
+
+- name: "Deploy Checkmk agent"
+  hosts: media
+  roles:
+     - checkmk.general.agent
+  tags:
+    - checkmk_agent

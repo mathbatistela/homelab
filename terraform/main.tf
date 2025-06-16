@@ -44,7 +44,7 @@ resource "proxmox_lxc" "infra_server" {
   ostemplate   = local.default_ostemplate
   unprivileged = true
 
-  cores  = 1
+  cores  = 2
   memory = 4096
   swap   = 512
 

@@ -1,8 +1,0 @@
-- name: "Deploy media stack under Docker"
-  hosts: media
-  gather_facts: true
-  become: true
-
-  roles:
-    - arr_stack
-    - samba_share

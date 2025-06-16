@@ -36,3 +36,10 @@
 
   roles:
      - geerlingguy.postgresql
+
+- name: "Deploy Checkmk agent"
+  hosts: database
+  roles:
+     - checkmk.general.agent
+  tags:
+    - checkmk_agent

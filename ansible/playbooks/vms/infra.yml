@@ -1,0 +1,97 @@
+- name: "Install Traefik"
+  hosts: infra
+  gather_facts: true
+  become: true
+  roles:
+    - traefik
+
+- name: Check if Traefik service is active
+  ansible.builtin.systemd:
+    name: traefik
+  register: traefik_status
+  failed_when: false
+  changed_when: false
+  tags:
+    - traefik_status
+
+- name: Cache Traefik availability
+  set_fact:
+    traefik_available: "{{ traefik_status.status.ActiveState == 'active' }}"
+  vars:
+    cacheable: true
+  tags:
+    - traefik_status
+
+- name: "Deploy Checkmk server"
+  hosts: infra
+  roles:
+     - checkmk.general.server
+  tags:
+    - checkmk_server
+
+- name: "Config traefik for Checkmk"
+  hosts: infra
+  tasks:
+  - name: Add Checkmk dynamic config
+    include_role:
+      name: traefik
+      tasks_from: configure_service
+    vars:
+      traefik_conf:
+        filename: checkmk.yml
+        content: |
+          http:
+            routers:
+              checkmk:
+                rule: "Host(`checkmk.{{ traefik_local_domain }}`)"
+                entryPoints:
+                  - https
+                service: checkmk-service
+                middlewares:
+                  - checkmk-redirect
+                tls:
+                  certResolver: {{ traefik_cert_resolver_name }}
+
+            middlewares:
+              checkmk-redirect:
+                redirectRegex:
+                  regex: "^https://checkmk.{{ traefik_local_domain }}/$"
+                  replacement: "https://checkmk.{{ traefik_local_domain }}/homelab/check_mk/"
+                  permanent: true
+
+            services:
+              checkmk-service:
+                loadBalancer:
+                  servers:
+                    - url: "http://127.0.0.1:5000"
+
+- name: Check and cache Checkmk availability
+  hosts: infra
+  gather_facts: false
+  tasks:
+    - name: Check if Checkmk WebUI is reachable
+      uri:
+        url: http://127.0.0.1:5000/homelab/check_mk/
+        method: GET
+        return_content: no
+        status_code: 200
+        timeout: 3
+      register: checkmk_status
+      failed_when: false
+      changed_when: false
+
+    - name: Cache checkmk availability
+      ansible.builtin.set_fact:
+        checkmk_available: "{{ checkmk_status.status == 200 }}"
+        cacheable: true
+  tags:
+    - checkmk_status
+
+
+
+- name: "Deploy Checkmk agent"
+  hosts: infra
+  roles:
+     - checkmk.general.agent
+  tags:
+    - checkmk_agent

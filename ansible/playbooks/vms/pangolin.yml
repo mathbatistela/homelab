@@ -1,0 +1,70 @@
+---
+- name: Configure UFW to allow HTTP, HTTPS, and WireGuard
+  hosts: racknerd_vm0
+  become: true
+  tasks:
+    - name: Ensure UFW is installed
+      ansible.builtin.package:
+        name: ufw
+        state: present
+
+    - name: Allow TCP port 80 (HTTP)
+      community.general.ufw:
+        rule: allow
+        port: 80
+        proto: tcp
+
+    - name: Allow TCP port 443 (HTTPS)
+      community.general.ufw:
+        rule: allow
+        port: 443
+        proto: tcp
+
+    - name: Allow UDP port 51820 (WireGuard)
+      community.general.ufw:
+        rule: allow
+        port: 51820
+        proto: udp
+
+    - name: Ensure UFW is enabled
+      community.general.ufw:
+        state: enabled
+        policy: deny
+
+- name: Install Docker and deploy Newt on infra
+  hosts: infra
+  become: true
+  tags:
+    - newt_agent
+
+  pre_tasks:
+    - name: Fetch Pangolin container info on racknerd_vm0
+      community.docker.docker_container_info:
+        name: pangolin
+      delegate_to: racknerd_vm0
+      register: pangolin_remote
+
+    - name: Assert Pangolin container is present and running
+      ansible.builtin.assert:
+        that:
+          - pangolin_remote.exists
+          - pangolin_remote.container.State.Running
+        fail_msg: "Pangolin container is not running on racknerd_vm0"
+
+  tasks:
+    - name: Verify Docker is installed
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Deploy Newt agent container
+      community.docker.docker_container:
+        name: newt_agent
+        image: fosrl/newt
+        command: >-
+          --id "{{ pangolin_newt_id }}"
+          --secret "{{ pangolin_newt_secret }}"
+          --endpoint "{{ pangolin_newt_endpoint }}"
+        detach: true
+        tty: true
+        restart_policy: unless-stopped

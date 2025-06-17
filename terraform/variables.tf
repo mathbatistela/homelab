@@ -62,3 +62,25 @@ variable "ansible_inventory_out" {
   type        = string
   default     = "inventory.ini"
 }
+
+# Cloudflare variables
+variable "cloudflare_email" {
+  description = "Cloudflare account email."
+  type        = string
+}
+
+variable "cloudflare_api_key" {
+  description = "Cloudflare API key with permissions to manage DNS records."
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare zone ID for the domain you want to manage."
+  type        = string
+}
+
+variable "racknerd_v0_ip" {
+  description = "RackNerd v0 IP address to be used in the DNS record."
+  type        = string
+}

@@ -1,0 +1,156 @@
+---
+- name: Ensure GPG tooling is installed
+  ansible.builtin.apt:
+    name:
+      - gnupg
+      - dirmngr
+    state: present
+    update_cache: yes
+  become: yes
+  tags:
+    - minecraft_deps
+
+- name: Add Adoptium GPG key
+  ansible.builtin.apt_key:
+    url: https://packages.adoptium.net/artifactory/api/gpg/key/public
+    state: present
+  become: yes
+  tags:
+    - minecraft_deps
+
+- name: Add Adoptium APT repository
+  ansible.builtin.apt_repository:
+    repo: deb https://packages.adoptium.net/artifactory/deb bookworm main
+    state: present
+    filename: adoptium.list
+  become: yes
+  tags:
+    - minecraft_deps
+
+- name: Update apt cache and upgrade packages
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: dist
+  become: yes
+  tags:
+    - minecraft_deps
+    - minecraft_update
+
+- name: Install required dependencies
+  ansible.builtin.apt:
+    name:
+      - temurin-21-jdk
+      - wget
+      - curl
+      - jq
+      - unzip
+      - screen
+      - sudo
+    state: present
+  become: yes
+  tags:
+    - minecraft_deps
+
+- name: Create 'minecraft' group
+  ansible.builtin.group:
+    name: minecraft
+    state: present
+  become: yes
+  tags:
+    - minecraft_user
+
+- name: Create 'minecraft' user
+  ansible.builtin.user:
+    name: minecraft
+    group: minecraft
+    home: /opt/minecraft
+    shell: /bin/bash
+    create_home: no
+    system: yes
+  become: yes
+  tags:
+    - minecraft_user
+
+- name: Create Minecraft server directory
+  ansible.builtin.file:
+    path: /opt/minecraft
+    state: directory
+    owner: minecraft
+    group: minecraft
+    mode: '0755'
+  become: yes
+  tags:
+    - minecraft_setup
+
+- name: Get the latest PaperMC version
+  ansible.builtin.uri:
+    url: https://api.papermc.io/v2/projects/paper
+    method: GET
+    return_content: yes
+  register: papermc_versions
+  tags:
+    - minecraft_download
+
+- name: Set fact for the latest Minecraft version
+  ansible.builtin.set_fact:
+    minecraft_version: "{{ papermc_versions.json.versions | last }}"
+  tags:
+    - minecraft_download
+
+- name: Get the latest build for the determined version
+  ansible.builtin.uri:
+    url: "https://api.papermc.io/v2/projects/paper/versions/{{ minecraft_version }}"
+    method: GET
+    return_content: yes
+  register: papermc_builds
+  tags:
+    - minecraft_download
+
+- name: Set fact for the latest Minecraft build
+  ansible.builtin.set_fact:
+    minecraft_build: "{{ papermc_builds.json.builds | last }}"
+  tags:
+    - minecraft_download
+
+- name: Validate if PaperMC version and build were retrieved
+  ansible.builtin.fail:
+    msg: "ERROR: Could not retrieve the latest PaperMC version or build. Check https://papermc.io/downloads"
+  when: minecraft_version is not defined or minecraft_build is not defined or minecraft_version == '' or minecraft_build == ''
+  tags:
+    - minecraft_download
+
+- name: Download server.jar
+  ansible.builtin.get_url:
+    url: "https://api.papermc.io/v2/projects/paper/versions/{{ minecraft_version }}/builds/{{ minecraft_build }}/downloads/paper-{{ minecraft_version }}-{{ minecraft_build }}.jar"
+    dest: /opt/minecraft/server.jar
+    owner: minecraft
+    group: minecraft
+    mode: '0644'
+  become: yes
+  tags:
+    - minecraft_download
+
+- name: Accept Minecraft EULA
+  ansible.builtin.copy:
+    content: "eula=true"
+    dest: /opt/minecraft/eula.txt
+    owner: minecraft
+    group: minecraft
+    mode: '0644'
+  become: yes
+  tags:
+    - minecraft_setup
+
+- name: Create systemd service file for Minecraft
+  ansible.builtin.template:
+    src: minecraft.service.j2
+    dest: /etc/systemd/system/minecraft.service
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  notify:
+    - Reload systemd
+    - Start and enable minecraft service
+  tags:
+    - minecraft_service

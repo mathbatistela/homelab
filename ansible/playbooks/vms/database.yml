@@ -1,45 +1,81 @@
-- name: Add official PostgreSQL 17 repository (Debian 12)
+- name: Prepare and install PostgreSQL "{{ postgresql_version }}"
   hosts: database
-  become: yes
-  tasks:
-    - name: Ensure sudo is installed
-      apt:
-        name: sudo
-        state: present
-        update_cache: yes
+  become: true
 
-    - name: Create pgdg keyring directory
-      file:
-        path: /usr/share/postgresql-common/pgdg
-        state: directory
-        mode: '0755'
+  vars:
+    pg_codename: "bookworm-pgdg"
+    pg_key_url: "https://www.postgresql.org/media/keys/ACCC4CF8.asc"
+    pg_keyring: "/usr/share/keyrings/pgdg-archive-keyring.gpg"
+    pg_repo: "deb [signed-by={{ pg_keyring }}] https://apt.postgresql.org/pub/repos/apt {{ pg_codename }} main"
 
-    - name: Download PostgreSQL repository public key
-      get_url:
-        url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
-        dest: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
-        mode: '0644'
+  pre_tasks:
+    - block:
+        - name: Ensure GnuPG is installed (for apt_key)
+          apt:
+            name: gnupg
+            state: present
 
-    - name: Add official PostgreSQL repository to sources.list.d
-      copy:
-        dest: /etc/apt/sources.list.d/pgdg.list
-        content: "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main\n"
-        mode: '0644'
+        - name: Add PostgreSQL APT key
+          apt_key:
+            url: "{{ pg_key_url }}"
+            keyring: "{{ pg_keyring }}"
+            state: present
 
-    - name: Update APT cache
-      apt:
-        update_cache: yes
+        - name: Add PostgreSQL APT repository
+          apt_repository:
+            repo: "{{ pg_repo }}"
+            filename: pgdg
+            
+        - name: Update apt cache
+          apt:
+            update_cache: yes
 
-- name: Install and configure PostgreSQL databases
+      tags: postgresql_repo_setup
+
+  roles:
+    - role: geerlingguy.postgresql
+      vars:
+       postgres_users_no_log: false
+       postgresql_users:
+        - name: fresh_rss_user
+          password: "{{ vault.database.fresh_rss_user_pw }}" 
+        - name: n8n_user
+          password: "{{ vault.database.n8n_user_pw }}"
+        - name: calcom_user
+          password: "{{ vault.database.calcom_user_pw }}"
+        - name: invoice_ninja_user
+          password: "{{ vault.database.n8n_user_pw }}"
+
+      postgresql_databases:
+        - name: fresh_rss_database
+          owner: fresh_rss_user
+        - name: n8n_database
+          owner: n8n_user
+        - name: calcom_database
+          owner: calcom_user
+        - name: invoice_ninja_database
+          owner: invoice_ninja_user
+      
+
+  tags: postgresql_install
+
+- name: Prepare and install InfluxDB
   hosts: database
   become: true
 
   roles:
-     - geerlingguy.postgresql
+    - role: influxdb
+      vars:
+        influxdb_databases:
+          - name: "homeassistant"
+          - name: "localtraefik"
+  tags: influxdb_install
 
-- name: "Deploy Checkmk agent"
+- name: Prepare and install Redis
   hosts: database
+  become: true
+
   roles:
-     - checkmk.general.agent
-  tags:
-    - checkmk_agent
+    - role: geerlingguy.redis
+
+  tags: redis_install

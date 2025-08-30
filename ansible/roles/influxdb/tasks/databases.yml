@@ -1,0 +1,24 @@
+---
+- name: "Wait for InfluxDB to be ready"
+  ansible.builtin.wait_for:
+    port: 8181
+    host: 127.0.0.1
+    timeout: 30
+    delay: 5
+
+- name: "Load InfluxDB admin token from file"
+  ansible.builtin.set_fact:
+    influxdb_admin_token: "{{ lookup('file', role_path + '/files/influxdb_token.auth') }}"
+  run_once: true
+  no_log: true
+
+- name: "Get list of existing InfluxDB databases"
+  ansible.builtin.command: /usr/local/bin/influxdb3 show databases --token "{{ influxdb_admin_token }}" --format csv
+  register: existing_databases
+  changed_when: false
+
+- name: "Create specified InfluxDB databases"
+  ansible.builtin.command: /usr/local/bin/influxdb3 create database "{{ item.name }}" --token "{{ influxdb_admin_token }}"
+  loop: "{{ influxdb_databases }}"
+  when: "item.name not in existing_databases.stdout_lines"
+  changed_when: true

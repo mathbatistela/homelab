@@ -1,0 +1,92 @@
+---
+# - name: "Ensure required dependencies are installed (curl, tar)"
+#   ansible.builtin.apt:
+#     name:
+#       - curl
+#       - tar
+#     state: present
+#     update_cache: yes
+
+- name: "Build the InfluxDB download URL"
+  ansible.builtin.set_fact:
+    influxdb_download_url: "https://dl.influxdata.com/influxdb/releases/influxdb3-core-{{ influxdb_version }}_linux_{{ influxdb_arch }}.tar.gz"
+
+- name: "Check if InfluxDB binary exists"
+  ansible.builtin.stat:
+    path: "{{ influxdb_install_dir }}/influxdb3"
+  register: influxdb_binary_stat
+
+- name: "Get installed InfluxDB version (if it exists)"
+  ansible.builtin.command: "{{ influxdb_install_dir }}/influxdb3 -V"
+  register: influxdb_current_version_cmd
+  when: influxdb_binary_stat.stat.exists
+  changed_when: false
+
+- name: "Set fact for the current version"
+  ansible.builtin.set_fact:
+    influxd_installed_version: "{{ influxdb_current_version_cmd.stdout | regex_search('(?<=influxdb3 )([0-9]+\\.[0-9]+\\.[0-9]+)') }}"
+  when: influxdb_binary_stat.stat.exists and influxdb_current_version_cmd.stdout is defined
+
+- name: "Installation/Update block for InfluxDB"
+  when: not influxdb_binary_stat.stat.exists or influxd_installed_version != influxdb_version
+  block:
+    - name: "Download and unarchive the InfluxDB v3 binary"
+      ansible.builtin.unarchive:
+        src: "{{ influxdb_download_url }}"
+        dest: "/tmp/"
+        remote_src: yes
+        mode: '0755'
+
+    - name: "Remove old installation directory if it exists"
+      ansible.builtin.file:
+        path: "{{ influxdb_install_dir }}"
+        state: absent
+
+    - name: "Move extracted directory to permanent installation path"
+      ansible.builtin.copy:
+        src: "/tmp/influxdb3-core-{{ influxdb_version }}/"
+        dest: "{{ influxdb_install_dir }}/"
+        remote_src: yes
+        mode: '0755'
+        owner: root
+        group: root
+      notify: Restart influxdb3
+
+    - name: "Create symbolic link to binary in /usr/local/bin"
+      ansible.builtin.file:
+        src: "{{ influxdb_install_dir }}/influxdb3"
+        dest: "/usr/local/bin/influxdb3"
+        state: link
+        force: yes
+
+    - name: "Clean up temporary unarchived directory"
+      ansible.builtin.file:
+        path: "/tmp/influxdb3-core-{{ influxdb_version }}"
+        state: absent
+
+- name: "Create data and configuration directories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  loop:
+    - "{{ influxdb_data_dir }}"
+    - "{{ influxdb_config_dir }}"
+
+- name: "Create systemd service file from template"
+  ansible.builtin.template:
+    src: influxd.service.j2
+    dest: /etc/systemd/system/influxdb3.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart influxdb3
+
+- name: "Reload systemd, enable and start InfluxDB service"
+  ansible.builtin.systemd:
+    name: influxdb3
+    state: started
+    enabled: yes
+    daemon_reload: yes

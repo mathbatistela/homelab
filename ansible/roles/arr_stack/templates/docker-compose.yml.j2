@@ -44,20 +44,6 @@ services:
     env_file:
       - .env
 
-  readarr:
-    image: linuxserver/readarr:develop
-    container_name: readarr
-    hostname: readarr
-    volumes:
-      - "{{ arr_stack_config_path }}/readarr/config:/config"
-      - "{{ arr_stack_config_path }}/readarr/backup:/data/backup"
-      - "{{ arr_stack_data_path }}:/data"
-    ports:
-      - "8787:8787"
-    restart: unless-stopped
-    env_file:
-      - .env
-
   bazarr:
     image: linuxserver/bazarr:latest
     container_name: bazarr
@@ -140,6 +126,20 @@ services:
       - TZ=${TZ:-UTC}
     ports:
       - "8191:8191"
+    restart: unless-stopped
+    env_file:
+      - .env
+
+  kavita:
+    image: linuxserver/kavita:latest
+    container_name: kavita
+    hostname: kavita
+    volumes:
+      - "{{ arr_stack_config_path }}/kavita/config:/config"
+      - "{{ arr_stack_config_path }}/kavita/backup:/data/backup"
+      - "{{ arr_stack_data_path }}:/data"
+    ports:
+      - "5000:5000"
     restart: unless-stopped
     env_file:
       - .env

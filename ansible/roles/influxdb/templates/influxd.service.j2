@@ -1,0 +1,17 @@
+[Unit]
+Description=InfluxDB v3 Service
+Documentation=https://github.com/InfluxData/influxdb
+After=network-online.target
+
+[Service]
+# Set the library path to include the bundled Python environment
+Environment="LD_LIBRARY_PATH={{ influxdb_install_dir }}/python/lib"
+# By default, without User/Group directives, the service will run as root.
+ExecStart={{ influxdb_install_dir }}/influxdb3 serve --object-store {{ influxdb_object_store }} --data-dir {{ influxdb_data_dir }} --node-id {{ influxdb_node_id }}
+Restart=on-failure
+KillMode=process
+LimitNOFILE=65536
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target

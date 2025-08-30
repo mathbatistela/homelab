@@ -18,14 +18,6 @@ postgresql_unix_socket_directories:
 postgresql_locales:
   - 'en_US.UTF-8'
   - 'pt_BR.UTF-8'
-  
-postgresql_users:
-  - name: fresh_rss_user
-    password: "{{ database_freshrss_password }}"
-
-postgresql_databases:
-  - name: fresh_rss_database
-    owner: fresh_rss_user
 
 postgresql_hba_entries:
   - { type: local, database: all, user: postgres, auth_method: peer }

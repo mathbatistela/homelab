@@ -1,0 +1,10 @@
+---
+# https://github.com/InfluxData/influxdb/releases
+influxdb_version: "3.1.0"
+influxdb_arch: "amd64"
+influxdb_install_dir: "/opt/influxdb3"
+influxdb_data_dir: "/var/lib/influxdb3"
+influxdb_config_dir: "/etc/influxdb3"
+influxdb_node_id: "n0"
+influxdb_object_store: "file"
+influxdb_databases: []

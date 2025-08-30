@@ -1,0 +1,15 @@
+---
+- name: "Include installation tasks"
+  ansible.builtin.import_tasks: install.yml
+  tags:
+    - influxdb_role_install
+
+- name: "Include setup tasks"
+  ansible.builtin.import_tasks: setup.yml
+  tags:
+    - influxdb_setup
+
+- name: "Include database creation tasks"
+  ansible.builtin.import_tasks: databases.yml
+  tags:
+    - influxdb_databases

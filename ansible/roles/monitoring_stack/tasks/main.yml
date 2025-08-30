@@ -1,0 +1,25 @@
+---
+- name: Create installation directory
+  file:
+    path: "{{ monitoring_install_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Sync stack files
+  synchronize:
+    src: "files/docker_compose_files/"
+    dest: "{{ monitoring_stack_dir }}/"
+    delete: true
+  delegate_to: localhost
+
+- name: Ensure stack directory permissions
+  file:
+    path: "{{ monitoring_stack_dir }}"
+    state: directory
+    mode: "0755"
+    recurse: true
+
+# - name: Bring up stack
+#   command: docker compose up -d
+#   args:
+#     chdir: "{{ monitoring_stack_dir }}"

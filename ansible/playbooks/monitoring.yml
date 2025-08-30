@@ -1,4 +1,7 @@
-- name: Monitoring Setup
-  hosts: monitred
+- name: "Deploy monitoring stack"
+  hosts: infra
   roles:
-    - role: checkmk_agent
+    - geerlingguy.docker
+    - monitoring_stack
+  tags:
+    - monitoring_stack

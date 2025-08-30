@@ -1,0 +1,6 @@
+- name: Setup minecraft server
+  hosts: minecraft
+  gather_facts: false
+
+  roles:
+    - minecraft_server

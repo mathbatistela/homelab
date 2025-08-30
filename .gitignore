@@ -37,7 +37,7 @@ terraform.rc
 infrastructure/vms/proxmox/data/**
 ansible/collections/**
 .cache
-**.pass
+**.auth
 
 __pycache__/
 *.pyc

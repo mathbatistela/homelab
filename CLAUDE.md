@@ -10,7 +10,9 @@ This is a homelab infrastructure-as-code repository that manages a Proxmox-based
 
 ### Two-Layer Infrastructure Management
 
-1. **Terraform Layer** (`terraform/`): Provisions Proxmox LXC containers and manages DNS records in Cloudflare
+1. **Terraform Layer** (`terraform/`): Infrastructure provisioning, split into:
+   - `terraform/home/`: Proxmox LXC containers for local homelab
+   - `terraform/cloud/`: Cloudflare DNS + AWS resources
 2. **Ansible Layer** (`ansible/`): Configures and manages services within the provisioned containers
 
 ### Virtual Machine Architecture
@@ -41,26 +43,27 @@ Key design pattern: Playbooks in `ansible/playbooks/vms/` correspond to specific
 
 ### Terraform Operations
 
+The terraform configuration is split into two modules:
+
+**Home (Proxmox LXC containers):**
 ```bash
-cd terraform
+cd terraform/home
 
-# Initialize Terraform
-terraform init
-
-# Plan infrastructure changes
-terraform plan
-
-# Apply infrastructure changes
-terraform apply
-
-# Destroy infrastructure
-terraform destroy
-
-# Format Terraform files
-terraform fmt -recursive
+tofu init           # Initialize
+tofu plan           # Plan changes
+tofu apply          # Apply changes
 ```
 
-**Important**: Terraform manages both Proxmox LXC containers (`main.tf`) and Cloudflare DNS records (`vms_dns.tf`, `dns.tf`). Changes to VM definitions require Terraform apply.
+**Cloud (Cloudflare DNS + AWS):**
+```bash
+cd terraform/cloud
+
+tofu init           # Initialize
+tofu plan           # Plan changes
+tofu apply          # Apply changes
+```
+
+**Important**: Each module has its own state file and `terraform.tfvars` (git-ignored). Always run commands from within the specific module directory.
 
 ### Ansible Operations
 
@@ -118,11 +121,11 @@ ansible-vault rekey inventories/local/group_vars/all/vault.yml
 
 ### Adding a New VM
 
-1. Add Terraform resource in `terraform/main.tf` following the existing pattern
-2. Add corresponding DNS entry in `terraform/vms_dns.tf` locals
+1. Add Terraform resource in `terraform/home/main.tf` following the existing pattern
+2. Add corresponding DNS entry in `terraform/cloud/vms_dns.tf` locals
 3. Add host to `ansible/inventories/local/hosts.yml`
 4. Create playbook in `ansible/playbooks/vms/<hostname>.yml`
-5. Apply: `terraform apply` then `ansible-playbook playbooks/vms/<hostname>.yml`
+5. Apply: `cd terraform/home && tofu apply`, then `cd terraform/cloud && tofu apply`, then `ansible-playbook playbooks/vms/<hostname>.yml`
 
 ### Adding a New Ansible Role
 
@@ -187,8 +190,9 @@ Credentials are stored in vault as `vault.database.<service>_user_pw`.
 - `ansible/requirements.yml`: External Ansible collections dependencies
 - `ansible/inventories/local/hosts.yml`: Inventory defining all managed hosts
 - `ansible/inventories/local/group_vars/all/vault.yml`: Encrypted secrets (git-tracked but encrypted)
-- `terraform/providers.tf`: Terraform provider configuration for Proxmox and Cloudflare
-- `terraform/variables.tf`: Terraform variable definitions (values in `.tfvars` which are git-ignored)
+- `terraform/home/`: Proxmox LXC container definitions
+- `terraform/cloud/`: Cloudflare DNS + AWS resource definitions
+- `terraform/*/terraform.tfvars`: Variable values (git-ignored, contains secrets)
 
 ## Network and Access
 

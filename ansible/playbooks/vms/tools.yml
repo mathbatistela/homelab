@@ -1,6 +1,7 @@
 - hosts: tools
   roles:
     - geerlingguy.docker
+    - actual_budget
 
   tasks:
     - name: Ensure Portainer is running
@@ -15,3 +16,5 @@
           - /var/run/docker.sock:/var/run/docker.sock
           - portainer_data:/data
         state: started
+      tags:
+        - portainer

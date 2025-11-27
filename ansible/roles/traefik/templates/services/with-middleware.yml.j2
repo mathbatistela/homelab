@@ -1,0 +1,43 @@
+http:
+  routers:
+    {{ traefik_conf.service_name }}:
+      entryPoints:
+        - "https"
+      rule: "Host(`{{ traefik_conf.service_host }}`)"
+      service: "{{ traefik_conf.service_name }}-service"
+{% if traefik_conf.service_middlewares is defined and traefik_conf.service_middlewares | length > 0 %}
+      middlewares:
+{% for middleware in traefik_conf.service_middlewares %}
+        - {{ traefik_conf.service_name }}-{{ middleware.name }}
+{% endfor %}
+{% endif %}
+      tls:
+        certResolver: "{{ traefik_cert_resolver_name }}"
+
+{% if traefik_conf.service_middlewares is defined and traefik_conf.service_middlewares | length > 0 %}
+  middlewares:
+{% for middleware in traefik_conf.service_middlewares %}
+    {{ traefik_conf.service_name }}-{{ middleware.name }}:
+{% if middleware.type == 'basicAuth' %}
+      basicAuth:
+        users:
+          - "{{ middleware.users }}"
+{% elif middleware.type == 'redirectRegex' %}
+      redirectRegex:
+        regex: "{{ middleware.regex }}"
+        replacement: "{{ middleware.replacement }}"
+        permanent: {{ middleware.permanent | default(true) }}
+{% elif middleware.type == 'headers' %}
+      headers:
+{% for key, value in middleware.headers.items() %}
+        {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+  services:
+    {{ traefik_conf.service_name }}-service:
+      loadBalancer:
+        servers:
+          - url: "{{ traefik_conf.service_backend_url }}"

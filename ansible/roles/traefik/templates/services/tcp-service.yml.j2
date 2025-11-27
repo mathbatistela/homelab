@@ -1,0 +1,13 @@
+tcp:
+  routers:
+    {{ traefik_conf.service_name }}:
+      entryPoints:
+        - "{{ traefik_conf.service_entrypoint }}"
+      rule: "HostSNI(`*`)"
+      service: "{{ traefik_conf.service_name }}-service"
+
+  services:
+    {{ traefik_conf.service_name }}-service:
+      loadBalancer:
+        servers:
+          - address: "{{ traefik_conf.service_backend_address }}"

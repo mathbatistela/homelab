@@ -14,3 +14,14 @@
     group: root
     mode: "0644"
   notify: Restart Traefik
+  when: traefik_conf.content is defined
+
+- name: Deploy template-based Traefik config to conf.d
+  ansible.builtin.template:
+    src: "services/{{ traefik_conf.template }}.yml.j2"
+    dest: "{{ traefik_config_path }}/conf.d/{{ traefik_conf.filename | default(traefik_conf.service_name + '.yml') }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Traefik
+  when: traefik_conf.template is defined

@@ -1,0 +1,15 @@
+http:
+  routers:
+    {{ traefik_conf.service_name }}:
+      entryPoints:
+        - "https"
+      rule: "Host(`{{ traefik_conf.service_host }}`)"
+      service: "{{ traefik_conf.service_name }}-service"
+      tls:
+        certResolver: "{{ traefik_cert_resolver_name }}"
+
+  services:
+    {{ traefik_conf.service_name }}-service:
+      loadBalancer:
+        servers:
+          - url: "{{ traefik_conf.service_backend_url }}"

@@ -5,45 +5,95 @@
   roles:
     - traefik
 
-- name: "Deploy Checkmk server"
-  hosts: infra
-  roles:
-     - checkmk.general.server
-  tags:
-    - checkmk_server
-
-- name: "Config traefik for Checkmk"
+- name: "Config traefik for Actual Budget"
   hosts: infra
   tasks:
-  - name: Add Checkmk dynamic config
+  - name: Add Actual Budget service to Traefik
     include_role:
       name: traefik
       tasks_from: configure_service
     vars:
       traefik_conf:
-        filename: checkmk.yml
+        template: simple-http
+        service_name: actual-budget
+        service_host: budget.{{ traefik_local_domain }}
+        service_backend_url: http://192.168.1.107:5006
+  tags:
+    - traefik_config
+
+- name: "Config traefik for Authelia"
+  hosts: infra
+  tasks:
+  - name: Add Authelia service and middleware to Traefik
+    include_role:
+      name: traefik
+      tasks_from: configure_service
+    vars:
+      traefik_conf:
+        filename: authelia.yml
         content: |
           http:
+            # Authelia service router
             routers:
-              checkmk:
-                rule: "Host(`checkmk.{{ traefik_local_domain }}`)"
+              authelia:
+                rule: "Host(`auth.{{ traefik_local_domain }}`)"
                 entryPoints:
                   - https
-                service: checkmk-service
-                middlewares:
-                  - checkmk-redirect
+                service: authelia-service
                 tls:
                   certResolver: {{ traefik_cert_resolver_name }}
 
+            # Authelia ForwardAuth middleware for protecting other services
             middlewares:
-              checkmk-redirect:
-                redirectRegex:
-                  regex: "^https://checkmk.{{ traefik_local_domain }}/$"
-                  replacement: "https://checkmk.{{ traefik_local_domain }}/homelab/check_mk/"
-                  permanent: true
+              authelia:
+                forwardAuth:
+                  address: "http://192.168.1.109:9091/api/authz/forward-auth"
+                  trustForwardHeader: true
+                  authResponseHeaders:
+                    - "Remote-User"
+                    - "Remote-Groups"
+                    - "Remote-Email"
+                    - "Remote-Name"
 
+            # Authelia backend service
             services:
-              checkmk-service:
+              authelia-service:
                 loadBalancer:
                   servers:
-                    - url: "http://127.0.0.1:5000"
+                    - url: "http://192.168.1.109:9091"
+  tags:
+    - traefik_authelia
+
+- name: "Config traefik for Portainer"
+  hosts: infra
+  tasks:
+  - name: Add Portainer service to Traefik
+    include_role:
+      name: traefik
+      tasks_from: configure_service
+    vars:
+      traefik_conf:
+        filename: portainer.yml
+        content: |
+          http:
+            routers:
+              portainer:
+                rule: "Host(`portainer.{{ traefik_local_domain }}`)"
+                entryPoints:
+                  - https
+                service: portainer-service
+                tls:
+                  certResolver: {{ traefik_cert_resolver_name }}
+
+            services:
+              portainer-service:
+                loadBalancer:
+                  serversTransport: portainer-transport
+                  servers:
+                    - url: "https://192.168.1.107:9443"
+
+            serversTransports:
+              portainer-transport:
+                insecureSkipVerify: true
+  tags:
+    - traefik_portainer

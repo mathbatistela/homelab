@@ -45,6 +45,8 @@
           password: "{{ vault.database.calcom_user_pw }}"
         - name: invoice_ninja_user
           password: "{{ vault.database.n8n_user_pw }}"
+        - name: adhd_board_user
+          password: "{{ vault.database.adhd_board_user_pw }}"
 
       postgresql_databases:
         - name: fresh_rss_database
@@ -53,8 +55,8 @@
           owner: n8n_user
         - name: calcom_database
           owner: calcom_user
-        - name: invoice_ninja_database
-          owner: invoice_ninja_user
+        - name: adhd_board_database
+          owner: adhd_board_user
       
 
   tags: postgresql_install

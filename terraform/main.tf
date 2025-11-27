@@ -26,8 +26,8 @@ resource "proxmox_lxc" "media_server" {
   network {
     name   = "eth0"
     bridge = local.default_network_bridge
-    ip     = "192.168.237.101/24"
-    gw     = "192.168.237.254"
+    ip     = "192.168.1.101/24"
+    gw     = "192.168.1.254"
   }
 
   onboot  = true
@@ -60,8 +60,8 @@ resource "proxmox_lxc" "infra_server" {
   network {
     name   = "eth0"
     bridge = local.default_network_bridge
-    ip     = "192.168.237.102/24"
-    gw     = "192.168.237.254"
+    ip     = "192.168.1.102/24"
+    gw     = "192.168.1.254"
   }
 
   onboot  = true
@@ -95,8 +95,8 @@ resource "proxmox_lxc" "database_server" {
   network {
     name   = "eth0"
     bridge = local.default_network_bridge
-    ip     = "192.168.237.103/24"
-    gw     = "192.168.237.254"
+    ip     = "192.168.1.103/24"
+    gw     = "192.168.1.254"
   }
 
   onboot  = true
@@ -128,8 +128,8 @@ resource "proxmox_lxc" "minecraft_server" {
   network {
     name   = "eth0"
     bridge = local.default_network_bridge
-    ip     = "192.168.237.105/24"
-    gw     = "192.168.237.254"
+    ip     = "192.168.1.105/24"
+    gw     = "192.168.1.254"
   }
 
   onboot  = true
@@ -170,8 +170,8 @@ resource "proxmox_lxc" "tools_server" {
   network {
     name   = "eth0"
     bridge = local.default_network_bridge
-    ip     = "192.168.237.107/24"
-    gw     = "192.168.237.254"
+    ip     = "192.168.1.107/24"
+    gw     = "192.168.1.254"
   }
 
   onboot  = true
@@ -202,8 +202,8 @@ resource "proxmox_lxc" "tailscale_server" {
   network {
     name   = "eth0"
     bridge = local.default_network_bridge
-    ip     = "192.168.237.108/24"
-    gw     = "192.168.237.254"
+    ip     = "192.168.1.108/24"
+    gw     = "192.168.1.254"
   }
 
   onboot  = true

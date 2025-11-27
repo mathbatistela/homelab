@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  actual-budget:
+    image: actualbudget/actual-server:latest
+    container_name: actual-budget
+    restart: unless-stopped
+    ports:
+      - "5006:5006"
+    volumes:
+      - /mnt/homeshare/docker/actual-budget:/data
+    environment:
+      - ACTUAL_PORT=5006
+      - ACTUAL_OPENID_DISCOVERY_URL=https://auth.batistela.tech/.well-known/openid-configuration
+      - ACTUAL_OPENID_CLIENT_ID=actual-budget
+      - ACTUAL_OPENID_CLIENT_SECRET={{ vault.tools.actual_budget_openid_client_secret }}
+      - ACTUAL_OPENID_SERVER_HOSTNAME=https://budget.batistela.tech
+    networks:
+      - actual-network
+
+networks:
+  actual-network:
+    driver: bridge

@@ -1,0 +1,30 @@
+---
+- name: Ensure Actual Budget data directory exists on homeshare
+  ansible.builtin.file:
+    path: /mnt/homeshare/docker/actual-budget
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create docker-compose directory for Actual Budget
+  ansible.builtin.file:
+    path: /root/docker-compose-apps/actual-budget
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Copy Actual Budget docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /root/docker-compose-apps/actual-budget/docker-compose.yml
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Deploy Actual Budget using docker-compose
+  community.docker.docker_compose_v2:
+    project_src: /root/docker-compose-apps/actual-budget
+    state: present
+    pull: always

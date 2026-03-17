@@ -47,6 +47,8 @@
           password: "{{ vault.database.n8n_user_pw }}"
         - name: adhd_board_user
           password: "{{ vault.database.adhd_board_user_pw }}"
+        - name: localiza_app_user
+          password: "{{ vault.database.localiza_app_user_pw }}"
 
       postgresql_databases:
         - name: fresh_rss_database
@@ -57,6 +59,8 @@
           owner: calcom_user
         - name: adhd_board_database
           owner: adhd_board_user
+        - name: localiza_database
+          owner: localiza_app_user
       
 
   tags: postgresql_install

@@ -1,6 +1,7 @@
 - name: Prepare and install PostgreSQL "{{ postgresql_version }}"
   hosts: database
   become: true
+  gather_facts: true
 
   vars:
     pg_codename: "bookworm-pgdg"
@@ -11,23 +12,23 @@
   pre_tasks:
     - block:
         - name: Ensure GnuPG is installed (for apt_key)
-          apt:
+          ansible.builtin.apt:
             name: gnupg
             state: present
 
         - name: Add PostgreSQL APT key
-          apt_key:
+          ansible.builtin.apt_key:
             url: "{{ pg_key_url }}"
             keyring: "{{ pg_keyring }}"
             state: present
 
         - name: Add PostgreSQL APT repository
-          apt_repository:
+          ansible.builtin.apt_repository:
             repo: "{{ pg_repo }}"
             filename: pgdg
             
         - name: Update apt cache
-          apt:
+          ansible.builtin.apt:
             update_cache: yes
 
       tags: postgresql_repo_setup
@@ -44,7 +45,7 @@
         - name: calcom_user
           password: "{{ vault.database.calcom_user_pw }}"
         - name: invoice_ninja_user
-          password: "{{ vault.database.n8n_user_pw }}"
+          password: "{{ vault.database.invoice_ninja_user_pw }}"
         - name: adhd_board_user
           password: "{{ vault.database.adhd_board_user_pw }}"
         - name: localiza_app_user
@@ -61,6 +62,8 @@
           owner: adhd_board_user
         - name: localiza_database
           owner: localiza_app_user
+        - name: invoice_ninja_database
+          owner: invoice_ninja_user
       
 
   tags: postgresql_install
@@ -68,6 +71,7 @@
 - name: Prepare and install InfluxDB
   hosts: database
   become: true
+  gather_facts: true
 
   roles:
     - role: influxdb
@@ -80,6 +84,7 @@
 - name: Prepare and install Redis
   hosts: database
   become: true
+  gather_facts: true
 
   roles:
     - role: geerlingguy.redis

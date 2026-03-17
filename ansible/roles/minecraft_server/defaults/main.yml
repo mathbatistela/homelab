@@ -1,0 +1,6 @@
+---
+minecraft_server_user: minecraft
+minecraft_server_group: minecraft
+minecraft_server_home: /opt/minecraft
+minecraft_server_java_package: temurin-21-jdk
+minecraft_server_jar: server.jar

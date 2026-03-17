@@ -1,0 +1,11 @@
+skip_list:
+  - yaml[line-length]
+  - name[missing]
+exclude_paths:
+  - roles/geerlingguy.docker/
+  - roles/geerlingguy.postgresql/
+  - roles/geerlingguy.redis/
+  - collections/
+warn_list:
+  - command-instead-of-module
+  - no-changed-when

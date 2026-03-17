@@ -1,5 +1,7 @@
 - name: "Deploy monitoring stack"
   hosts: infra
+  become: true
+  gather_facts: true
   roles:
     - geerlingguy.docker
     - monitoring_stack

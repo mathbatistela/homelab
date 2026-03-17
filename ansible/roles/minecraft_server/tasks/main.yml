@@ -6,7 +6,6 @@
       - dirmngr
     state: present
     update_cache: yes
-  become: yes
   tags:
     - minecraft_deps
 
@@ -14,7 +13,6 @@
   ansible.builtin.apt_key:
     url: https://packages.adoptium.net/artifactory/api/gpg/key/public
     state: present
-  become: yes
   tags:
     - minecraft_deps
 
@@ -23,7 +21,6 @@
     repo: deb https://packages.adoptium.net/artifactory/deb bookworm main
     state: present
     filename: adoptium.list
-  become: yes
   tags:
     - minecraft_deps
 
@@ -31,7 +28,6 @@
   ansible.builtin.apt:
     update_cache: yes
     upgrade: dist
-  become: yes
   tags:
     - minecraft_deps
     - minecraft_update
@@ -39,7 +35,7 @@
 - name: Install required dependencies
   ansible.builtin.apt:
     name:
-      - temurin-21-jdk
+      - "{{ minecraft_server_java_package }}"
       - wget
       - curl
       - jq
@@ -47,38 +43,34 @@
       - screen
       - sudo
     state: present
-  become: yes
   tags:
     - minecraft_deps
 
 - name: Create 'minecraft' group
   ansible.builtin.group:
-    name: minecraft
+    name: "{{ minecraft_server_group }}"
     state: present
-  become: yes
   tags:
     - minecraft_user
 
 - name: Create 'minecraft' user
   ansible.builtin.user:
-    name: minecraft
-    group: minecraft
-    home: /opt/minecraft
+    name: "{{ minecraft_server_user }}"
+    group: "{{ minecraft_server_group }}"
+    home: "{{ minecraft_server_home }}"
     shell: /bin/bash
     create_home: no
     system: yes
-  become: yes
   tags:
     - minecraft_user
 
 - name: Create Minecraft server directory
   ansible.builtin.file:
-    path: /opt/minecraft
+    path: "{{ minecraft_server_home }}"
     state: directory
-    owner: minecraft
-    group: minecraft
+    owner: "{{ minecraft_server_user }}"
+    group: "{{ minecraft_server_group }}"
     mode: '0755'
-  become: yes
   tags:
     - minecraft_setup
 
@@ -122,22 +114,20 @@
 - name: Download server.jar
   ansible.builtin.get_url:
     url: "https://api.papermc.io/v2/projects/paper/versions/{{ minecraft_version }}/builds/{{ minecraft_build }}/downloads/paper-{{ minecraft_version }}-{{ minecraft_build }}.jar"
-    dest: /opt/minecraft/server.jar
-    owner: minecraft
-    group: minecraft
+    dest: "{{ minecraft_server_home }}/{{ minecraft_server_jar }}"
+    owner: "{{ minecraft_server_user }}"
+    group: "{{ minecraft_server_group }}"
     mode: '0644'
-  become: yes
   tags:
     - minecraft_download
 
 - name: Accept Minecraft EULA
   ansible.builtin.copy:
     content: "eula=true"
-    dest: /opt/minecraft/eula.txt
-    owner: minecraft
-    group: minecraft
+    dest: "{{ minecraft_server_home }}/eula.txt"
+    owner: "{{ minecraft_server_user }}"
+    group: "{{ minecraft_server_group }}"
     mode: '0644'
-  become: yes
   tags:
     - minecraft_setup
 
@@ -148,7 +138,6 @@
     owner: root
     group: root
     mode: '0644'
-  become: yes
   notify:
     - Reload systemd
     - Start and enable minecraft service

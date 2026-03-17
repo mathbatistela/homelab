@@ -13,10 +13,10 @@
 
 - name: "Register host '{{ inventory_hostname }}' in Checkmk"
   checkmk.general.host:
-    server_url:    "{{ checkmk_settings.server.protocol }}://{{ checkmk_settings.server.address }}:{{ checkmk_settings.server.port }}"
-    site:          "{{ checkmk_settings.agent.site }}"
-    automation_user:   "{{ checkmk_settings.server.user_automation }}"
-    automation_secret: "{{ checkmk_settings.server.user_automation_secret }}"
+    server_url:    "{{ checkmk_server_url }}"
+    site:          "{{ checkmk_site }}"
+    automation_user:   "{{ checkmk_automation_user }}"
+    automation_secret: "{{ checkmk_automation_secret }}"
     name:     "{{ inventory_hostname }}"
     attributes:
       ipaddress:  "{{ ansible_host }}"
@@ -24,19 +24,19 @@
 
 - name: "Activate site changes for '{{ inventory_hostname }}' host"
   checkmk.general.activation:
-    server_url:    "{{ checkmk_settings.server.protocol }}://{{ checkmk_settings.server.address }}:{{ checkmk_settings.server.port }}"
-    site:          "{{ checkmk_settings.agent.site }}"
-    automation_user:   "{{ checkmk_settings.server.user_automation }}"
-    automation_secret: "{{ checkmk_settings.server.user_automation_secret }}"
+    server_url:    "{{ checkmk_server_url }}"
+    site:          "{{ checkmk_site }}"
+    automation_user:   "{{ checkmk_automation_user }}"
+    automation_secret: "{{ checkmk_automation_secret }}"
     force_foreign_changes: 'true'
   run_once: 'true'
 
-- name: "Bake and sign all agents for Checkmk site '{{ checkmk_settings.agent.site }}'"
+- name: "Bake and sign all agents for Checkmk site '{{ checkmk_site }}'"
   checkmk.general.bakery:
-    server_url:    "{{ checkmk_settings.server.protocol }}://{{ checkmk_settings.server.address }}:{{ checkmk_settings.server.port }}"
-    site:          "{{ checkmk_settings.agent.site }}"
-    automation_user:   "{{ checkmk_settings.server.user_automation }}"
-    automation_secret: "{{ checkmk_settings.server.user_automation_secret }}"
+    server_url:    "{{ checkmk_server_url }}"
+    site:          "{{ checkmk_site }}"
+    automation_user:   "{{ checkmk_automation_user }}"
+    automation_secret: "{{ checkmk_automation_secret }}"
     signature_key_id: "{{ checkmk_settings.server.bakery.signature_key_id }}"
     signature_key_passphrase: "{{ checkmk_settings.server.bakery.signature_key_passphrase }}"
     state: "baked_signed"
@@ -69,9 +69,9 @@
 
 - name: "Activate site changes for '{{ inventory_hostname }}' Checkmk agent registration"
   checkmk.general.activation:
-    server_url:    "{{ checkmk_settings.server.protocol }}://{{ checkmk_settings.server.address }}:{{ checkmk_settings.server.port }}"
-    site:          "{{ checkmk_settings.agent.site }}"
-    automation_user:   "{{ checkmk_settings.server.user_automation }}"
-    automation_secret: "{{ checkmk_settings.server.user_automation_secret }}"
+    server_url:    "{{ checkmk_server_url }}"
+    site:          "{{ checkmk_site }}"
+    automation_user:   "{{ checkmk_automation_user }}"
+    automation_secret: "{{ checkmk_automation_secret }}"
     force_foreign_changes: 'true'
   run_once: 'true'

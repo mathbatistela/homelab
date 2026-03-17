@@ -3,11 +3,11 @@ Description=Minecraft Server
 After=network.target
 
 [Service]
-User=minecraft
-Group=minecraft
-WorkingDirectory=/opt/minecraft
-ExecStart=/usr/bin/screen -dmS minecraft /usr/bin/java -Xms2G -Xmx4G -jar server.jar nogui
-ExecStop=/usr/bin/screen -S minecraft -X stuff "stop\n"
+User={{ minecraft_server_user }}
+Group={{ minecraft_server_group }}
+WorkingDirectory={{ minecraft_server_home }}
+ExecStart=/usr/bin/screen -dmS {{ minecraft_server_user }} /usr/bin/java -Xms2G -Xmx4G -jar {{ minecraft_server_jar }} nogui
+ExecStop=/usr/bin/screen -S {{ minecraft_server_user }} -X stuff "stop\n"
 TimeoutStopSec=60
 Restart=on-failure
 RestartSec=5

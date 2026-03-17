@@ -1,19 +1,19 @@
 ---
 - name: Create installation directory
-  file:
+  ansible.builtin.file:
     path: "{{ monitoring_install_dir }}"
     state: directory
     mode: "0755"
 
 - name: Sync stack files
-  synchronize:
+  ansible.posix.synchronize:
     src: "files/docker_compose_files/"
     dest: "{{ monitoring_stack_dir }}/"
     delete: true
   delegate_to: localhost
 
 - name: Ensure stack directory permissions
-  file:
+  ansible.builtin.file:
     path: "{{ monitoring_stack_dir }}"
     state: directory
     mode: "0755"

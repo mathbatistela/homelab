@@ -1,6 +1,7 @@
 - name: Setup minecraft server
   hosts: minecraft
-  gather_facts: false
+  gather_facts: true
+  become: true
 
   roles:
     - minecraft_server

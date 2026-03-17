@@ -2,6 +2,7 @@
 - name: Configure UFW to allow HTTP, HTTPS, and WireGuard
   hosts: racknerd_vm0
   become: true
+  gather_facts: true
   tasks:
     - name: Ensure UFW is installed
       ansible.builtin.package:
@@ -34,6 +35,7 @@
 - name: Install Docker and deploy Newt on infra
   hosts: infra
   become: true
+  gather_facts: true
   tags:
     - newt_agent
 

@@ -20,3 +20,9 @@ checkmk_settings:
     site:           "{{ checkmk.server.site }}"
     version:      "{{ checkmk.version }}"
     edition:      "{{ checkmk.edition }}"
+
+# Derived variables for DRY task blocks
+checkmk_server_url: "{{ checkmk_settings.server.protocol }}://{{ checkmk_settings.server.address }}:{{ checkmk_settings.server.port }}"
+checkmk_automation_user: "{{ checkmk_settings.server.user_automation }}"
+checkmk_automation_secret: "{{ checkmk_settings.server.user_automation_secret }}"
+checkmk_site: "{{ checkmk_settings.agent.site }}"

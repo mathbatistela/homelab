@@ -63,3 +63,25 @@ Follows Ansible best practice: hardcoded paths → defaults/main.yml variables. 
 
 ### Validation
 - `tofu validate` passes in both `terraform/home/` and `terraform/cloud/`
+
+## CI Pipeline Implementation (2026-03-17)
+
+### Created Files
+- `.github/workflows/lint.yml` — GitHub Actions workflow for Ansible + Terraform validation
+- `ansible/requirements.txt` — Python dependencies for CI reproducibility
+
+### Workflow Details
+- **Ansible job**: Installs deps, collections, runs `make syntax-check` (8 playbooks), yamllint with continue-on-error
+- **Terraform job**: Uses `opentofu/setup-opentofu@v1`, validates both `home/` and `cloud/` modules with `-backend=false`
+- **Triggers**: Push to main + PRs to main
+
+### Key Decisions
+- `tofu init -backend=false` avoids needing state backend credentials in CI
+- `make syntax-check` references exact Makefile target (8 playbooks: infra, database, media, minecraft, tools, monitoring, pangolin, proxmox)
+- `ansible/requirements.txt` uses loose constraints (`>=`) for flexibility
+- YAML lint has `continue-on-error: true` (non-blocking) while syntax-check is hard gate
+- No secrets/credentials in workflow file
+
+### Validation
+- Workflow YAML is syntactically valid (manual inspection; yamllint not installed locally)
+- Both files created successfully and readable

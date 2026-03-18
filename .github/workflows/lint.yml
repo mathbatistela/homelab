@@ -1,0 +1,43 @@
+name: Lint & Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ansible-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install -r ansible/requirements.txt
+
+      - name: Install Ansible collections
+        run: cd ansible && ansible-galaxy collection install -r requirements.yml
+
+      - name: Syntax check all playbooks
+        run: make syntax-check
+
+      - name: YAML lint
+        run: cd ansible && yamllint -c .yamllint.yml .
+        continue-on-error: true
+
+  terraform-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: opentofu/setup-opentofu@v1
+
+      - name: Validate home module
+        run: cd terraform/home && tofu init -backend=false && tofu validate
+
+      - name: Validate cloud module
+        run: cd terraform/cloud && tofu init -backend=false && tofu validate

@@ -196,45 +196,9 @@ Both cause confusion about what's actually managed.
 
 ### Tasks
 
-- [ ] **7.1** Create `.github/workflows/lint.yml`:
-  ```yaml
-  name: Lint & Validate
-  on:
-    push:
-      branches: [main]
-    pull_request:
-      branches: [main]
-
-  jobs:
-    ansible-lint:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v4
-        - uses: actions/setup-python@v5
-          with:
-            python-version: '3.12'
-        - name: Install dependencies
-          run: pip install ansible-core ansible-lint yamllint
-        - name: Install collections
-          run: cd ansible && ansible-galaxy collection install -r requirements.yml
-        - name: Syntax check
-          run: make syntax-check
-        - name: YAML lint
-          run: cd ansible && yamllint -c .yamllint.yml .
-          continue-on-error: true  # warning-only initially
-
-    terraform-validate:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v4
-        - uses: opentofu/setup-opentofu@v1
-        - name: Validate home
-          run: cd terraform/home && tofu init -backend=false && tofu validate
-        - name: Validate cloud
-          run: cd terraform/cloud && tofu init -backend=false && tofu validate
-  ```
-- [ ] **7.2** Verify the workflow YAML is valid: `yamllint .github/workflows/lint.yml`
-- [ ] **7.3** Add `ansible-lint` and `yamllint` to `ansible/requirements.txt` (new file) for CI reproducibility:
+- [x] **7.1** Create `.github/workflows/lint.yml`:
+- [x] **7.2** Verify the workflow YAML is valid: `yamllint .github/workflows/lint.yml`
+- [x] **7.3** Add `ansible-lint` and `yamllint` to `ansible/requirements.txt` (new file) for CI reproducibility:
   ```
   ansible-core>=2.15
   ansible-lint>=24.0

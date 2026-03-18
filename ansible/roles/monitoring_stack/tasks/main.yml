@@ -10,7 +10,9 @@
     src: "files/docker_compose_files/"
     dest: "{{ monitoring_stack_dir }}/"
     delete: true
+    private_key: "{{ ansible_ssh_private_key_file }}"
   delegate_to: localhost
+  become: false
 
 - name: Ensure stack directory permissions
   ansible.builtin.file:
@@ -19,7 +21,21 @@
     mode: "0755"
     recurse: true
 
-# - name: Bring up stack
-#   command: docker compose up -d
-#   args:
-#     chdir: "{{ monitoring_stack_dir }}"
+- name: Template Prometheus config from inventory
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ monitoring_stack_dir }}/configs/prometheus/prometheus.yml"
+    mode: "0644"
+  register: prometheus_config
+
+- name: Bring up stack
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: "{{ monitoring_stack_dir }}"
+  changed_when: true
+
+- name: Reload Prometheus config
+  ansible.builtin.command:
+    cmd: docker restart prometheus
+  when: prometheus_config is changed
+  changed_when: true

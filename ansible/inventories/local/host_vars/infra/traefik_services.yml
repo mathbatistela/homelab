@@ -21,18 +21,20 @@ traefik_services:
     service_host: "test.{{ traefik_local_domain }}"
     service_backend_url: "http://100.75.65.121:8083"
 
-  # ── Services with middleware (template-based) ─────────────────────────────
+  - service_name: grafana
+    template: simple-http
+    service_host: "grafana.{{ traefik_local_domain }}"
+    service_backend_url: "http://127.0.0.1:3000"
 
-  - service_name: checkmk
-    template: with-middleware
-    service_host: "checkmk.{{ traefik_local_domain }}"
-    service_backend_url: "http://127.0.0.1:5000"
-    service_middlewares:
-      - name: redirect
-        type: redirectRegex
-        regex: "^https://checkmk.{{ traefik_local_domain }}/$"
-        replacement: "https://checkmk.{{ traefik_local_domain }}/homelab/check_mk/"
-        permanent: true
+  - service_name: prometheus
+    template: simple-http
+    service_host: "prometheus.{{ traefik_local_domain }}"
+    service_backend_url: "http://127.0.0.1:9090"
+
+  - service_name: alertmanager
+    template: simple-http
+    service_host: "alertmanager.{{ traefik_local_domain }}"
+    service_backend_url: "http://127.0.0.1:9093"
 
   # ── TCP services (template-based) ─────────────────────────────────────────
 

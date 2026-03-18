@@ -11,12 +11,3 @@
   become: true
   roles:
     - samba_share
-
-- name: "Deploy Checkmk agent"
-  hosts: media
-  become: true
-  gather_facts: true
-  roles:
-     - checkmk.general.agent
-  tags:
-    - checkmk_agent

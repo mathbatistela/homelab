@@ -1,0 +1,4 @@
+---
+cadvisor_version: "v0.52.0"
+cadvisor_port: 9080
+cadvisor_container_name: "cadvisor"

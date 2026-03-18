@@ -6,7 +6,7 @@ positions:
   filename: /tmp/positions.yaml
 
 clients:
-  - url: http://loki:3100/loki/api/v1/push
+  - url: {{ promtail_loki_url }}
 
 scrape_configs:
   - job_name: docker
@@ -19,7 +19,7 @@ scrape_configs:
         target_label: 'container'
       - source_labels: ['__meta_docker_container_log_stream']
         target_label: 'logstream'
-      - replacement: 'infra'
+      - replacement: '{{ inventory_hostname }}'
         target_label: 'host'
     pipeline_stages:
       - cri: {}

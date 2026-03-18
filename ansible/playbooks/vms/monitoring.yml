@@ -1,3 +1,24 @@
+- name: "Deploy node_exporter on all monitored hosts"
+  hosts: monitored_nodes
+  become: true
+  gather_facts: true
+  roles:
+    - node_exporter
+
+- name: "Deploy cAdvisor on Docker hosts"
+  hosts: docker_monitored
+  become: true
+  gather_facts: true
+  roles:
+    - cadvisor
+
+- name: "Deploy Promtail on Docker hosts"
+  hosts: docker_monitored
+  become: true
+  gather_facts: true
+  roles:
+    - promtail
+
 - name: "Deploy monitoring stack"
   hosts: infra
   become: true

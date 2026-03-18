@@ -1,0 +1,28 @@
+---
+- name: Create promtail config directory
+  ansible.builtin.file:
+    path: "{{ promtail_config_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Deploy promtail configuration
+  ansible.builtin.template:
+    src: promtail.yaml.j2
+    dest: "{{ promtail_config_dir }}/promtail.yaml"
+    mode: "0644"
+  register: promtail_config
+
+- name: Deploy promtail container
+  community.docker.docker_container:
+    name: "{{ promtail_container_name }}"
+    image: "grafana/promtail:{{ promtail_version }}"
+    state: started
+    restart_policy: unless-stopped
+    command: -config.file=/etc/promtail/promtail.yaml
+    volumes:
+      - "{{ promtail_config_dir }}/promtail.yaml:/etc/promtail/promtail.yaml:ro"
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    cpus: 0.5
+    memory: 256m
+    restart: "{{ promtail_config is changed }}"

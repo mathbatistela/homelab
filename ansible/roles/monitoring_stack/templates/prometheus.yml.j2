@@ -1,0 +1,49 @@
+global:
+  scrape_interval: 15s
+  external_labels:
+    namespace: local
+
+rule_files:
+  - /etc/prometheus/recording-rules.yml
+  - /etc/prometheus/alerting-rules.yml
+
+alerting:
+  alertmanagers:
+    - scheme: http
+      static_configs:
+        - targets: ['alertmanager:9093']
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          host: infra
+
+  - job_name: alertmanager
+    static_configs:
+      - targets: ['alertmanager:9093']
+        labels:
+          host: infra
+
+  - job_name: node-exporter
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          host: infra
+{% for host in groups['monitored_nodes'] %}
+      - targets: ['{{ hostvars[host].ansible_host }}:9100']
+        labels:
+          host: {{ host }}
+{% endfor %}
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          host: infra
+{% for host in groups['docker_monitored'] %}
+      - targets: ['{{ hostvars[host].ansible_host }}:9080']
+        labels:
+          host: {{ host }}
+{% endfor %}

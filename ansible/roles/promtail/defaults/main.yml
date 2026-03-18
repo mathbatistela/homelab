@@ -1,0 +1,5 @@
+---
+promtail_version: "3.5.3"
+promtail_container_name: "promtail"
+promtail_loki_url: "http://{{ hostvars['infra'].ansible_host }}:3100/loki/api/v1/push"
+promtail_config_dir: "/opt/promtail"

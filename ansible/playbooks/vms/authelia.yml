@@ -2,8 +2,4 @@
   hosts: authelia
   become: true
   gather_facts: true
-
-  # TODO: configure Authelia service
-  # This host is deployed but not yet managed by Ansible.
-  # Traefik proxy config exists in host_vars/infra/traefik_services.yml.
   tasks: []

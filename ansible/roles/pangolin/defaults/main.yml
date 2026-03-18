@@ -42,3 +42,13 @@ pangolin_disable_signup_without_invite: true
 pangolin_disable_user_create_org: false
 pangolin_allow_raw_resources: true
 pangolin_allow_base_domain_resources: true
+pangolin_enable_integration_api: true
+
+# Integration API / Blueprints
+pangolin_org_id: "batistela-tech"
+pangolin_site_nice_id: "far-desert-pocket-gopher"
+pangolin_api_url: "https://pangolin-api.{{ pangolin_base_domain }}"
+# pangolin_api_key: set in cloud vault
+
+# Blueprint resource definitions (override in group_vars/host_vars)
+pangolin_blueprint: {}

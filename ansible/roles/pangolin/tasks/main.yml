@@ -59,3 +59,42 @@
     cmd: docker compose up -d
     chdir: "{{ pangolin_install_dir }}"
   changed_when: true
+
+- name: Deploy Pangolin blueprint
+  ansible.builtin.template:
+    src: blueprint.yml.j2
+    dest: "{{ pangolin_config_dir }}/blueprint.yml"
+    mode: "0644"
+  when: pangolin_blueprint | length > 0
+  register: pangolin_blueprint_file
+
+- name: Wait for Integration API to be ready
+  ansible.builtin.uri:
+    url: "{{ pangolin_api_url }}/v1/org/{{ pangolin_org_id }}/domains"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ pangolin_api_key }}"
+    status_code: 200
+  delegate_to: localhost
+  become: false
+  retries: 6
+  delay: 10
+  until: _api_check is not failed
+  register: _api_check
+  when: pangolin_blueprint_file is changed
+
+- name: Apply Pangolin blueprint via API
+  ansible.builtin.uri:
+    url: "{{ pangolin_api_url }}/v1/org/{{ pangolin_org_id }}/blueprint"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ pangolin_api_key }}"
+    body_format: json
+    body:
+      blueprint: "{{ pangolin_blueprint | to_json | b64encode }}"
+    status_code:
+      - 200
+      - 201
+  delegate_to: localhost
+  become: false
+  when: pangolin_blueprint_file is changed

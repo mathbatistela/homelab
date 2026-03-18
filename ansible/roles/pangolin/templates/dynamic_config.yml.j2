@@ -86,6 +86,22 @@ http:
       service: api-service
       tls:
         certResolver: letsencrypt
+    int-api-router-redirect:
+      entryPoints:
+        - web
+      middlewares:
+        - redirect-to-https
+      rule: Host(`pangolin-api.{{ pangolin_base_domain }}`)
+      service: int-api-service
+    int-api-router:
+      entryPoints:
+        - websecure
+      middlewares:
+        - security-headers
+      rule: Host(`pangolin-api.{{ pangolin_base_domain }}`)
+      service: int-api-service
+      tls:
+        certResolver: letsencrypt
   services:
     api-service:
       loadBalancer:
@@ -95,3 +111,7 @@ http:
       loadBalancer:
         servers:
           - url: http://pangolin:3002
+    int-api-service:
+      loadBalancer:
+        servers:
+          - url: http://pangolin:3003

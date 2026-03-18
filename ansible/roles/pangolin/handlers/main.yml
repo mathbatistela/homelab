@@ -1,0 +1,6 @@
+---
+- name: Restart pangolin stack
+  ansible.builtin.command:
+    cmd: docker compose up -d --force-recreate
+    chdir: "{{ pangolin_install_dir }}"
+  changed_when: true

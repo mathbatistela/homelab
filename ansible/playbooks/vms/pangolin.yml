@@ -1,5 +1,5 @@
 ---
-- name: Configure UFW to allow HTTP, HTTPS, and WireGuard
+- name: Configure UFW firewall
   hosts: racknerd_vm0
   become: true
   gather_facts: true
@@ -9,30 +9,40 @@
         name: ufw
         state: present
 
-    - name: Allow TCP port 80 (HTTP)
+    - name: Allow required ports
       community.general.ufw:
         rule: allow
-        port: 80
-        proto: tcp
+        port: "{{ item.port }}"
+        proto: "{{ item.proto }}"
+      loop:
+        - { port: "22", proto: tcp }
+        - { port: "80", proto: tcp }
+        - { port: "443", proto: tcp }
+        - { port: "25565", proto: tcp }
+        - { port: "51820", proto: udp }
 
-    - name: Allow TCP port 443 (HTTPS)
+    - name: Remove stale CheckMK port
       community.general.ufw:
         rule: allow
-        port: 443
+        port: "6556"
         proto: tcp
-
-    - name: Allow UDP port 51820 (WireGuard)
-      community.general.ufw:
-        rule: allow
-        port: 51820
-        proto: udp
+        delete: true
+      ignore_errors: true
 
     - name: Ensure UFW is enabled
       community.general.ufw:
         state: enabled
         policy: deny
 
-- name: Install Docker and deploy Newt on infra
+- name: Deploy Pangolin stack
+  hosts: racknerd_vm0
+  become: true
+  gather_facts: true
+  roles:
+    - geerlingguy.docker
+    - pangolin
+
+- name: Deploy Newt agent on infra
   hosts: infra
   become: true
   gather_facts: true
@@ -54,11 +64,6 @@
         fail_msg: "Pangolin container is not running on racknerd_vm0"
 
   tasks:
-    - name: Verify Docker is installed
-      ansible.builtin.command: docker --version
-      register: docker_version
-      changed_when: false
-
     - name: Deploy Newt agent container
       community.docker.docker_container:
         name: newt_agent

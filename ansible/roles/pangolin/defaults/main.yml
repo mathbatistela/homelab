@@ -1,0 +1,44 @@
+---
+pangolin_install_dir: "/root"
+pangolin_config_dir: "{{ pangolin_install_dir }}/config"
+
+pangolin_version: "latest"
+gerbil_version: "latest"
+traefik_version: "latest"
+crowdsec_version: "latest"
+
+pangolin_base_domain: "batistela.tech"
+pangolin_dashboard_url: "https://pangolin.{{ pangolin_base_domain }}"
+
+# pangolin_server_secret: set in cloud vault
+# pangolin_admin_password: set in cloud vault
+pangolin_admin_email: "admin@{{ pangolin_base_domain }}"
+pangolin_log_level: "info"
+
+# pangolin_smtp_pass: set in cloud vault
+pangolin_smtp_host: "smtp.zoho.com"
+pangolin_smtp_port: 587
+pangolin_smtp_user: "matheus@{{ pangolin_base_domain }}"
+pangolin_smtp_from: "matheus@{{ pangolin_base_domain }}"
+
+pangolin_gerbil_start_port: 51820
+pangolin_gerbil_subnet: "100.89.137.0/20"
+pangolin_gerbil_block_size: 24
+pangolin_gerbil_site_block_size: 30
+
+pangolin_acme_email: "matheus@{{ pangolin_base_domain }}"
+
+# pangolin_crowdsec_lapi_key: set in cloud vault
+pangolin_crowdsec_enroll_name: "pangolin-crowdsec"
+
+pangolin_http_port: 80
+pangolin_https_port: 443
+pangolin_wireguard_port: 51820
+pangolin_minecraft_port: 25565
+pangolin_crowdsec_port: 6060
+
+pangolin_require_email_verification: false
+pangolin_disable_signup_without_invite: true
+pangolin_disable_user_create_org: false
+pangolin_allow_raw_resources: true
+pangolin_allow_base_domain_resources: true

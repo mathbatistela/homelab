@@ -1,0 +1,66 @@
+app:
+  dashboard_url: {{ pangolin_dashboard_url }}
+  log_level: {{ pangolin_log_level }}
+  save_logs: false
+domains:
+  domain1:
+    base_domain: {{ pangolin_base_domain }}
+    cert_resolver: letsencrypt
+server:
+  external_port: 3000
+  internal_port: 3001
+  next_port: 3002
+  internal_hostname: pangolin
+  session_cookie_name: p_session_token
+  resource_access_token_param: p_token
+  resource_access_token_headers:
+    id: P-Access-Token-Id
+    token: P-Access-Token
+  resource_session_request_param: p_session_request
+  secret: {{ pangolin_server_secret }}
+  cors:
+    origins:
+      - {{ pangolin_dashboard_url }}
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+    allowed_headers:
+      - X-CSRF-Token
+      - Content-Type
+    credentials: false
+traefik:
+  cert_resolver: letsencrypt
+  http_entrypoint: web
+  https_entrypoint: websecure
+gerbil:
+  start_port: {{ pangolin_gerbil_start_port }}
+  base_endpoint: pangolin.{{ pangolin_base_domain }}
+  use_subdomain: false
+  block_size: {{ pangolin_gerbil_block_size }}
+  site_block_size: {{ pangolin_gerbil_site_block_size }}
+  subnet_group: {{ pangolin_gerbil_subnet }}
+rate_limits:
+  global:
+    window_minutes: 1
+    max_requests: 500
+users:
+  server_admin:
+    email: {{ pangolin_admin_email }}
+    password: {{ pangolin_admin_password }}
+flags:
+  require_email_verification: {{ pangolin_require_email_verification | lower }}
+  disable_signup_without_invite: {{ pangolin_disable_signup_without_invite | lower }}
+  disable_user_create_org: {{ pangolin_disable_user_create_org | lower }}
+  allow_raw_resources: {{ pangolin_allow_raw_resources | lower }}
+  allow_base_domain_resources: {{ pangolin_allow_base_domain_resources | lower }}
+email:
+  smtp_host: "{{ pangolin_smtp_host }}"
+  smtp_port: {{ pangolin_smtp_port }}
+  smtp_user: "{{ pangolin_smtp_user }}"
+  smtp_pass: "{{ pangolin_smtp_pass }}"
+  smtp_secure: false
+  no_reply: "{{ pangolin_smtp_from }}"
+  smtp_tls_reject_unauthorized: true

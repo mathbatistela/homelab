@@ -1,0 +1,82 @@
+name: pangolin
+networks:
+  default:
+    driver: bridge
+    name: pangolin
+services:
+  pangolin:
+    container_name: pangolin
+    image: fosrl/pangolin:{{ pangolin_version }}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+    volumes:
+      - ./config:/app/config
+
+  gerbil:
+    container_name: gerbil
+    image: fosrl/gerbil:{{ gerbil_version }}
+    restart: unless-stopped
+    depends_on:
+      pangolin:
+        condition: service_healthy
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    command:
+      - --reachableAt=http://gerbil:3003
+      - --generateAndSaveKeyTo=/var/config/key
+      - --remoteConfig=http://pangolin:3001/api/v1/gerbil/get-config
+      - --reportBandwidthTo=http://pangolin:3001/api/v1/gerbil/receive-bandwidth
+    ports:
+      - {{ pangolin_http_port }}:80
+      - {{ pangolin_https_port }}:443
+      - {{ pangolin_wireguard_port }}:51820/udp
+      - {{ pangolin_minecraft_port }}:25565
+    volumes:
+      - ./config/:/var/config
+
+  traefik:
+    container_name: traefik
+    image: traefik:{{ traefik_version }}
+    restart: unless-stopped
+    depends_on:
+      pangolin:
+        condition: service_healthy
+      crowdsec:
+        condition: service_healthy
+    command:
+      - --configFile=/etc/traefik/traefik_config.yml
+    network_mode: service:gerbil
+    volumes:
+      - ./config/traefik:/etc/traefik:ro
+      - ./config/letsencrypt:/letsencrypt
+      - ./config/traefik/logs:/var/log/traefik
+
+  crowdsec:
+    container_name: crowdsec
+    image: crowdsecurity/crowdsec:{{ crowdsec_version }}
+    restart: unless-stopped
+    command: -t
+    healthcheck:
+      test: ["CMD", "cscli", "capi", "status"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+    environment:
+      COLLECTIONS: crowdsecurity/traefik crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-generic-rules
+      PARSERS: crowdsecurity/whitelists
+      ENROLL_INSTANCE_NAME: {{ pangolin_crowdsec_enroll_name }}
+      ENROLL_TAGS: docker
+      GID: "1000"
+    labels:
+      - traefik.enable=false
+    ports:
+      - {{ pangolin_crowdsec_port }}:6060
+    volumes:
+      - ./config/crowdsec:/etc/crowdsec
+      - ./config/crowdsec/db:/var/lib/crowdsec/data
+      - ./config/traefik/logs:/var/log/traefik

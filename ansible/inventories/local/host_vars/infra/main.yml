@@ -1,2 +1,7 @@
 infra_traefik_cert_resolver_name: cloudflareLocal
 infra_local_domain: local.batistela.tech
+
+# Traefik service config vars (used in traefik_services.yml)
+traefik_local_domain: "{{ infra_local_domain }}"
+traefik_cert_resolver_name: "{{ infra_traefik_cert_resolver_name }}"
+traefik_dashboard_credentials: "{{ vault.infra.traefik_dashboard_credentials }}"

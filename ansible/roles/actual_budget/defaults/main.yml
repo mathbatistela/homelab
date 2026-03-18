@@ -1,0 +1,3 @@
+---
+actual_budget_data_dir: /mnt/homeshare/docker/actual-budget
+actual_budget_compose_dir: /root/docker-compose-apps/actual-budget

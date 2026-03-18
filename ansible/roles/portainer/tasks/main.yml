@@ -1,0 +1,11 @@
+---
+- name: Ensure Portainer is running
+  community.docker.docker_container:
+    name: "{{ portainer_name }}"
+    image: "{{ portainer_image }}"
+    restart_policy: "{{ portainer_restart_policy }}"
+    published_ports: "{{ portainer_ports }}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - "{{ portainer_data_volume }}:/data"
+    state: started

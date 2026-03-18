@@ -1,0 +1,53 @@
+traefik_services:
+  - service_name: actual-budget
+    template: simple-http
+    service_host: "budget.{{ traefik_local_domain }}"
+    service_backend_url: "http://{{ hostvars['tools'].ansible_host }}:5006"
+
+  - filename: authelia.yml
+    content: |
+      http:
+        routers:
+          authelia:
+            rule: "Host(`auth.{{ traefik_local_domain }}`)"
+            entryPoints:
+              - https
+            service: authelia-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+        middlewares:
+          authelia:
+            forwardAuth:
+              address: "http://{{ hostvars['authelia'].ansible_host }}:9091/api/authz/forward-auth"
+              trustForwardHeader: true
+              authResponseHeaders:
+                - "Remote-User"
+                - "Remote-Groups"
+                - "Remote-Email"
+                - "Remote-Name"
+        services:
+          authelia-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['authelia'].ansible_host }}:9091"
+
+  - filename: portainer.yml
+    content: |
+      http:
+        routers:
+          portainer:
+            rule: "Host(`portainer.{{ traefik_local_domain }}`)"
+            entryPoints:
+              - https
+            service: portainer-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+        services:
+          portainer-service:
+            loadBalancer:
+              serversTransport: portainer-transport
+              servers:
+                - url: "https://{{ hostvars['tools'].ansible_host }}:9443"
+        serversTransports:
+          portainer-transport:
+            insecureSkipVerify: true

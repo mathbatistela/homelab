@@ -11,3 +11,17 @@ traefik_cloudflare_token: "{{ vault.infra.traefik_cloudflare_token }}"
 traefik_dashboard_credentials: "{{ vault.infra.traefik_dashboard_credentials | default('admin:admin') }}"
 traefik_cert_resolver_name: "{{ infra_traefik_cert_resolver_name | default('cloudflareLocal') }}"
 traefik_local_domain: "{{ infra_local_domain | default('local.batistela.tech') }}"
+
+# Extra entrypoints beyond http/https
+traefik_extra_entrypoints:
+  - name: minecraft
+    port: 25565
+
+# InfluxDB metrics
+traefik_influxdb_enabled: true
+traefik_influxdb_address: "http://{{ hostvars['database'].ansible_host }}:8181"
+traefik_influxdb_token: "{{ vault.infra.traefik_influxdb_token }}"
+traefik_influxdb_bucket: localtraefik
+traefik_influxdb_org: localtraefik
+traefik_influxdb_push_interval: 10s
+traefik_influxdb_environment: local

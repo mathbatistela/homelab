@@ -16,9 +16,29 @@ entryPoints:
           scheme: https
   https:
     address: ":443"
+{% for ep in traefik_extra_entrypoints %}
+
+  {{ ep.name }}:
+    address: ":{{ ep.port }}"
+{% endfor %}
 
 api: {}
 
+{% if traefik_influxdb_enabled %}
+metrics:
+  influxDB2:
+    address: "{{ traefik_influxdb_address }}"
+    token: "{{ traefik_influxdb_token }}"
+    bucket: "{{ traefik_influxdb_bucket }}"
+    org: "{{ traefik_influxdb_org }}"
+    addEntryPointsLabels: true
+    addRoutersLabels: true
+    addServicesLabels: true
+    pushInterval: {{ traefik_influxdb_push_interval }}
+    additionalLabels:
+      environment: {{ traefik_influxdb_environment }}
+
+{% endif %}
 providers:
   file:
     directory: "{{ traefik_config_path }}/conf.d"

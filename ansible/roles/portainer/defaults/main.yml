@@ -1,0 +1,8 @@
+---
+portainer_image: portainer/portainer-ce:lts
+portainer_name: portainer
+portainer_ports:
+  - "8000:8000"
+  - "9443:9443"
+portainer_restart_policy: always
+portainer_data_volume: portainer_data

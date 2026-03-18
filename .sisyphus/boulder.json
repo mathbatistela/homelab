@@ -1,19 +1,16 @@
 {
-  "active_plan": "/home/mbatistela/personal/programming/homelab/.sisyphus/plans/homelab-refactor.md",
-  "started_at": "2026-03-17T22:43:25.908Z",
+  "active_plan": "/home/mbatistela/personal/programming/homelab/.sisyphus/plans/homelab-scalability.md",
+  "started_at": "2026-03-18T00:39:59.077Z",
   "session_ids": [
     "ses_302199472ffe9EAupDcvLKk5jN",
-    "ses_30204dbb2ffe5nl7H3jlqL1QNv",
-    "ses_30202b221ffeiseX1JkyEkJXzl",
-    "ses_302007ebfffeu1s3ZJc08Wq5d9",
-    "ses_3020038c7ffeYeAm1zPaS8B0oc",
-    "ses_30200bf02ffeJjk5j7ho4nOBcU",
-    "ses_301fb3c29ffeCdFb0m7Ul702rP",
-    "ses_301faaef1ffehGkiKchX2tZwDO",
-    "ses_301f66558ffexmVC0KY85G6qo8"
+    "ses_3019b7b4fffeUUD5dmKWfdXiIz",
+    "ses_3019a7adbffe3UutPnzlwXyARL",
+    "ses_3019a48ccffeGQDqyZIttsun6P",
+    "ses_30199fc55ffe4O2UFLtYgPJ44m",
+    "ses_301949143ffe3M5v3mNscw5l7k"
   ],
-  "plan_name": "homelab-refactor",
+  "plan_name": "homelab-scalability",
   "agent": "atlas",
   "worktree_path": "/home/mbatistela/personal/programming/homelab",
-  "branch": "refactor/homelab-iac"
+  "branch": "scalability/homelab-iac"
 }

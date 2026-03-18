@@ -1,0 +1,138 @@
+pangolin_blueprint:
+  public-resources:
+    untidy-lesser-egyptian-jerboa:
+      name: Jellyfin
+      protocol: http
+      full-domain: jellyfin.batistela.tech
+      targets:
+        - site: "{{ pangolin_site_nice_id }}"
+          hostname: 192.168.1.101
+          port: 8096
+          method: http
+
+    weepy-great-plains-rat-snake:
+      name: home assistant
+      protocol: http
+      full-domain: ha.batistela.tech
+      targets:
+        - site: "{{ pangolin_site_nice_id }}"
+          hostname: 192.168.237.73
+          port: 8123
+          method: http
+
+    aware-judean-mountains-blind-mole-rat:
+      name: Minecraft Server
+      protocol: tcp
+      proxy-port: 25565
+      enabled: false
+      targets:
+        - site: "{{ pangolin_site_nice_id }}"
+          hostname: 192.168.237.105
+          port: 25565
+
+    honorable-eastern-pine-snake:
+      name: Kavita
+      protocol: http
+      full-domain: library.batistela.tech
+      rules:
+        - action: allow
+          match: path
+          value: /api/opds/e331571a-c2b7-4215-bfe6-9cd2154e0ffa/*
+          priority: 1
+        - action: allow
+          match: path
+          value: /api/koreader/e331571a-c2b7-4215-bfe6-9cd2154e0ffa/*
+          priority: 2
+      targets:
+        - site: "{{ pangolin_site_nice_id }}"
+          hostname: 192.168.1.101
+          port: 5000
+          method: http
+
+    fresh-crucifix-toad:
+      name: ebookdl
+      protocol: http
+      full-domain: ebookdl.batistela.tech
+      auth:
+        sso-enabled: true
+      targets:
+        - site: "{{ pangolin_site_nice_id }}"
+          hostname: 192.168.1.101
+          port: 5001
+          method: http
+
+    descriptive-chinese-ferret-badger:
+      name: n8n
+      protocol: http
+      full-domain: n8n.batistela.tech
+      targets:
+        - site: "{{ pangolin_site_nice_id }}"
+          hostname: 192.168.1.106
+          port: 5678
+          method: http
+
+    bitter-campbells-dwarf-hamster:
+      name: Actual Budget
+      protocol: http
+      full-domain: budget.batistela.tech
+      targets:
+        - site: "{{ pangolin_site_nice_id }}"
+          hostname: 192.168.1.107
+          port: 5006
+          method: http
+
+    crisp-plateau-pika:
+      name: Authelia
+      protocol: http
+      full-domain: auth.batistela.tech
+      targets:
+        - site: "{{ pangolin_site_nice_id }}"
+          hostname: 192.168.1.109
+          port: 9091
+          method: http
+
+    dramatic-orange-leaf-nosed-bat:
+      name: adhd-board-api
+      protocol: http
+      full-domain: adhd-board-api.batistela.tech
+      targets:
+        - site: "{{ pangolin_site_nice_id }}"
+          hostname: 192.168.1.107
+          port: 5000
+          method: http
+
+    overlooked-san-diego-pocket-mouse:
+      name: adhd-board-app
+      protocol: http
+      full-domain: adhd-board.batistela.tech
+      auth:
+        sso-enabled: true
+      targets:
+        - site: "{{ pangolin_site_nice_id }}"
+          hostname: 192.168.1.107
+          port: 4173
+          method: http
+
+    fancy-kaloula-baleata:
+      name: portainer
+      protocol: http
+      full-domain: portainer.batistela.tech
+      auth:
+        sso-enabled: true
+      rules:
+        - action: allow
+          match: path
+          value: /api/*
+          priority: 1
+      targets:
+        - site: "{{ pangolin_site_nice_id }}"
+          hostname: 192.168.1.107
+          port: 9443
+          method: https
+          healthcheck:
+            hostname: 192.168.1.107
+            port: 9443
+            enabled: true
+            path: /
+            scheme: https
+            interval: 5

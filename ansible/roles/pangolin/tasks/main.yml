@@ -1,0 +1,61 @@
+---
+- name: Ensure config directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ pangolin_config_dir }}"
+    - "{{ pangolin_config_dir }}/traefik"
+    - "{{ pangolin_config_dir }}/traefik/logs"
+    - "{{ pangolin_config_dir }}/crowdsec"
+    - "{{ pangolin_config_dir }}/letsencrypt"
+    - "{{ pangolin_config_dir }}/db"
+
+- name: Deploy docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ pangolin_install_dir }}/docker-compose.yml"
+    mode: "0644"
+  notify: Restart pangolin stack
+
+- name: Deploy Pangolin config
+  ansible.builtin.template:
+    src: config.yml.j2
+    dest: "{{ pangolin_config_dir }}/config.yml"
+    mode: "0644"
+  notify: Restart pangolin stack
+
+- name: Deploy Traefik static config
+  ansible.builtin.template:
+    src: traefik_config.yml.j2
+    dest: "{{ pangolin_config_dir }}/traefik/traefik_config.yml"
+    mode: "0644"
+  notify: Restart pangolin stack
+
+- name: Deploy Traefik dynamic config
+  ansible.builtin.template:
+    src: dynamic_config.yml.j2
+    dest: "{{ pangolin_config_dir }}/traefik/dynamic_config.yml"
+    mode: "0644"
+  notify: Restart pangolin stack
+
+- name: Deploy CrowdSec acquisition config
+  ansible.builtin.template:
+    src: acquis.yaml.j2
+    dest: "{{ pangolin_config_dir }}/crowdsec/acquis.yaml"
+    mode: "0644"
+  notify: Restart pangolin stack
+
+- name: Deploy CrowdSec profiles
+  ansible.builtin.template:
+    src: profiles.yaml.j2
+    dest: "{{ pangolin_config_dir }}/crowdsec/profiles.yaml"
+    mode: "0644"
+  notify: Restart pangolin stack
+
+- name: Bring up stack
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: "{{ pangolin_install_dir }}"
+  changed_when: true

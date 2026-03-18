@@ -87,6 +87,7 @@ ansible/
 ## NOTES
 
 - `pangolin.yml` is the only cross-host playbook: UFW on `racknerd_vm0` → Newt agent on `infra`
-- `tools.yml` mixes role includes (`geerlingguy.docker`, `actual_budget`) with inline tasks (`portainer` container)
 - `database.yml` uses `pre_tasks` block to add PostgreSQL APT repo before the `geerlingguy.postgresql` role runs
 - Cloud inventory vars for `racknerd_vm0` reference variables that must be defined in cloud vault/group_vars
+- `authelia.yml` and `tailscale.yml` are placeholder playbooks — hosts are deployed but not yet Ansible-managed
+- `infra.yml` uses data-driven Traefik config: services defined in `host_vars/infra/traefik_services.yml`, looped in a single play

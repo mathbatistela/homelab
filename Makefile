@@ -1,6 +1,6 @@
 .PHONY: lint syntax-check plan-home plan-cloud validate-home validate-cloud \
         play-infra play-database play-media play-minecraft play-tools \
-        play-monitoring play-pangolin play-proxmox
+        play-monitoring play-pangolin play-proxmox play-authelia play-tailscale
 
 # ── Ansible ──────────────────────────────────────────────────────────────────
 
@@ -16,6 +16,8 @@ syntax-check:
 	  ansible-playbook playbooks/vms/tools.yml --syntax-check && \
 	  ansible-playbook playbooks/vms/monitoring.yml --syntax-check && \
 	  ansible-playbook playbooks/vms/pangolin.yml --syntax-check && \
+	  ansible-playbook playbooks/vms/authelia.yml --syntax-check && \
+	  ansible-playbook playbooks/vms/tailscale.yml --syntax-check && \
 	  ansible-playbook playbooks/nodes/proxmox.yml --syntax-check
 
 play-infra:
@@ -38,6 +40,12 @@ play-monitoring:
 
 play-pangolin:
 	cd ansible && ansible-playbook playbooks/vms/pangolin.yml
+
+play-authelia:
+	cd ansible && ansible-playbook playbooks/vms/authelia.yml
+
+play-tailscale:
+	cd ansible && ansible-playbook playbooks/vms/tailscale.yml
 
 play-proxmox:
 	cd ansible && ansible-playbook playbooks/nodes/proxmox.yml

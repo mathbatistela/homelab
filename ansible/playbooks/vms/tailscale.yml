@@ -1,0 +1,8 @@
+- name: Configure Tailscale VPN gateway
+  hosts: tailscale
+  become: true
+  gather_facts: true
+
+  # TODO: configure Tailscale service
+  # This host is provisioned via Terraform (VMID 108) but not yet managed by Ansible.
+  tasks: []

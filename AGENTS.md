@@ -81,13 +81,13 @@ ansible-vault edit inventories/local/group_vars/all/vault.yml
 | minecraft | 192.168.1.105 | 105 | Minecraft server |
 | tools | 192.168.1.107 | 107 | Portainer, Actual Budget |
 | tailscale | 192.168.1.108 | 108 | VPN gateway |
-| authelia | 192.168.1.109 | — | Auth (in inventory, no Terraform resource yet) |
+| authelia | 192.168.1.109 | — | Auth (no Terraform resource — provisioned manually) |
 | racknerd | 204.152.223.118 | — | Remote VPS (Pangolin tunnel) |
 
 ## NOTES
 
-- `authelia` host is in Ansible inventory but has **no Terraform resource** — provisioned manually or missing
-- `tailscale` host (108) is in inventory as part of old naming — CLAUDE.md references it but no dedicated playbook exists
+- `authelia` and `tailscale` have placeholder playbooks — deployed but not yet fully Ansible-managed
+- `authelia` has **no Terraform resource** — provisioned manually
 - `pangolin.yml` playbook is cross-host: configures UFW on `racknerd_vm0` + deploys Newt agent on `infra`
 - The `monitoring_stack` role syncs docker-compose files but does **not** start them (compose up is commented out)
 - External roles (`geerlingguy.*`) are vendored in `ansible/roles/`, not in `collections/`

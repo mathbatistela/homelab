@@ -167,15 +167,15 @@ Both cause confusion about what's actually managed.
 
 ### Tasks
 
-- [ ] **6.1** Decision point: for each host, decide disposition:
+- [x] **6.1** Decision point: for each host, decide disposition:
   - `authelia`: is it deployed? If yes, add a minimal playbook. If no, remove from inventory + DNS.
   - `tailscale`: is it deployed? If yes, add to inventory + create playbook. If no, remove Terraform resource + DNS.
   **THIS TASK REQUIRES USER INPUT — ask before proceeding.**
-- [ ] **6.2** Based on decision, either:
+- [x] **6.2** Based on decision, either:
   - (a) Create placeholder playbooks: `ansible/playbooks/vms/authelia.yml` and/or `ansible/playbooks/vms/tailscale.yml` with minimal structure (hosts + become + gather_facts + comment "# TODO: configure services")
   - (b) Remove orphaned entries from inventory/DNS/Terraform
-- [ ] **6.3** If adding `tailscale` to inventory: add to `hosts.yml` under `proxmox` group with `ansible_host: 192.168.1.108`
-- [ ] **6.4** Update `ansible/AGENTS.md` NOTES section to reflect resolved status of these hosts
+- [x] **6.3** If adding `tailscale` to inventory: add to `hosts.yml` under `proxmox` group with `ansible_host: 192.168.1.108`
+- [x] **6.4** Update `ansible/AGENTS.md` NOTES section to reflect resolved status of these hosts
 
 ### Safety
 - Removing a Terraform resource for a running container would destroy it — only remove if confirmed not in use.

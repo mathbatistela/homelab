@@ -1,15 +1,10 @@
 locals {
-  hosts = [
-    { name = "pve", ip = "192.168.1.100", local = true },
-    { name = "media", ip = "192.168.1.101", local = true },
-    { name = "infra", ip = "192.168.1.102", local = true },
-    { name = "database", ip = "192.168.1.103", local = true },
-    { name = "minecraft", ip = "192.168.1.105", local = true },
-    { name = "tools", ip = "192.168.1.107", local = true },
-    { name = "tailscale", ip = "192.168.1.108", local = true },
-    { name = "authelia", ip = "192.168.1.109", local = true },
-    { name = "racknerd", ip = "204.152.223.118", local = false }
-  ]
+  network = jsondecode(file("${path.module}/../../config/network.json"))
+
+  hosts = concat(
+    [for name, ip in local.network.local_hosts : { name = name, ip = ip, local = true }],
+    [for name, ip in local.network.remote_hosts : { name = name, ip = ip, local = false }]
+  )
 }
 
 resource "cloudflare_dns_record" "ssh_hosts" {

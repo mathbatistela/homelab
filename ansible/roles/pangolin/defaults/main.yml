@@ -7,7 +7,7 @@ gerbil_version: "latest"
 traefik_version: "latest"
 crowdsec_version: "latest"
 
-pangolin_base_domain: "batistela.tech"
+pangolin_base_domain: "{{ base_domain }}"
 pangolin_dashboard_url: "https://pangolin.{{ pangolin_base_domain }}"
 
 # pangolin_server_secret: set in cloud vault
@@ -18,15 +18,15 @@ pangolin_log_level: "info"
 # pangolin_smtp_pass: set in cloud vault
 pangolin_smtp_host: "smtp.zoho.com"
 pangolin_smtp_port: 587
-pangolin_smtp_user: "matheus@{{ pangolin_base_domain }}"
-pangolin_smtp_from: "matheus@{{ pangolin_base_domain }}"
+pangolin_smtp_user: "{{ admin_email }}"
+pangolin_smtp_from: "{{ admin_email }}"
 
 pangolin_gerbil_start_port: 51820
 pangolin_gerbil_subnet: "100.89.137.0/20"
 pangolin_gerbil_block_size: 24
 pangolin_gerbil_site_block_size: 30
 
-pangolin_acme_email: "matheus@{{ pangolin_base_domain }}"
+pangolin_acme_email: "{{ admin_email }}"
 
 # pangolin_crowdsec_lapi_key: set in cloud vault
 pangolin_crowdsec_enroll_name: "pangolin-crowdsec"

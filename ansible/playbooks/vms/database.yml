@@ -1,13 +1,7 @@
-- name: Prepare and install PostgreSQL "{{ postgresql_version }}"
+- name: Prepare and install PostgreSQL
   hosts: database
   become: true
   gather_facts: true
-
-  vars:
-    pg_codename: "bookworm-pgdg"
-    pg_key_url: "https://www.postgresql.org/media/keys/ACCC4CF8.asc"
-    pg_keyring: "/usr/share/keyrings/pgdg-archive-keyring.gpg"
-    pg_repo: "deb [signed-by={{ pg_keyring }}] https://apt.postgresql.org/pub/repos/apt {{ pg_codename }} main"
 
   pre_tasks:
     - block:
@@ -18,15 +12,15 @@
 
         - name: Add PostgreSQL APT key
           ansible.builtin.apt_key:
-            url: "{{ pg_key_url }}"
-            keyring: "{{ pg_keyring }}"
+            url: "{{ postgresql_repo.key_url }}"
+            keyring: "{{ postgresql_repo.keyring }}"
             state: present
 
         - name: Add PostgreSQL APT repository
           ansible.builtin.apt_repository:
-            repo: "{{ pg_repo }}"
+            repo: "{{ postgresql_repo.repo }}"
             filename: pgdg
-            
+
         - name: Update apt cache
           ansible.builtin.apt:
             update_cache: yes
@@ -36,35 +30,7 @@
   roles:
     - role: geerlingguy.postgresql
       vars:
-       postgres_users_no_log: false
-       postgresql_users:
-        - name: fresh_rss_user
-          password: "{{ vault.database.fresh_rss_user_pw }}" 
-        - name: n8n_user
-          password: "{{ vault.database.n8n_user_pw }}"
-        - name: calcom_user
-          password: "{{ vault.database.calcom_user_pw }}"
-        - name: invoice_ninja_user
-          password: "{{ vault.database.invoice_ninja_user_pw }}"
-        - name: adhd_board_user
-          password: "{{ vault.database.adhd_board_user_pw }}"
-        - name: localiza_app_user
-          password: "{{ vault.database.localiza_app_user_pw }}"
-
-      postgresql_databases:
-        - name: fresh_rss_database
-          owner: fresh_rss_user
-        - name: n8n_database
-          owner: n8n_user
-        - name: calcom_database
-          owner: calcom_user
-        - name: adhd_board_database
-          owner: adhd_board_user
-        - name: localiza_database
-          owner: localiza_app_user
-        - name: invoice_ninja_database
-          owner: invoice_ninja_user
-      
+        postgres_users_no_log: false
 
   tags: postgresql_install
 
@@ -75,10 +41,7 @@
 
   roles:
     - role: influxdb
-      vars:
-        influxdb_databases:
-          - name: "homeassistant"
-          - name: "localtraefik"
+
   tags: influxdb_install
 
 - name: Prepare and install Redis

@@ -42,3 +42,21 @@ variable "ssh_pub_key_path" {
   description = "Absolute path to the SSH public key to inject into each LXC (e.g. '~/.ssh/id_rsa.pub')"
   type        = string
 }
+
+variable "lxc_ostemplate" {
+  description = "Proxmox storage and template path for LXC containers."
+  type        = string
+  default     = "iac-lxc-templates:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst"
+}
+
+variable "lxc_network_bridge" {
+  description = "Proxmox network bridge for LXC containers."
+  type        = string
+  default     = "vmbr0"
+}
+
+variable "lxc_network_interface" {
+  description = "Network interface name inside LXC containers."
+  type        = string
+  default     = "eth0"
+}

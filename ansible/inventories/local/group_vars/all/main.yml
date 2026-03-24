@@ -1,1 +1,2 @@
-local_domain: local.batistela.tech
+# Domain and network vars moved to network.yml
+# local_domain and base_domain are now defined there

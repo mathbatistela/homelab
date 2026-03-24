@@ -1,6 +1,5 @@
 locals {
-  default_ostemplate     = "iac-lxc-templates:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst"
-  default_network_bridge = "vmbr0"
+  network = jsondecode(file("${path.module}/../../config/network.json"))
 
   servers = {
     media = {
@@ -10,7 +9,7 @@ locals {
       memory      = 4096
       swap        = 1024
       disk_size   = "16G"
-      ip          = "192.168.1.101/24"
+      ip          = "${local.network.local_hosts.media}${local.network.cidr}"
       nameserver  = null
       mountpoints = []
     }
@@ -21,7 +20,7 @@ locals {
       memory      = 4096
       swap        = 512
       disk_size   = "16G"
-      ip          = "192.168.1.102/24"
+      ip          = "${local.network.local_hosts.infra}${local.network.cidr}"
       nameserver  = null
       mountpoints = []
     }
@@ -32,7 +31,7 @@ locals {
       memory      = 4096
       swap        = 1024
       disk_size   = "32G"
-      ip          = "192.168.1.103/24"
+      ip          = "${local.network.local_hosts.database}${local.network.cidr}"
       nameserver  = "1.1.1.1 8.8.8.8"
       mountpoints = []
     }
@@ -43,7 +42,7 @@ locals {
       memory      = 8192
       swap        = 2048
       disk_size   = "50G"
-      ip          = "192.168.1.105/24"
+      ip          = "${local.network.local_hosts.minecraft}${local.network.cidr}"
       nameserver  = null
       mountpoints = []
     }
@@ -54,7 +53,7 @@ locals {
       memory     = 8192
       swap       = 2048
       disk_size  = "50G"
-      ip         = "192.168.1.107/24"
+      ip         = "${local.network.local_hosts.tools}${local.network.cidr}"
       nameserver = null
       mountpoints = [
         {
@@ -73,7 +72,7 @@ locals {
       memory      = 512
       swap        = 0
       disk_size   = "5G"
-      ip          = "192.168.1.108/24"
+      ip          = "${local.network.local_hosts.tailscale}${local.network.cidr}"
       nameserver  = null
       mountpoints = []
     }
@@ -86,7 +85,7 @@ resource "proxmox_lxc" "servers" {
   vmid         = each.value.vmid
   hostname     = each.value.hostname
   target_node  = var.pve_node
-  ostemplate   = local.default_ostemplate
+  ostemplate   = var.lxc_ostemplate
   unprivileged = true
   nameserver   = each.value.nameserver != null ? each.value.nameserver : ""
 
@@ -115,10 +114,10 @@ resource "proxmox_lxc" "servers" {
   }
 
   network {
-    name   = "eth0"
-    bridge = local.default_network_bridge
+    name   = var.lxc_network_interface
+    bridge = var.lxc_network_bridge
     ip     = each.value.ip
-    gw     = "192.168.1.254"
+    gw     = local.network.gateway
   }
 
   onboot  = true

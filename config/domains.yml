@@ -1,0 +1,9 @@
+base_domain: batistela.tech
+local_domain: "local.{{ base_domain }}"
+admin_email: "matheus@{{ base_domain }}"
+
+network_gateway: "192.168.1.254"
+network_subnet: "192.168.1.0/24"
+network_cidr: "/24"
+
+tailscale_ha_ip: "100.75.65.121"

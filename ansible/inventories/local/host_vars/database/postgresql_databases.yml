@@ -1,0 +1,37 @@
+postgresql_repo:
+  codename: bookworm-pgdg
+  key_url: "https://www.postgresql.org/media/keys/ACCC4CF8.asc"
+  keyring: "/usr/share/keyrings/pgdg-archive-keyring.gpg"
+  repo: "deb [signed-by=/usr/share/keyrings/pgdg-archive-keyring.gpg] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main"
+
+postgresql_users:
+  - name: fresh_rss_user
+    password: "{{ vault.database.fresh_rss_user_pw }}"
+  - name: n8n_user
+    password: "{{ vault.database.n8n_user_pw }}"
+  - name: calcom_user
+    password: "{{ vault.database.calcom_user_pw }}"
+  - name: invoice_ninja_user
+    password: "{{ vault.database.invoice_ninja_user_pw }}"
+  - name: adhd_board_user
+    password: "{{ vault.database.adhd_board_user_pw }}"
+  - name: localiza_app_user
+    password: "{{ vault.database.localiza_app_user_pw }}"
+
+postgresql_databases:
+  - name: fresh_rss_database
+    owner: fresh_rss_user
+  - name: n8n_database
+    owner: n8n_user
+  - name: calcom_database
+    owner: calcom_user
+  - name: adhd_board_database
+    owner: adhd_board_user
+  - name: localiza_database
+    owner: localiza_app_user
+  - name: invoice_ninja_database
+    owner: invoice_ninja_user
+
+influxdb_databases:
+  - name: homeassistant
+  - name: localtraefik

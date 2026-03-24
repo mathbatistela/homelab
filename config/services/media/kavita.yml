@@ -12,11 +12,9 @@ service_manifest:
       enabled: true
       subdomain: library
       protocol: http
-      mode: custom
+      mode: fragment
       fragment: kavita
   auth:
     sso: false
-  monitoring:
-    enabled: false
   deployment:
     owner: external

@@ -1,0 +1,21 @@
+traefik_fragment_services:
+  - filename: proxmox.yml
+    content: |
+      http:
+        routers:
+          proxmox:
+            entryPoints:
+              - https
+            rule: "Host(`proxmox.{{ traefik_local_domain }}`)"
+            service: proxmox-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+        services:
+          proxmox-service:
+            loadBalancer:
+              servers:
+                - url: "https://{{ hostvars['pve'].ansible_host }}:8006"
+              serversTransport: proxmox-tls
+        serversTransports:
+          proxmox-tls:
+            insecureSkipVerify: true

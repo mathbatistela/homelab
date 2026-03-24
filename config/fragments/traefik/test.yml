@@ -1,4 +1,4 @@
-traefik_simple_services:
+traefik_fragment_services:
   - service_name: test
     template: simple-http
     service_host: "test.{{ traefik_local_domain }}"

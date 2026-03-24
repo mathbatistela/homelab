@@ -1,4 +1,4 @@
-traefik_tcp_services:
+traefik_fragment_services:
   - service_name: minecraft-router
     template: tcp-service
     service_entrypoint: minecraft

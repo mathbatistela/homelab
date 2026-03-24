@@ -1,4 +1,4 @@
-pangolin_blueprint_auth:
+pangolin_fragment_resources:
   crisp-plateau-pika:
     name: Authelia
     protocol: http

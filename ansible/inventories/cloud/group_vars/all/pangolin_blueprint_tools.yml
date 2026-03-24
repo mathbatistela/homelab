@@ -1,0 +1,24 @@
+pangolin_blueprint_tools:
+  fancy-kaloula-baleata:
+    name: portainer
+    protocol: http
+    full-domain: "portainer.{{ pangolin_base_domain }}"
+    auth:
+      sso-enabled: true
+    rules:
+      - action: allow
+        match: path
+        value: /api/*
+        priority: 1
+    targets:
+      - site: "{{ pangolin_site_nice_id }}"
+        hostname: "{{ hostvars['tools'].ansible_host }}"
+        port: 9443
+        method: https
+        healthcheck:
+          hostname: "{{ hostvars['tools'].ansible_host }}"
+          port: 9443
+          enabled: true
+          path: /
+          scheme: https
+          interval: 5

@@ -1,0 +1,27 @@
+traefik_auth_services:
+  - filename: authelia.yml
+    content: |
+      http:
+        routers:
+          authelia:
+            rule: "Host(`auth.{{ traefik_local_domain }}`)"
+            entryPoints:
+              - https
+            service: authelia-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+        middlewares:
+          authelia:
+            forwardAuth:
+              address: "http://{{ hostvars['authelia'].ansible_host }}:9091/api/authz/forward-auth"
+              trustForwardHeader: true
+              authResponseHeaders:
+                - "Remote-User"
+                - "Remote-Groups"
+                - "Remote-Email"
+                - "Remote-Name"
+        services:
+          authelia-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['authelia'].ansible_host }}:9091"

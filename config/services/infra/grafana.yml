@@ -1,0 +1,23 @@
+service_manifest:
+  name: grafana
+  display_name: Grafana
+  host: infra
+  service:
+    port: 3000
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: generated
+      template: simple-http
+      subdomain: grafana
+    public:
+      enabled: false
+      mode: generated
+  auth:
+    sso: false
+  monitoring:
+    enabled: false
+  deployment:
+    owner: role
+    role: monitoring_stack

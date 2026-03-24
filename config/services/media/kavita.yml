@@ -1,0 +1,22 @@
+service_manifest:
+  name: kavita
+  display_name: Kavita
+  host: media
+  service:
+    port: 5000
+    protocol: http
+  exposure:
+    local:
+      enabled: false
+    public:
+      enabled: true
+      subdomain: library
+      protocol: http
+      mode: custom
+      fragment: kavita
+  auth:
+    sso: false
+  monitoring:
+    enabled: false
+  deployment:
+    owner: external

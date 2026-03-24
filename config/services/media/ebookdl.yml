@@ -1,0 +1,21 @@
+service_manifest:
+  name: ebookdl
+  display_name: ebookdl
+  host: media
+  service:
+    port: 5001
+    protocol: http
+  exposure:
+    local:
+      enabled: false
+    public:
+      enabled: true
+      mode: generated
+      subdomain: ebookdl
+      protocol: http
+  auth:
+    sso: true
+  monitoring:
+    enabled: false
+  deployment:
+    owner: external

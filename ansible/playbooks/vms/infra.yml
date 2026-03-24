@@ -9,6 +9,32 @@
   hosts: infra
   become: true
   gather_facts: true
+  pre_tasks:
+    - name: Initialize generated Traefik services list
+      ansible.builtin.set_fact:
+        generated_traefik_services: []
+
+    - name: Load service manifests for Traefik generation
+      ansible.builtin.include_vars:
+        file: "{{ item }}"
+        name: loaded_service_manifest
+      loop: "{{ lookup('ansible.builtin.fileglob', playbook_dir + '/../../config/services/**/*.yml', wantlist=True) }}"
+      register: traefik_manifest_loads
+
+    - name: Build generated simple Traefik services from manifests
+      ansible.builtin.set_fact:
+        generated_traefik_services: "{{ generated_traefik_services + [generated_service] }}"
+      loop: "{{ traefik_manifest_loads.results }}"
+      vars:
+        manifest: "{{ item.ansible_facts.loaded_service_manifest.service_manifest }}"
+        generated_service:
+          service_name: "{{ manifest.name }}"
+          template: "{{ manifest.exposure.local.template | default('simple-http') }}"
+          service_host: "{{ manifest.exposure.local.subdomain }}.{{ traefik_local_domain }}"
+          service_backend_url: "{{ manifest.service.protocol }}://{{ hostvars[manifest.host].ansible_host }}:{{ manifest.service.port }}"
+      when:
+        - manifest.exposure.local.enabled | default(false)
+        - manifest.exposure.local.mode | default('generated') == 'generated'
   tasks:
     - name: "Configure {{ item.service_name | default(item.filename) }}"
       ansible.builtin.include_role:
@@ -16,7 +42,7 @@
         tasks_from: configure_service
       vars:
         traefik_conf: "{{ item }}"
-      loop: "{{ traefik_services }}"
+      loop: "{{ (generated_traefik_services | default([])) + traefik_services }}"
       loop_control:
         label: "{{ item.service_name | default(item.filename) }}"
   tags:

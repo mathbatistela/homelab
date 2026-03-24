@@ -16,8 +16,6 @@ service_manifest:
       mode: generated
   auth:
     sso: false
-  monitoring:
-    enabled: false
   deployment:
     owner: role
     role: monitoring_stack

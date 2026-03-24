@@ -18,8 +18,6 @@ service_manifest:
       protocol: http
   auth:
     sso: false
-  monitoring:
-    enabled: false
   deployment:
     owner: role
     role: actual_budget

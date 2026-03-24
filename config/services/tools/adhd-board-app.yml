@@ -15,7 +15,5 @@ service_manifest:
       protocol: http
   auth:
     sso: true
-  monitoring:
-    enabled: false
   deployment:
     owner: external

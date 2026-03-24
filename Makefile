@@ -1,54 +1,83 @@
-.PHONY: lint syntax-check plan-home plan-cloud validate-home validate-cloud \
+.PHONY: bootstrap doctor lint syntax-check plan-home plan-cloud validate-home validate-cloud \
         play-infra play-database play-media play-minecraft play-tools \
         play-monitoring play-pangolin play-proxmox play-authelia play-tailscale
 
+VENV := .venv
+PYTHON := $(VENV)/bin/python3
+PIP := $(VENV)/bin/pip
+ANSIBLE_PLAYBOOK := $(VENV)/bin/ansible-playbook
+ANSIBLE_LINT := $(VENV)/bin/ansible-lint
+ANSIBLE_GALAXY := $(VENV)/bin/ansible-galaxy
+
+$(VENV)/bin/python3:
+	python3 -m venv $(VENV)
+	$(PIP) install --upgrade pip
+	$(PIP) install -r ansible/requirements.txt
+
+# ── Bootstrap & health checks ────────────────────────────────────────────────
+
+bootstrap: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_GALAXY) collection install -r requirements.yml -p collections
+
+doctor: $(VENV)/bin/python3
+	@test -f ansible/vault.auth || (printf 'Missing ansible/vault.auth\n' && exit 1)
+	@test -x $(ANSIBLE_PLAYBOOK) || (printf 'Missing $(ANSIBLE_PLAYBOOK)\n' && exit 1)
+	@test -x $(ANSIBLE_LINT) || (printf 'Missing $(ANSIBLE_LINT)\n' && exit 1)
+	@test -x $(ANSIBLE_GALAXY) || (printf 'Missing $(ANSIBLE_GALAXY)\n' && exit 1)
+	@test -d ansible/collections/ansible_collections/community/general || (printf 'Missing community.general collection. Run make bootstrap\n' && exit 1)
+	@test -d ansible/collections/ansible_collections/community/docker || (printf 'Missing community.docker collection. Run make bootstrap\n' && exit 1)
+	@test -d ansible/collections/ansible_collections/community/postgresql || (printf 'Missing community.postgresql collection. Run make bootstrap\n' && exit 1)
+	@test -d ansible/collections/ansible_collections/ansible/posix || (printf 'Missing ansible.posix collection. Run make bootstrap\n' && exit 1)
+	@command -v tofu >/dev/null 2>&1 || (printf 'Missing tofu binary\n' && exit 1)
+	@printf 'Doctor OK\n'
+
 # ── Ansible ──────────────────────────────────────────────────────────────────
 
-lint:
-	cd ansible && ansible-lint playbooks/
+lint: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_LINT) --offline playbooks/
 
-syntax-check:
+syntax-check: $(VENV)/bin/python3
 	cd ansible && \
-	  ansible-playbook playbooks/vms/infra.yml --syntax-check && \
-	  ansible-playbook playbooks/vms/database.yml --syntax-check && \
-	  ansible-playbook playbooks/vms/media.yml --syntax-check && \
-	  ansible-playbook playbooks/vms/minecraft.yml --syntax-check && \
-	  ansible-playbook playbooks/vms/tools.yml --syntax-check && \
-	  ansible-playbook playbooks/vms/monitoring.yml --syntax-check && \
-	  ansible-playbook playbooks/vms/pangolin.yml --syntax-check && \
-	  ansible-playbook playbooks/vms/authelia.yml --syntax-check && \
-	  ansible-playbook playbooks/vms/tailscale.yml --syntax-check && \
-	  ansible-playbook playbooks/nodes/proxmox.yml --syntax-check
+	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/infra.yml --syntax-check && \
+	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/database.yml --syntax-check && \
+	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/media.yml --syntax-check && \
+	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/minecraft.yml --syntax-check && \
+	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/tools.yml --syntax-check && \
+	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/monitoring.yml --syntax-check && \
+	  ../$(ANSIBLE_PLAYBOOK) -i inventories/ playbooks/vms/pangolin.yml --syntax-check && \
+	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/authelia.yml --syntax-check && \
+	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/tailscale.yml --syntax-check && \
+	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/nodes/proxmox.yml --syntax-check
 
-play-infra:
-	cd ansible && ansible-playbook playbooks/vms/infra.yml
+play-infra: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/infra.yml
 
-play-database:
-	cd ansible && ansible-playbook playbooks/vms/database.yml
+play-database: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/database.yml
 
-play-media:
-	cd ansible && ansible-playbook playbooks/vms/media.yml
+play-media: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/media.yml
 
-play-minecraft:
-	cd ansible && ansible-playbook playbooks/vms/minecraft.yml
+play-minecraft: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/minecraft.yml
 
-play-tools:
-	cd ansible && ansible-playbook playbooks/vms/tools.yml
+play-tools: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/tools.yml
 
-play-monitoring:
-	cd ansible && ansible-playbook playbooks/vms/monitoring.yml
+play-monitoring: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/monitoring.yml
 
-play-pangolin:
-	cd ansible && ansible-playbook playbooks/vms/pangolin.yml
+play-pangolin: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/ playbooks/vms/pangolin.yml
 
-play-authelia:
-	cd ansible && ansible-playbook playbooks/vms/authelia.yml
+play-authelia: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/authelia.yml
 
-play-tailscale:
-	cd ansible && ansible-playbook playbooks/vms/tailscale.yml
+play-tailscale: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/tailscale.yml
 
-play-proxmox:
-	cd ansible && ansible-playbook playbooks/nodes/proxmox.yml
+play-proxmox: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/nodes/proxmox.yml
 
 # ── Terraform ─────────────────────────────────────────────────────────────────
 

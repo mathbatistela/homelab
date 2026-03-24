@@ -1,8 +1,0 @@
-pangolin_blueprint:
-  public-resources: >-
-    {{
-      (pangolin_blueprint_media | default({}))
-      | combine(pangolin_blueprint_home | default({}), recursive=True)
-      | combine(pangolin_blueprint_tools | default({}), recursive=True)
-      | combine(pangolin_blueprint_auth | default({}), recursive=True)
-    }}

@@ -1,0 +1,23 @@
+traefik_fragment_services:
+  - filename: traefik_api.yml
+    content: |
+      http:
+        routers:
+          dashboard:
+            entryPoints:
+              - https
+            rule: Host(`traefik.{{ traefik_local_domain }}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+            service: api@internal
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+              domains:
+                - main: "{{ traefik_local_domain }}"
+                  sans:
+                    - "*.{{ traefik_local_domain }}"
+            middlewares:
+              - auth
+        middlewares:
+          auth:
+            basicAuth:
+              users:
+                - "{{ traefik_dashboard_credentials }}"

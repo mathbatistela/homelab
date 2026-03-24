@@ -35,6 +35,22 @@
       when:
         - manifest.exposure.local.enabled | default(false)
         - manifest.exposure.local.mode | default('generated') == 'generated'
+
+    - name: Initialize fragment Traefik services list
+      ansible.builtin.set_fact:
+        fragment_traefik_services: []
+
+    - name: Load Traefik fragment files
+      ansible.builtin.include_vars:
+        file: "{{ item }}"
+        name: loaded_traefik_fragment
+      loop: "{{ lookup('ansible.builtin.fileglob', playbook_dir + '/../../config/fragments/traefik/*.yml', wantlist=True) }}"
+      register: traefik_fragment_loads
+
+    - name: Collect Traefik fragment services
+      ansible.builtin.set_fact:
+        fragment_traefik_services: "{{ fragment_traefik_services + item.ansible_facts.loaded_traefik_fragment.traefik_fragment_services }}"
+      loop: "{{ traefik_fragment_loads.results }}"
   tasks:
     - name: "Configure {{ item.service_name | default(item.filename) }}"
       ansible.builtin.include_role:
@@ -42,7 +58,7 @@
         tasks_from: configure_service
       vars:
         traefik_conf: "{{ item }}"
-      loop: "{{ (generated_traefik_services | default([])) + traefik_services }}"
+      loop: "{{ (generated_traefik_services | default([])) + (fragment_traefik_services | default([])) }}"
       loop_control:
         label: "{{ item.service_name | default(item.filename) }}"
   tags:

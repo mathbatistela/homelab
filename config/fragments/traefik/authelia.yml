@@ -1,4 +1,4 @@
-traefik_auth_services:
+traefik_fragment_services:
   - filename: authelia.yml
     content: |
       http:

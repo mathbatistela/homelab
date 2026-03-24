@@ -1,0 +1,21 @@
+traefik_fragment_services:
+  - filename: portainer.yml
+    content: |
+      http:
+        routers:
+          portainer:
+            rule: "Host(`portainer.{{ traefik_local_domain }}`)"
+            entryPoints:
+              - https
+            service: portainer-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+        services:
+          portainer-service:
+            loadBalancer:
+              serversTransport: portainer-transport
+              servers:
+                - url: "https://{{ hostvars['tools'].ansible_host }}:9443"
+        serversTransports:
+          portainer-transport:
+            insecureSkipVerify: true

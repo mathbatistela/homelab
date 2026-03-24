@@ -17,8 +17,6 @@ service_manifest:
       protocol: http
   auth:
     sso: false
-  monitoring:
-    enabled: false
   deployment:
     owner: role
     role: arr_stack

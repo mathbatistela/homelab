@@ -1,6 +1,8 @@
-.PHONY: bootstrap doctor lint syntax-check plan-home plan-cloud validate-home validate-cloud \
+.PHONY: bootstrap doctor lint syntax-check validate \
+        plan-home plan-cloud validate-home validate-cloud apply-home apply-cloud \
         play-infra play-database play-media play-minecraft play-tools \
-        play-monitoring play-pangolin play-proxmox play-authelia play-tailscale
+        play-monitoring play-pangolin play-proxmox play-authelia play-tailscale \
+        deploy-vm deploy-services
 
 VENV := .venv
 PYTHON := $(VENV)/bin/python3
@@ -35,6 +37,9 @@ doctor: $(VENV)/bin/python3
 
 lint: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_LINT) --offline playbooks/
+
+validate: $(VENV)/bin/python3
+	$(PYTHON) scripts/validate_sources.py
 
 syntax-check: $(VENV)/bin/python3
 	cd ansible && \
@@ -92,3 +97,24 @@ validate-home:
 
 validate-cloud:
 	cd terraform/cloud && tofu validate
+
+apply-home:
+	cd terraform/home && tofu apply
+
+apply-cloud:
+	cd terraform/cloud && tofu apply
+
+# ── Composite targets ────────────────────────────────────────────────────────
+
+deploy-vm: $(VENV)/bin/python3
+ifndef VM
+	$(error VM is required. Usage: make deploy-vm VM=docs)
+endif
+	$(MAKE) apply-home
+	$(MAKE) apply-cloud
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/$(VM).yml
+
+deploy-services: $(VENV)/bin/python3
+	$(MAKE) play-infra
+	$(MAKE) play-pangolin
+	$(MAKE) play-monitoring

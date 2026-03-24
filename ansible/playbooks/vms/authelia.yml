@@ -2,4 +2,7 @@
   hosts: authelia
   become: true
   gather_facts: true
-  tasks: []
+  tasks:
+    - name: Playbook not yet implemented
+      ansible.builtin.debug:
+        msg: "WARNING: authelia.yml is a stub — no configuration tasks defined yet."

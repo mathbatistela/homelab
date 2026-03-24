@@ -1,0 +1,21 @@
+service_manifest:
+  name: adhd-board-app
+  display_name: adhd-board-app
+  host: tools
+  service:
+    port: 4173
+    protocol: http
+  exposure:
+    local:
+      enabled: false
+    public:
+      enabled: true
+      mode: generated
+      subdomain: adhd-board
+      protocol: http
+  auth:
+    sso: true
+  monitoring:
+    enabled: false
+  deployment:
+    owner: external

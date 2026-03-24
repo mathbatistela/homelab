@@ -1,0 +1,5 @@
+traefik_tcp_services:
+  - service_name: minecraft-router
+    template: tcp-service
+    service_entrypoint: minecraft
+    service_backend_address: "{{ hostvars['minecraft'].ansible_host }}:25565"

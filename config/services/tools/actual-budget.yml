@@ -1,0 +1,25 @@
+service_manifest:
+  name: actual-budget
+  display_name: Actual Budget
+  host: tools
+  service:
+    port: 5006
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: generated
+      template: simple-http
+      subdomain: budget
+    public:
+      enabled: true
+      mode: generated
+      subdomain: budget
+      protocol: http
+  auth:
+    sso: false
+  monitoring:
+    enabled: false
+  deployment:
+    owner: role
+    role: actual_budget

@@ -1,0 +1,21 @@
+service_manifest:
+  name: adhd-board-api
+  display_name: adhd-board-api
+  host: tools
+  service:
+    port: 5000
+    protocol: http
+  exposure:
+    local:
+      enabled: false
+    public:
+      enabled: true
+      mode: generated
+      subdomain: adhd-board-api
+      protocol: http
+  auth:
+    sso: false
+  monitoring:
+    enabled: false
+  deployment:
+    owner: external

@@ -1,0 +1,24 @@
+service_manifest:
+  name: jellyfin
+  display_name: Jellyfin
+  host: media
+  service:
+    port: 8096
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: fragment
+      fragment: arr-stack
+    public:
+      enabled: true
+      mode: generated
+      subdomain: jellyfin
+      protocol: http
+  auth:
+    sso: false
+  monitoring:
+    enabled: false
+  deployment:
+    owner: role
+    role: arr_stack

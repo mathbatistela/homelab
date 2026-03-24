@@ -1,0 +1,10 @@
+pangolin_blueprint_media:
+  aware-judean-mountains-blind-mole-rat:
+    name: Minecraft Server
+    protocol: tcp
+    proxy-port: 25565
+    enabled: false
+    targets:
+      - site: "{{ pangolin_site_nice_id }}"
+        hostname: "{{ hostvars['minecraft'].ansible_host }}"
+        port: 25565

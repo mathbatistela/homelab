@@ -1,0 +1,127 @@
+traefik_media_services:
+  - filename: arr-stack.yml
+    content: |
+      http:
+        routers:
+          prowlarr:
+            entryPoints:
+              - https
+            rule: "Host(`prowlarr.{{ traefik_local_domain }}`)"
+            service: prowlarr-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+              domains:
+                - main: "{{ traefik_local_domain }}"
+                  sans:
+                    - "*.{{ traefik_local_domain }}"
+          sonarr:
+            entryPoints:
+              - https
+            rule: "Host(`sonarr.{{ traefik_local_domain }}`)"
+            service: sonarr-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+              domains:
+                - main: "{{ traefik_local_domain }}"
+                  sans:
+                    - "*.{{ traefik_local_domain }}"
+          radarr:
+            entryPoints:
+              - https
+            rule: "Host(`radarr.{{ traefik_local_domain }}`)"
+            service: radarr-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+              domains:
+                - main: "{{ traefik_local_domain }}"
+                  sans:
+                    - "*.{{ traefik_local_domain }}"
+          readarr:
+            entryPoints:
+              - https
+            rule: "Host(`readarr.{{ traefik_local_domain }}`)"
+            service: readarr-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+              domains:
+                - main: "{{ traefik_local_domain }}"
+                  sans:
+                    - "*.{{ traefik_local_domain }}"
+          bazarr:
+            entryPoints:
+              - https
+            rule: "Host(`bazarr.{{ traefik_local_domain }}`)"
+            service: bazarr-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+              domains:
+                - main: "{{ traefik_local_domain }}"
+                  sans:
+                    - "*.{{ traefik_local_domain }}"
+          homarr:
+            entryPoints:
+              - https
+            rule: "Host(`homarr.{{ traefik_local_domain }}`)"
+            service: homarr-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+              domains:
+                - main: "{{ traefik_local_domain }}"
+                  sans:
+                    - "*.{{ traefik_local_domain }}"
+          jellyfin:
+            entryPoints:
+              - https
+            rule: "Host(`jellyfin.{{ traefik_local_domain }}`)"
+            service: jellyfin-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+              domains:
+                - main: "{{ traefik_local_domain }}"
+                  sans:
+                    - "*.{{ traefik_local_domain }}"
+          qbittorrent:
+            entryPoints:
+              - https
+            rule: "Host(`qbittorrent.{{ traefik_local_domain }}`)"
+            service: qbittorrent-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+              domains:
+                - main: "{{ traefik_local_domain }}"
+                  sans:
+                    - "*.{{ traefik_local_domain }}"
+
+        services:
+          prowlarr-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['media'].ansible_host }}:9696"
+          sonarr-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['media'].ansible_host }}:8989"
+          radarr-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['media'].ansible_host }}:7878"
+          readarr-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['media'].ansible_host }}:8787"
+          bazarr-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['media'].ansible_host }}:6767"
+          homarr-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['media'].ansible_host }}:7575"
+          jellyfin-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['media'].ansible_host }}:8096"
+          qbittorrent-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['media'].ansible_host }}:8080"

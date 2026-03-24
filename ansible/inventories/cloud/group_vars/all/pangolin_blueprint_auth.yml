@@ -1,0 +1,10 @@
+pangolin_blueprint_auth:
+  crisp-plateau-pika:
+    name: Authelia
+    protocol: http
+    full-domain: "auth.{{ pangolin_base_domain }}"
+    targets:
+      - site: "{{ pangolin_site_nice_id }}"
+        hostname: "{{ hostvars['authelia'].ansible_host }}"
+        port: 9091
+        method: http

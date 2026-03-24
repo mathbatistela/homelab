@@ -1,0 +1,24 @@
+service_manifest:
+  name: ha
+  display_name: home assistant
+  host: ha
+  service:
+    port: 8123
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: generated
+      template: simple-http
+      subdomain: ha
+    public:
+      enabled: true
+      mode: generated
+      subdomain: ha
+      protocol: http
+  auth:
+    sso: false
+  monitoring:
+    enabled: false
+  deployment:
+    owner: external

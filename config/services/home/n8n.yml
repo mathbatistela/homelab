@@ -1,0 +1,24 @@
+service_manifest:
+  name: n8n
+  display_name: n8n
+  host: n8n
+  service:
+    port: 5678
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: generated
+      template: simple-http
+      subdomain: n8n
+    public:
+      enabled: true
+      mode: generated
+      subdomain: n8n
+      protocol: http
+  auth:
+    sso: false
+  monitoring:
+    enabled: false
+  deployment:
+    owner: external

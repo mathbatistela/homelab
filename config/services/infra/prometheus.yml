@@ -1,0 +1,23 @@
+service_manifest:
+  name: prometheus
+  display_name: Prometheus
+  host: infra
+  service:
+    port: 9090
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: generated
+      template: simple-http
+      subdomain: prometheus
+    public:
+      enabled: false
+      mode: generated
+  auth:
+    sso: false
+  monitoring:
+    enabled: false
+  deployment:
+    owner: role
+    role: monitoring_stack

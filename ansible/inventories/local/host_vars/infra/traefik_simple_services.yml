@@ -1,0 +1,5 @@
+traefik_simple_services:
+  - service_name: test
+    template: simple-http
+    service_host: "test.{{ traefik_local_domain }}"
+    service_backend_url: "http://{{ tailscale_ha_ip }}:8083"

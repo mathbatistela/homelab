@@ -68,10 +68,14 @@ tofu apply          # Apply changes
 ### Ansible Operations
 
 ```bash
+# From repo root: bootstrap the local toolchain
+make bootstrap
+make doctor
+
 cd ansible
 
-# Install required collections and roles
-ansible-galaxy collection install -r requirements.yml
+# Or activate the repo-local environment directly
+source ../.venv/bin/activate
 
 # Run a specific playbook
 ansible-playbook playbooks/vms/infra.yml
@@ -95,7 +99,7 @@ ansible all -m ping
 ansible all -a "uptime"
 ```
 
-**Important**: The default inventory is set to `ansible/inventories/` which includes both `local/` and `cloud/`. Vault password is automatically loaded from `vault.auth`.
+**Important**: The default inventory in `ansible.cfg` is `ansible/inventories/local`. Use `make play-pangolin` (or `ansible-playbook -i inventories/ ...`) for the cross-inventory Pangolin playbook. Vault password is automatically loaded from `vault.auth`.
 
 ### Working with Ansible Vault
 
@@ -122,10 +126,11 @@ ansible-vault rekey inventories/local/group_vars/all/vault.yml
 ### Adding a New VM
 
 1. Add Terraform resource in `terraform/home/main.tf` following the existing pattern
-2. Add corresponding DNS entry in `terraform/cloud/vms_dns.tf` locals
-3. Add host to `ansible/inventories/local/hosts.yml`
-4. Create playbook in `ansible/playbooks/vms/<hostname>.yml`
-5. Apply: `cd terraform/home && tofu apply`, then `cd terraform/cloud && tofu apply`, then `ansible-playbook playbooks/vms/<hostname>.yml`
+2. Add/update the host IP in `config/network.json`
+3. DNS in `terraform/cloud/vms_dns.tf` reads from `config/network.json`
+4. Add host to `ansible/inventories/local/hosts.yml`
+5. Create playbook in `ansible/playbooks/vms/<hostname>.yml`
+6. Apply: `cd terraform/home && tofu apply`, then `cd terraform/cloud && tofu apply`, then `ansible-playbook playbooks/vms/<hostname>.yml`
 
 ### Adding a New Ansible Role
 
@@ -187,7 +192,11 @@ Credentials are stored in vault as `vault.database.<service>_user_pw`.
 ## Important Files
 
 - `ansible/ansible.cfg`: Ansible configuration including vault password file location
+- `config/network.json`: Shared network authority for Terraform modules
+- `config/domains.yml`: Shared domain/email/tunnel IP authority for Ansible-facing config
+- `config/services/`: Pilot per-service manifests for simple generated Traefik/Pangolin entries
 - `ansible/requirements.yml`: External Ansible collections dependencies
+- `.venv/`: Repo-local Python tooling environment created by `make bootstrap` (gitignored)
 - `ansible/inventories/local/hosts.yml`: Inventory defining all managed hosts
 - `ansible/inventories/local/group_vars/all/vault.yml`: Encrypted secrets (git-tracked but encrypted)
 - `terraform/home/`: Proxmox LXC container definitions

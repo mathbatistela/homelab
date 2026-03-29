@@ -2,7 +2,8 @@
         plan-home plan-cloud validate-home validate-cloud apply-home apply-cloud \
         play-infra play-database play-media play-minecraft play-tools \
         play-monitoring play-pangolin play-proxmox play-authelia play-tailscale \
-        deploy-vm deploy-services deploy-blueprint
+        deploy-vm deploy-services deploy-blueprint \
+        apps-list apps-validate apps-build apps-create
 
 VENV := .venv
 PYTHON := $(VENV)/bin/python3
@@ -122,3 +123,25 @@ deploy-services: $(VENV)/bin/python3
 deploy-blueprint: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local -i inventories/cloud playbooks/vms/pangolin.yml --tags pangolin
 	$(MAKE) play-monitoring
+
+# ── Apps ─────────────────────────────────────────────────────────────────────
+
+HOMELAB_APPS := $(PYTHON) scripts/homelab-apps
+
+apps-list: $(VENV)/bin/python3
+	$(HOMELAB_APPS) list
+
+apps-validate: $(VENV)/bin/python3
+	$(HOMELAB_APPS) validate --strict
+
+apps-build: $(VENV)/bin/python3
+ifndef APP
+	$(error APP is required. Usage: make apps-build APP=hello-world)
+endif
+	$(HOMELAB_APPS) build $(APP)
+
+apps-create: $(VENV)/bin/python3
+ifndef APP
+	$(error APP is required. Usage: make apps-create APP=my-app)
+endif
+	$(HOMELAB_APPS) create $(APP)

@@ -108,6 +108,64 @@ def _parse_hosts_regex() -> set[str]:
     return hosts
 
 
+def parse_app_configs() -> list[dict]:
+    """Load all app.yml configs from apps/."""
+    try:
+        import yaml
+    except ImportError:
+        return []
+
+    apps_dir = ROOT / "apps"
+    configs = []
+    for path in sorted(apps_dir.glob("*/app.yml")):
+        if path.parent.name.startswith("."):
+            continue
+        with open(path) as f:
+            data = yaml.safe_load(f)
+        if data and "app" in data:
+            configs.append({"path": str(path.relative_to(ROOT)), **data["app"]})
+    return configs
+
+
+def check_app_configs(app_configs: list[dict], all_network_hosts: set[str]):
+    """Validate app.yml configs for schema and host references."""
+    required_fields = ["name", "description", "version", "services", "homelab"]
+    valid_service_types = {"frontend", "backend", "worker", "proxy"}
+
+    for cfg in app_configs:
+        path = cfg["path"]
+        name = cfg.get("name", path)
+
+        for field in required_fields:
+            if field not in cfg:
+                errors.append(f"{path}: app '{name}' missing required field '{field}'")
+
+        services = cfg.get("services", {})
+        if not isinstance(services, dict) or not services:
+            errors.append(f"{path}: app '{name}' services must be a non-empty mapping")
+        else:
+            for svc_name, svc in services.items():
+                if not isinstance(svc, dict):
+                    errors.append(f"{path}: service '{svc_name}' must be a mapping")
+                    continue
+                if "port" not in svc:
+                    errors.append(f"{path}: service '{svc_name}' missing 'port'")
+                svc_type = svc.get("type")
+                if svc_type and svc_type not in valid_service_types:
+                    warnings.append(
+                        f"{path}: service '{svc_name}' has unknown type '{svc_type}'"
+                    )
+
+        homelab = cfg.get("homelab", {})
+        if isinstance(homelab, dict):
+            host = homelab.get("host")
+            if host and all_network_hosts and host not in all_network_hosts:
+                errors.append(
+                    f"{path}: app '{name}' references host '{host}' "
+                    f"not found in config/network.json"
+                )
+
+
 def parse_service_manifests() -> list[dict]:
     """Load all service manifests."""
     try:
@@ -319,6 +377,7 @@ def main():
     terraform_servers = parse_terraform_servers()
     ansible_hosts = parse_ansible_hosts()
     manifests = parse_service_manifests()
+    app_configs = parse_app_configs()
 
     # 1. Terraform servers must exist in network.json
     for server in sorted(terraform_servers):
@@ -354,11 +413,14 @@ def main():
     # 5. Fragment references
     check_fragment_references(manifests)
 
-    # 6. Optional: reachability
+    # 6. App configs
+    check_app_configs(app_configs, all_network_hosts)
+
+    # 7. Optional: reachability
     if args.ping:
         check_reachability(network)
 
-    # 7. Optional: Pangolin drift
+    # 8. Optional: Pangolin drift
     if args.pangolin:
         check_pangolin_drift(manifests)
 

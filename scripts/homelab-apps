@@ -1,0 +1,320 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import shutil
+import subprocess
+import sys
+import textwrap
+from pathlib import Path
+
+try:
+    import yaml
+    _YAML_AVAILABLE = True
+except ImportError:
+    _YAML_AVAILABLE = False
+
+ROOT = Path(__file__).resolve().parent.parent
+APPS_DIR = ROOT / "apps"
+TEMPLATE_DIR = APPS_DIR / ".template"
+
+REQUIRED_FIELDS = ["name", "description", "version", "services", "homelab"]
+VALID_SERVICE_TYPES = {"frontend", "backend", "worker", "proxy"}
+VALID_HOSTS = None
+
+
+def _load_yaml(path: Path) -> dict:
+    if not _YAML_AVAILABLE:
+        print("error: PyYAML is required. Run: pip install pyyaml", file=sys.stderr)
+        sys.exit(1)
+    with open(path) as f:
+        return yaml.safe_load(f) or {}
+
+
+def _load_network_hosts() -> set[str]:
+    global VALID_HOSTS
+    if VALID_HOSTS is not None:
+        return VALID_HOSTS
+    network_path = ROOT / "config" / "network.json"
+    if not network_path.exists():
+        return set()
+    with open(network_path) as f:
+        data = json.load(f)
+    VALID_HOSTS = set(data.get("local_hosts", {}).keys()) | set(data.get("remote_hosts", {}).keys())
+    return VALID_HOSTS
+
+
+def _app_dirs() -> list[Path]:
+    if not APPS_DIR.exists():
+        return []
+    return sorted(
+        d for d in APPS_DIR.iterdir()
+        if d.is_dir() and not d.name.startswith(".") and (d / "app.yml").exists()
+    )
+
+
+def _load_app_config(app_dir: Path) -> dict:
+    data = _load_yaml(app_dir / "app.yml")
+    return data.get("app", {})
+
+
+def _validate_app(app_dir: Path, strict: bool = False) -> list[str]:
+    issues: list[str] = []
+    app_yml = app_dir / "app.yml"
+
+    if not app_yml.exists():
+        issues.append(f"{app_dir.name}: missing app.yml")
+        return issues
+
+    data = _load_yaml(app_yml)
+    if "app" not in data:
+        issues.append(f"{app_dir.name}/app.yml: missing top-level 'app' key")
+        return issues
+
+    cfg = data["app"]
+
+    for field in REQUIRED_FIELDS:
+        if field not in cfg:
+            issues.append(f"{app_dir.name}/app.yml: missing required field 'app.{field}'")
+
+    services = cfg.get("services", {})
+    if not isinstance(services, dict) or not services:
+        issues.append(f"{app_dir.name}/app.yml: 'app.services' must be a non-empty mapping")
+    else:
+        for svc_name, svc in services.items():
+            if not isinstance(svc, dict):
+                issues.append(f"{app_dir.name}/app.yml: service '{svc_name}' must be a mapping")
+                continue
+            if "port" not in svc:
+                issues.append(f"{app_dir.name}/app.yml: service '{svc_name}' missing 'port'")
+            if "type" in svc and svc["type"] not in VALID_SERVICE_TYPES:
+                issues.append(
+                    f"{app_dir.name}/app.yml: service '{svc_name}' has unknown type '{svc['type']}'"
+                    f" (expected one of: {', '.join(sorted(VALID_SERVICE_TYPES))})"
+                )
+
+    homelab = cfg.get("homelab", {})
+    if isinstance(homelab, dict):
+        host = homelab.get("host")
+        if host:
+            valid_hosts = _load_network_hosts()
+            if valid_hosts and host not in valid_hosts:
+                issues.append(
+                    f"{app_dir.name}/app.yml: 'homelab.host' is '{host}' "
+                    f"but that host is not in config/network.json"
+                )
+
+    if strict:
+        services_subdir = app_dir / "services"
+        single_dockerfile = app_dir / "Dockerfile"
+        if services_subdir.is_dir():
+            for svc_name in (cfg.get("services") or {}):
+                svc_dir = services_subdir / svc_name
+                if not svc_dir.is_dir():
+                    issues.append(f"{app_dir.name}: services/{svc_name}/ directory not found")
+                elif not (svc_dir / "Dockerfile").exists():
+                    issues.append(f"{app_dir.name}: services/{svc_name}/Dockerfile not found")
+        elif not single_dockerfile.exists():
+            issues.append(f"{app_dir.name}: no Dockerfile found (expected at root or under services/)")
+
+    return issues
+
+
+def cmd_list(args: argparse.Namespace) -> int:
+    app_dirs = _app_dirs()
+    if not app_dirs:
+        print("No apps found in apps/")
+        return 0
+
+    fmt = "{:<20} {:<10} {:<10} {:<30}"
+    print(fmt.format("NAME", "VERSION", "HOST", "DESCRIPTION"))
+    print("-" * 72)
+    for app_dir in app_dirs:
+        cfg = _load_app_config(app_dir)
+        name = cfg.get("name", app_dir.name)
+        version = cfg.get("version", "—")
+        host = (cfg.get("homelab") or {}).get("host", "—")
+        description = cfg.get("description", "")
+        if len(description) > 30:
+            description = description[:27] + "..."
+        print(fmt.format(name, version, host, description))
+
+    print(f"\n{len(app_dirs)} app(s) total")
+    return 0
+
+
+def cmd_validate(args: argparse.Namespace) -> int:
+    app_dirs = _app_dirs()
+    if not app_dirs:
+        print("No apps found in apps/")
+        return 0
+
+    all_issues: list[str] = []
+    for app_dir in app_dirs:
+        all_issues.extend(_validate_app(app_dir, strict=args.strict))
+
+    if all_issues:
+        print(f"✗  {len(all_issues)} issue(s) found:")
+        for issue in all_issues:
+            print(f"   {issue}")
+        return 1
+
+    print(f"✓  All {len(app_dirs)} app(s) valid")
+    return 0
+
+
+def cmd_create(args: argparse.Namespace) -> int:
+    name = args.name.lower().replace(" ", "-").replace("_", "-")
+    dest = APPS_DIR / name
+
+    if dest.exists():
+        print(f"error: apps/{name}/ already exists", file=sys.stderr)
+        return 1
+
+    if not TEMPLATE_DIR.exists():
+        print(f"error: template directory not found at {TEMPLATE_DIR}", file=sys.stderr)
+        return 1
+
+    multi = args.multi or _prompt_bool(f"Is '{name}' a multi-service app?", default=False)
+
+    shutil.copytree(TEMPLATE_DIR, dest)
+
+    app_yml_path = dest / "app.yml"
+    content = app_yml_path.read_text()
+    content = content.replace("my-app", name)
+    app_yml_path.write_text(content)
+
+    if multi:
+        (dest / "Dockerfile").unlink(missing_ok=True)
+        frontend_dir = dest / "services" / "frontend" / "src"
+        api_dir = dest / "services" / "api" / "src"
+        frontend_dir.mkdir(parents=True, exist_ok=True)
+        api_dir.mkdir(parents=True, exist_ok=True)
+        (dest / "services" / "frontend" / "Dockerfile").write_text(
+            (TEMPLATE_DIR / "Dockerfile").read_text()
+        )
+        (dest / "services" / "api" / "Dockerfile").write_text(
+            (TEMPLATE_DIR / "Dockerfile").read_text()
+        )
+        print(f"✓  Created multi-service app at apps/{name}/")
+        print(f"   Edit apps/{name}/app.yml, then add your services under apps/{name}/services/")
+    else:
+        src_dir = dest / "src"
+        src_dir.mkdir(exist_ok=True)
+        print(f"✓  Created single-service app at apps/{name}/")
+        print(f"   Edit apps/{name}/app.yml and apps/{name}/Dockerfile")
+
+    return 0
+
+
+def _prompt_bool(question: str, default: bool) -> bool:
+    suffix = " [Y/n]" if default else " [y/N]"
+    try:
+        answer = input(question + suffix + " ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        return default
+    if answer in ("y", "yes"):
+        return True
+    if answer in ("n", "no"):
+        return False
+    return default
+
+
+def cmd_build(args: argparse.Namespace) -> int:
+    app_dir = APPS_DIR / args.name
+    if not app_dir.exists():
+        print(f"error: apps/{args.name}/ not found", file=sys.stderr)
+        return 1
+
+    cfg = _load_app_config(app_dir)
+    services = cfg.get("services", {})
+
+    targets: list[tuple[str, Path]] = []
+
+    services_subdir = app_dir / "services"
+    if services_subdir.is_dir():
+        for svc_name in services:
+            if args.service and svc_name != args.service:
+                continue
+            svc_dir = services_subdir / svc_name
+            if not (svc_dir / "Dockerfile").exists():
+                print(f"warning: no Dockerfile found for service '{svc_name}', skipping")
+                continue
+            image = f"{args.name}-{svc_name}"
+            targets.append((image, svc_dir))
+    else:
+        if args.service and args.service not in services:
+            print(f"error: service '{args.service}' not found in app.yml", file=sys.stderr)
+            return 1
+        if (app_dir / "Dockerfile").exists():
+            targets.append((args.name, app_dir))
+
+    if not targets:
+        print("error: no buildable targets found", file=sys.stderr)
+        return 1
+
+    registry = args.registry or ""
+    tag = args.tag or "local"
+
+    failed = False
+    for image_name, context in targets:
+        full_image = f"{registry}/{image_name}:{tag}" if registry else f"{image_name}:{tag}"
+        cmd = ["docker", "build", "-t", full_image, str(context)]
+        print(f"→  Building {full_image} …")
+        result = subprocess.run(cmd)
+        if result.returncode != 0:
+            print(f"✗  Build failed for {image_name}")
+            failed = True
+        else:
+            print(f"✓  Built {full_image}")
+
+    return 1 if failed else 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        prog="homelab-apps",
+        description="Manage homelab apps",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=textwrap.dedent("""\
+            examples:
+              homelab-apps list
+              homelab-apps validate
+              homelab-apps validate --strict
+              homelab-apps create my-app
+              homelab-apps create my-app --multi
+              homelab-apps build hello-world
+              homelab-apps build adhd-board --service api
+              homelab-apps build hello-world --tag v1.0.0
+        """),
+    )
+    sub = parser.add_subparsers(dest="command", metavar="command")
+    sub.required = True
+
+    sub.add_parser("list", help="List all apps")
+
+    p_validate = sub.add_parser("validate", help="Validate app configs")
+    p_validate.add_argument(
+        "--strict", action="store_true",
+        help="Also check that Dockerfiles exist for declared services"
+    )
+
+    p_create = sub.add_parser("create", help="Scaffold a new app from the template")
+    p_create.add_argument("name", help="App name (slug)")
+    p_create.add_argument(
+        "--multi", action="store_true",
+        help="Create a multi-service app structure without prompting"
+    )
+
+    p_build = sub.add_parser("build", help="Build app Docker image(s) locally")
+    p_build.add_argument("name", help="App name")
+    p_build.add_argument("--service", metavar="SERVICE", help="Build only this service")
+    p_build.add_argument("--tag", metavar="TAG", default="local", help="Image tag (default: local)")
+    p_build.add_argument("--registry", metavar="REGISTRY", help="Registry prefix (e.g. ghcr.io/owner)")
+
+    args = parser.parse_args()
+    dispatch = {"list": cmd_list, "validate": cmd_validate, "create": cmd_create, "build": cmd_build}
+    return dispatch[args.command](args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -42,3 +42,4 @@ ansible/collections/**
 __pycache__/
 *.pyc
 .venv/
+*_backup.json

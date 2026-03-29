@@ -83,6 +83,40 @@
   register: _api_check
   when: pangolin_blueprint_file is changed
 
+- name: Fetch existing Pangolin resources
+  ansible.builtin.uri:
+    url: "{{ pangolin_api_url }}/v1/org/{{ pangolin_org_id }}/resources"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ pangolin_api_key }}"
+    status_code: 200
+  delegate_to: localhost
+  become: false
+  register: _existing_resources
+  when: pangolin_blueprint_file is changed
+
+- name: Build list of existing resource IDs to delete
+  ansible.builtin.set_fact:
+    _resources_to_delete: "{{ _existing_resources.json.data.resources | map(attribute='resourceId') | list }}"
+  when: pangolin_blueprint_file is changed
+
+- name: Delete existing Pangolin resources for clean re-apply
+  ansible.builtin.uri:
+    url: "{{ pangolin_api_url }}/v1/resource/{{ item }}"
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ pangolin_api_key }}"
+    status_code:
+      - 200
+      - 204
+      - 404
+  delegate_to: localhost
+  become: false
+  loop: "{{ _resources_to_delete | default([]) }}"
+  loop_control:
+    label: "resource/{{ item }}"
+  when: pangolin_blueprint_file is changed
+
 - name: Apply Pangolin blueprint via API
   ansible.builtin.uri:
     url: "{{ pangolin_api_url }}/v1/org/{{ pangolin_org_id }}/blueprint"

@@ -1,6 +1,6 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-03-18
+**Generated:** 2026-03-29
 **Branch:** main
 
 ## OVERVIEW
@@ -15,7 +15,7 @@ homelab/
 │   ├── network.json    # Authoritative shared network config for Terraform modules
 │   ├── domains.yml     # Authoritative shared domain/email/tunnel IP config
 │   └── services/       # Pilot per-service manifests for simple generated routing/public exposure
-├── terraform/
+├── terraform/          # Infrastructure provisioning (see terraform/AGENTS.md)
 │   ├── home/           # Proxmox LXC containers (Telmate/proxmox provider)
 │   │   ├── main.tf     # locals.servers map + proxmox_lxc.servers (for_each); IPs from config/network.json
 │   │   ├── variables.tf # Provider creds + infra paths + lxc_ostemplate/bridge/interface vars

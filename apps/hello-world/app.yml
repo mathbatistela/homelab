@@ -1,0 +1,31 @@
+app:
+  name: hello-world
+  description: Minimal HTTP server demonstrating the single-service app pattern
+  version: 0.1.0
+
+  services:
+    app:
+      type: backend
+      port: 8080
+      image:
+        name: hello-world
+        tag: latest
+      healthcheck:
+        path: /health
+        interval: 30s
+
+  homelab:
+    host: tools
+    category: productivity
+
+    exposure:
+      local:
+        enabled: true
+        subdomain: hello
+      public:
+        enabled: false
+        subdomain: hello
+
+    resources:
+      memory: 64M
+      cpus: 0.1

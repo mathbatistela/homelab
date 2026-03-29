@@ -1,0 +1,45 @@
+app:
+  # Required: short slug used for image names and directory lookup
+  name: my-app
+  description: A brief description of what this app does
+  version: 0.1.0
+
+  # ── Services ──────────────────────────────────────────────────────────────
+  # Single-service apps: define exactly one entry here (commonly "app" or the
+  # app name itself). Multi-service apps add frontend, api, worker, etc.
+  services:
+    app:
+      # "frontend" | "backend" | "worker" | "proxy"
+      type: backend
+      port: 8080
+      image:
+        # Final image name: ghcr.io/<owner>/<name>-<service>  (or <name> if only one)
+        name: my-app
+        tag: latest
+      # Optional: health check path for Traefik/Pangolin
+      healthcheck:
+        path: /health
+        interval: 30s
+
+  # ── Homelab integration ────────────────────────────────────────────────────
+  homelab:
+    # Which VM hosts this app (must exist in config/network.json)
+    host: tools
+    # Category for organisational grouping (productivity | media | infra | home)
+    category: productivity
+
+    # Traefik (local) + Pangolin (public) exposure
+    exposure:
+      local:
+        enabled: true
+        # Subdomain under local.batistela.tech
+        subdomain: my-app
+      public:
+        enabled: false
+        # Subdomain under batistela.tech
+        subdomain: my-app
+
+    # Optional: resource hints for the compose/deployment layer
+    resources:
+      memory: 256M
+      cpus: 0.25

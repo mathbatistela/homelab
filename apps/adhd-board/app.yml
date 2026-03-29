@@ -1,0 +1,41 @@
+app:
+  name: adhd-board
+  description: Task management board built for ADHD-friendly workflows
+  version: 0.1.0
+
+  services:
+    frontend:
+      type: frontend
+      port: 3000
+      image:
+        name: adhd-board-frontend
+        tag: latest
+      healthcheck:
+        path: /
+        interval: 30s
+
+    api:
+      type: backend
+      port: 5000
+      image:
+        name: adhd-board-api
+        tag: latest
+      healthcheck:
+        path: /health
+        interval: 30s
+
+  homelab:
+    host: tools
+    category: productivity
+
+    exposure:
+      local:
+        enabled: false
+        subdomain: board
+      public:
+        enabled: true
+        subdomain: adhd-board
+
+    resources:
+      memory: 512M
+      cpus: 0.5

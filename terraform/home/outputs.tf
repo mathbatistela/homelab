@@ -4,7 +4,7 @@ output "servers" {
     for key, server in proxmox_lxc.servers : key => {
       vmid     = server.vmid
       hostname = server.hostname
-      ip       = server.network[0].ip
+      ip       = try(server.network[0].ip, "unknown")
     }
   }
 }

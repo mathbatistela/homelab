@@ -65,6 +65,17 @@ locals {
         }
       ]
     }
+    n8n = {
+      vmid        = 106
+      hostname    = "n8n"
+      cores       = 2
+      memory      = 2048
+      swap        = 512
+      disk_size   = "6G"
+      ip          = "${local.network.local_hosts.n8n}${local.network.cidr}"
+      nameserver  = null
+      mountpoints = []
+    }
     tailscale = {
       vmid        = 108
       hostname    = "tailscale"
@@ -73,6 +84,28 @@ locals {
       swap        = 0
       disk_size   = "5G"
       ip          = "${local.network.local_hosts.tailscale}${local.network.cidr}"
+      nameserver  = null
+      mountpoints = []
+    }
+    authelia = {
+      vmid        = 109
+      hostname    = "authelia"
+      cores       = 1
+      memory      = 512
+      swap        = 512
+      disk_size   = "2G"
+      ip          = "${local.network.local_hosts.authelia}${local.network.cidr}"
+      nameserver  = null
+      mountpoints = []
+    }
+    minecraft-be = {
+      vmid        = 115
+      hostname    = "minecraft-be"
+      cores       = 1
+      memory      = 1024
+      swap        = 512
+      disk_size   = "4G"
+      ip          = "${local.network.local_hosts.minecraft-be}${local.network.cidr}"
       nameserver  = null
       mountpoints = []
     }
@@ -125,4 +158,15 @@ resource "proxmox_lxc" "servers" {
 
   ssh_public_keys = file(var.ssh_pub_key_path)
   password        = var.lxc_root_password
+
+  lifecycle {
+    ignore_changes = [
+      ostemplate,
+      password,
+      ssh_public_keys,
+      rootfs[0].storage,
+      description,
+      tags,
+    ]
+  }
 }

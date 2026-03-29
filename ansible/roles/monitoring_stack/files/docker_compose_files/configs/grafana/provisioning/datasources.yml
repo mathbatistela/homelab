@@ -13,6 +13,7 @@ datasources:
   - name: Alertmanager
     type: alertmanager
     uid: alertmanager
+    orgId: 1
     url: http://alertmanager:9093
     access: proxy
     jsonData:
@@ -20,6 +21,7 @@ datasources:
   - name: Loki
     type: loki
     uid: loki
+    orgId: 1
     access: proxy
     url: http://loki:3100
     version: 1

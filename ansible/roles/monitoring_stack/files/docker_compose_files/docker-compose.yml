@@ -103,6 +103,7 @@ services:
   alertmanager:
     image: prom/alertmanager:v0.28.1
     container_name: alertmanager
+    restart: unless-stopped
     command:
       - --config.file=/etc/alertmanager/config.yml
       - --log.level=error
@@ -121,6 +122,7 @@ services:
   uncomplicated-alert-receiver:
     image: ghcr.io/jamesread/uncomplicated-alert-receiver:1.2.3
     container_name: uncomplicated-alert-receiver
+    restart: unless-stopped
     ports: ["9094:8080"]
     cpus: 0.5
     mem_limit: 512m
@@ -131,6 +133,7 @@ services:
   loki:
     image: grafana/loki:3.5.3
     container_name: loki
+    restart: unless-stopped
     user: root
     ports: ["3100:3100"]
     command: -config.file=/etc/loki/loki.yaml
@@ -147,6 +150,7 @@ services:
   promtail:
     image: grafana/promtail:3.5.3
     container_name: promtail
+    restart: unless-stopped
     volumes:
       - ./configs/promtail/promtail.yaml:/etc/promtail/docker-config.yaml
       - /var/lib/docker/containers:/var/lib/docker/containers:ro

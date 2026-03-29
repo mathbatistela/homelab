@@ -2,7 +2,7 @@
         plan-home plan-cloud validate-home validate-cloud apply-home apply-cloud \
         play-infra play-database play-media play-minecraft play-tools \
         play-monitoring play-pangolin play-proxmox play-authelia play-tailscale \
-        deploy-vm deploy-services
+        deploy-vm deploy-services deploy-blueprint
 
 VENV := .venv
 PYTHON := $(VENV)/bin/python3
@@ -49,7 +49,7 @@ syntax-check: $(VENV)/bin/python3
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/minecraft.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/tools.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/monitoring.yml --syntax-check && \
-	  ../$(ANSIBLE_PLAYBOOK) -i inventories/ playbooks/vms/pangolin.yml --syntax-check && \
+	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local -i inventories/cloud playbooks/vms/pangolin.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/authelia.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/tailscale.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/nodes/proxmox.yml --syntax-check
@@ -73,7 +73,7 @@ play-monitoring: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/monitoring.yml
 
 play-pangolin: $(VENV)/bin/python3
-	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/ playbooks/vms/pangolin.yml
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local -i inventories/cloud playbooks/vms/pangolin.yml
 
 play-authelia: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/authelia.yml
@@ -117,4 +117,8 @@ endif
 deploy-services: $(VENV)/bin/python3
 	$(MAKE) play-infra
 	$(MAKE) play-pangolin
+	$(MAKE) play-monitoring
+
+deploy-blueprint: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local -i inventories/cloud playbooks/vms/pangolin.yml --tags pangolin
 	$(MAKE) play-monitoring

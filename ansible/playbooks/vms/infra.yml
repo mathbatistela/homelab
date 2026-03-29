@@ -14,11 +14,22 @@
       ansible.builtin.set_fact:
         generated_traefik_services: []
 
+    - name: Find service manifest files
+      ansible.builtin.find:
+        paths: "{{ repo_root }}/config/services"
+        patterns: "*.yml"
+        recurse: true
+      delegate_to: localhost
+      become: false
+      register: traefik_manifest_files
+
     - name: Load service manifests for Traefik generation
       ansible.builtin.include_vars:
-        file: "{{ item }}"
+        file: "{{ item.path }}"
         name: loaded_service_manifest
-      loop: "{{ lookup('ansible.builtin.fileglob', playbook_dir + '/../../config/services/**/*.yml', wantlist=True) }}"
+      loop: "{{ traefik_manifest_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
       register: traefik_manifest_loads
 
     - name: Build generated simple Traefik services from manifests
@@ -44,7 +55,7 @@
       ansible.builtin.include_vars:
         file: "{{ item }}"
         name: loaded_traefik_fragment
-      loop: "{{ lookup('ansible.builtin.fileglob', playbook_dir + '/../../config/fragments/traefik/*.yml', wantlist=True) }}"
+      loop: "{{ lookup('ansible.builtin.fileglob', repo_root + '/config/fragments/traefik/*.yml', wantlist=True) }}"
       register: traefik_fragment_loads
 
     - name: Collect Traefik fragment services

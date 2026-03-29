@@ -3,6 +3,8 @@
   hosts: racknerd_vm0
   become: true
   gather_facts: true
+  tags:
+    - ufw
   tasks:
     - name: Ensure UFW is installed
       ansible.builtin.package:
@@ -42,13 +44,27 @@
     - name: Initialize generated Pangolin resources
       ansible.builtin.set_fact:
         generated_pangolin_resources: {}
+      tags: always
+
+    - name: Find service manifest files
+      ansible.builtin.find:
+        paths: "{{ repo_root }}/config/services"
+        patterns: "*.yml"
+        recurse: true
+      delegate_to: localhost
+      become: false
+      register: pangolin_manifest_files
+      tags: always
 
     - name: Load service manifests for Pangolin generation
       ansible.builtin.include_vars:
-        file: "{{ item }}"
+        file: "{{ item.path }}"
         name: loaded_service_manifest
-      loop: "{{ lookup('ansible.builtin.fileglob', playbook_dir + '/../../config/services/**/*.yml', wantlist=True) }}"
+      loop: "{{ pangolin_manifest_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
       register: pangolin_manifest_loads
+      tags: always
 
     - name: Build generated Pangolin resources from manifests
       ansible.builtin.set_fact:
@@ -70,27 +86,32 @@
       when:
         - manifest.exposure.public.enabled | default(false)
         - manifest.exposure.public.mode | default('generated') == 'generated'
+      tags: always
 
     - name: Initialize fragment Pangolin resources
       ansible.builtin.set_fact:
         fragment_pangolin_resources: {}
+      tags: always
 
     - name: Load Pangolin fragment files
       ansible.builtin.include_vars:
         file: "{{ item }}"
         name: loaded_pangolin_fragment
-      loop: "{{ lookup('ansible.builtin.fileglob', playbook_dir + '/../../config/fragments/pangolin/*.yml', wantlist=True) }}"
+      loop: "{{ lookup('ansible.builtin.fileglob', repo_root + '/config/fragments/pangolin/*.yml', wantlist=True) }}"
       register: pangolin_fragment_loads
+      tags: always
 
     - name: Collect Pangolin fragment resources
       ansible.builtin.set_fact:
         fragment_pangolin_resources: "{{ fragment_pangolin_resources | combine(item.ansible_facts.loaded_pangolin_fragment.pangolin_fragment_resources, recursive=True) }}"
       loop: "{{ pangolin_fragment_loads.results }}"
+      tags: always
 
     - name: Merge all Pangolin resources into blueprint
       ansible.builtin.set_fact:
         pangolin_blueprint:
           public-resources: "{{ generated_pangolin_resources | combine(fragment_pangolin_resources, recursive=True) }}"
+      tags: always
   roles:
     - geerlingguy.docker
     - pangolin

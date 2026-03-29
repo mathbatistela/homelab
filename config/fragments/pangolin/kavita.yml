@@ -1,0 +1,10 @@
+pangolin_fragment_resources:
+  honorable-eastern-pine-snake:
+    name: Kavita
+    protocol: http
+    full-domain: "library.{{ pangolin_base_domain }}"
+    targets:
+      - site: "{{ pangolin_site_nice_id }}"
+        hostname: "{{ hostvars['media'].ansible_host }}"
+        port: 5000
+        method: http

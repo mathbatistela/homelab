@@ -1,3 +1,5 @@
+repo_root: "{{ inventory_dir }}/../../../"
+
 base_domain: batistela.tech
 local_domain: "local.{{ base_domain }}"
 admin_email: "matheus@{{ base_domain }}"

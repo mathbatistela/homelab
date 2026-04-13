@@ -1,0 +1,23 @@
+service_manifest:
+  name: openwebui
+  display_name: Open WebUI
+  host: openwebui
+  service:
+    port: 8080
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: generated
+      template: simple-http
+      subdomain: ai
+    public:
+      enabled: true
+      mode: generated
+      subdomain: ai
+      protocol: http
+  auth:
+    sso: false
+  deployment:
+    owner: community-script
+    role: null

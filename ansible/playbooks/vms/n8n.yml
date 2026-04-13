@@ -1,0 +1,6 @@
+- name: Configure n8n
+  hosts: n8n
+  become: true
+  gather_facts: true
+  roles:
+    - n8n

@@ -1,0 +1,22 @@
+---
+n8n_env_file: /opt/n8n.env
+n8n_service_file: /etc/systemd/system/n8n.service
+n8n_binary: /bin/n8n
+
+n8n_secure_cookie: "false"
+n8n_port: 5678
+n8n_protocol: http
+n8n_host: "{{ ansible_host }}"
+n8n_listen_address: "0.0.0.0"
+n8n_webhook_url: "https://n8n.{{ base_domain }}/"
+
+n8n_node_function_allow_builtin: "crypto,fs"
+n8n_node_function_allow_external: "moment,lodash,cheerio"
+
+# Optional PostgreSQL configuration (disabled by default)
+n8n_db_type: ""
+n8n_db_host: ""
+n8n_db_port: ""
+n8n_db_name: ""
+n8n_db_user: ""
+n8n_db_password: ""

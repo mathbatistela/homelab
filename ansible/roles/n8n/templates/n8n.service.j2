@@ -1,0 +1,14 @@
+[Unit]
+Description=n8n
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile={{ n8n_env_file }}
+ExecStart={{ n8n_binary }} start
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

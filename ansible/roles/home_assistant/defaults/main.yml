@@ -1,0 +1,8 @@
+---
+home_assistant_promtail_version: "3.5.3"
+home_assistant_promtail_container_name: "promtail"
+home_assistant_promtail_loki_url: "http://{{ hostvars['infra'].ansible_host }}:3100/loki/api/v1/push"
+home_assistant_promtail_config_dir: "/homeassistant/promtail"
+
+home_assistant_log_path: "/var/log/home-assistant"
+home_assistant_config_path: "/config"

@@ -1,0 +1,30 @@
+---
+- name: Create Platypus compose directory
+  ansible.builtin.file:
+    path: "{{ platypus_compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create Platypus data directory
+  ansible.builtin.file:
+    path: "{{ platypus_data_dir }}/files"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Deploy Platypus docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ platypus_compose_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Deploy Platypus using docker-compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ platypus_compose_dir }}"
+    state: present
+    pull: always

@@ -1,0 +1,6 @@
+- name: Deploy Home Assistant monitoring components
+  hosts: ha
+  become: true
+  gather_facts: true
+  roles:
+    - role: home_assistant

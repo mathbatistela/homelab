@@ -1,0 +1,40 @@
+---
+- name: Create promtail config directory
+  ansible.builtin.file:
+    path: "{{ home_assistant_promtail_config_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Deploy promtail configuration for Home Assistant logs
+  ansible.builtin.template:
+    src: promtail.yaml.j2
+    dest: "{{ home_assistant_promtail_config_dir }}/promtail.yaml"
+    mode: "0644"
+  register: ha_promtail_config
+
+- name: Check if promtail container exists
+  ansible.builtin.command:
+    cmd: docker ps -a -q -f name={{ home_assistant_promtail_container_name }}
+  register: promtail_container_check
+  changed_when: false
+  failed_when: false
+
+- name: Stop and remove existing promtail container
+  ansible.builtin.command:
+    cmd: docker rm -f {{ home_assistant_promtail_container_name }}
+  when: promtail_container_check.stdout | length > 0 and ha_promtail_config is changed
+  failed_when: false
+
+- name: Deploy promtail container for Home Assistant log shipping
+  ansible.builtin.command:
+    cmd: >
+      docker run -d
+      --name {{ home_assistant_promtail_container_name }}
+      --restart unless-stopped
+      -v {{ home_assistant_promtail_config_dir }}/promtail.yaml:/etc/promtail/promtail.yaml:ro
+      -v /var/log:/var/log:ro
+      -v /run/log/journal:/run/log/journal:ro
+      --network host
+      grafana/promtail:{{ home_assistant_promtail_version }}
+      -config.file=/etc/promtail/promtail.yaml
+  when: promtail_container_check.stdout | length == 0 or ha_promtail_config is changed

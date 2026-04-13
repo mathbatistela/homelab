@@ -1,0 +1,23 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: {{ promtail_journal_config_dir }}/positions.yaml
+
+clients:
+  - url: {{ promtail_journal_loki_url }}
+
+scrape_configs:
+  - job_name: journal
+    journal:
+      max_age: 12h
+      labels:
+        host: {{ inventory_hostname }}
+        job: journal
+    relabel_configs:
+      - source_labels: ['__journal__systemd_unit']
+        target_label: 'unit'
+      - source_labels: ['__journal_unit']
+        regex: '.+'
+        target_label: 'unit'

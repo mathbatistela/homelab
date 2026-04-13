@@ -6,3 +6,12 @@
     - name: Playbook not yet implemented
       ansible.builtin.debug:
         msg: "WARNING: tailscale.yml is a stub — no configuration tasks defined yet."
+
+- name: Deploy journal log collection
+  hosts: tailscale
+  become: true
+  gather_facts: true
+  roles:
+    - role: promtail_journal
+      promtail_journal_units:
+        - tailscaled.service

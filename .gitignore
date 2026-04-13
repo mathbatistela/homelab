@@ -43,3 +43,6 @@ __pycache__/
 *.pyc
 .venv/
 *_backup.json
+.omc/
+ansible/.omc/
+terraform/home/.omc/

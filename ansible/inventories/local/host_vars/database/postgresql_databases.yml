@@ -17,6 +17,10 @@ postgresql_users:
     password: "{{ vault.database.adhd_board_user_pw }}"
   - name: localiza_app_user
     password: "{{ vault.database.localiza_app_user_pw }}"
+  - name: openwebui_user
+    password: "{{ vault.database.openwebui_user_pw }}"
+  - name: platypus_user
+    password: "{{ vault.database.platypus_user_pw }}"
 
 postgresql_databases:
   - name: fresh_rss_database
@@ -31,6 +35,10 @@ postgresql_databases:
     owner: localiza_app_user
   - name: invoice_ninja_database
     owner: invoice_ninja_user
+  - name: openwebui_database
+    owner: openwebui_user
+  - name: platypus_database
+    owner: platypus_user
 
 influxdb_databases:
   - name: homeassistant

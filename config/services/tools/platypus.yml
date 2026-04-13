@@ -1,0 +1,21 @@
+service_manifest:
+  name: platypus
+  display_name: Platypus
+  host: tools
+  service:
+    port: 3100
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: fragment
+      fragment: platypus
+    public:
+      enabled: true
+      mode: fragment
+      fragment: platypus
+  auth:
+    sso: false
+  deployment:
+    owner: role
+    role: platypus

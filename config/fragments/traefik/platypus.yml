@@ -1,0 +1,29 @@
+traefik_fragment_services:
+  - filename: platypus.yml
+    content: |
+      http:
+        routers:
+          platypus-frontend:
+            rule: "Host(`platypus.{{ traefik_local_domain }}`)"
+            entryPoints:
+              - https
+            service: platypus-frontend-svc
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+          platypus-backend:
+            rule: "Host(`platypus.{{ traefik_local_domain }}`) && (PathPrefix(`/organizations`) || PathPrefix(`/users`) || PathPrefix(`/auth`) || PathPrefix(`/health`))"
+            entryPoints:
+              - https
+            service: platypus-backend-svc
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+            priority: 100
+        services:
+          platypus-frontend-svc:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['tools'].ansible_host }}:3100"
+          platypus-backend-svc:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['tools'].ansible_host }}:4000"

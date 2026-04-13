@@ -1,0 +1,7 @@
+---
+platypus_compose_dir: /root/docker-compose-apps/platypus
+platypus_data_dir: /root/docker-compose-apps/platypus/data
+platypus_backend_port: 4000
+platypus_frontend_port: 3100
+platypus_admin_email: "admin@{{ base_domain }}"
+platypus_admin_password: "{{ vault.tools.platypus_auth_secret[:16] }}"

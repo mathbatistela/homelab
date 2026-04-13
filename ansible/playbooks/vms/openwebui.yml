@@ -1,0 +1,32 @@
+- hosts: openwebui
+  become: true
+  gather_facts: true
+  roles:
+    - role: promtail_journal
+      promtail_journal_units:
+        - open-webui.service
+  tasks:
+    - name: Deploy Open WebUI environment file
+      ansible.builtin.copy:
+        dest: /root/.env
+        content: |
+          DATA_DIR=/root/.open-webui
+          CORS_ALLOW_ORIGIN="https://ai.{{ local_domain }};https://ai.{{ base_domain }}"
+          WEBUI_URL="https://ai.{{ base_domain }}"
+          ENABLE_OPENAI_API=True
+          ENABLE_WEBSOCKET_SUPPORT=True
+          DATABASE_URL="postgresql://openwebui_user:{{ vault.database.openwebui_user_pw }}@{{ hostvars['database'].ansible_host }}:5432/openwebui_database"
+          REDIS_URL="redis://openwebui:{{ vault.database.openwebui_user_pw }}@{{ hostvars['database'].ansible_host }}:6379/0"
+          WEBSOCKET_MANAGER="redis"
+          WEBSOCKET_REDIS_URL="redis://openwebui:{{ vault.database.openwebui_user_pw }}@{{ hostvars['database'].ansible_host }}:6379/1"
+        owner: root
+        group: root
+        mode: "0600"
+      notify: Restart Open WebUI
+
+  handlers:
+    - name: Restart Open WebUI
+      ansible.builtin.systemd:
+        name: open-webui
+        state: restarted
+        daemon_reload: true

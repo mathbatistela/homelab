@@ -1,0 +1,41 @@
+services:
+  backend:
+    image: willdady/platypus-backend:latest
+    container_name: platypus-backend
+    restart: unless-stopped
+    environment:
+      NODE_OPTIONS: "--disable-warning=ExperimentalWarning"
+      PORT: "4000"
+      ALLOWED_ORIGINS: "https://platypus.{{ local_domain }},https://platypus.{{ base_domain }}"
+      DATABASE_URL: "postgres://platypus_user:{{ vault.database.platypus_user_pw }}@{{ hostvars['database'].ansible_host }}:5432/platypus_database"
+      BETTER_AUTH_SECRET: "{{ vault.tools.platypus_auth_secret }}"
+      BETTER_AUTH_URL: "https://platypus.{{ local_domain }}"
+      ADMIN_EMAIL: "{{ platypus_admin_email }}"
+      ADMIN_PASSWORD: "{{ platypus_admin_password }}"
+      STORAGE_BACKEND: disk
+      STORAGE_DISK_PATH: /data/files
+      FRONTEND_URL: "https://platypus.{{ local_domain }}"
+    volumes:
+      - {{ platypus_data_dir }}:/data
+    ports:
+      - "{{ platypus_backend_port }}:4000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    image: willdady/platypus-frontend:latest
+    container_name: platypus-frontend
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: "https://platypus.{{ local_domain }}"
+      INTERNAL_BACKEND_URL: "http://backend:4000"
+    ports:
+      - "{{ platypus_frontend_port }}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy

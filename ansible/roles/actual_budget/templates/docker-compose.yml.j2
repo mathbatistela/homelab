@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   actual-budget:
-    image: actualbudget/actual-server:latest
+    image: actualbudget/actual-server:{{ actual_budget_version }}
     container_name: actual-budget
     restart: unless-stopped
     ports:
@@ -10,6 +10,7 @@ services:
     volumes:
       - /mnt/homeshare/docker/actual-budget:/data
     environment:
+      - ACTUAL_HOSTNAME=0.0.0.0
       - ACTUAL_PORT=5006
       - ACTUAL_OPENID_DISCOVERY_URL=https://auth.{{ base_domain }}/.well-known/openid-configuration
       - ACTUAL_OPENID_CLIENT_ID=actual-budget

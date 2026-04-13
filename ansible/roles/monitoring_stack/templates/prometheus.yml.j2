@@ -47,3 +47,12 @@ scrape_configs:
         labels:
           host: {{ host }}
 {% endfor %}
+
+  - job_name: home-assistant
+    static_configs:
+      - targets: ['{{ hostvars['ha'].ansible_host }}:8123']
+        labels:
+          host: ha
+    metrics_path: /api/prometheus
+    authorization:
+      credentials: "{{ vault.ha.prometheus_token }}"

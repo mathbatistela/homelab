@@ -62,7 +62,7 @@ services:
     restart: unless-stopped
     command: -t
     healthcheck:
-      test: ["CMD", "cscli", "capi", "status"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/health"]
       interval: 10s
       timeout: 10s
       retries: 15

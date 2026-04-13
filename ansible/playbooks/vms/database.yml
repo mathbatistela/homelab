@@ -53,3 +53,14 @@
     - role: geerlingguy.redis
 
   tags: redis_install
+
+- name: Deploy journal log collection
+  hosts: database
+  become: true
+  gather_facts: true
+  roles:
+    - role: promtail_journal
+      promtail_journal_units:
+        - postgresql@17-main.service
+        - redis-server.service
+  tags: promtail

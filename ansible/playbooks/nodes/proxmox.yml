@@ -13,3 +13,16 @@
 
   roles:
     - pve_templates
+
+- name: Deploy journal log collection
+  hosts: pve
+  become: true
+  gather_facts: true
+  roles:
+    - role: promtail_journal
+      promtail_journal_units:
+        - pvedaemon.service
+        - pveproxy.service
+        - pve-firewall.service
+        - pve-cluster.service
+        - pvestatd.service

@@ -5,3 +5,12 @@
 
   roles:
     - minecraft_server
+
+- name: Deploy journal log collection
+  hosts: minecraft
+  become: true
+  gather_facts: true
+  roles:
+    - role: promtail_journal
+      promtail_journal_units:
+        - minecraft.service

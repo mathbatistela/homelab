@@ -1,0 +1,25 @@
+---
+- name: Deploy n8n environment file
+  ansible.builtin.template:
+    src: n8n.env.j2
+    dest: "{{ n8n_env_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart n8n
+
+- name: Deploy n8n systemd service
+  ansible.builtin.template:
+    src: n8n.service.j2
+    dest: "{{ n8n_service_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart n8n
+
+- name: Enable and start n8n service
+  ansible.builtin.systemd:
+    name: n8n
+    enabled: true
+    state: started
+    daemon_reload: true

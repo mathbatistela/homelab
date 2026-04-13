@@ -10,7 +10,8 @@
     "tools": "192.168.1.107",
     "tailscale": "192.168.1.108",
     "authelia": "192.168.1.109",
-    "minecraft-be": "192.168.1.115"
+    "minecraft-be": "192.168.1.115",
+    "openwebui": "192.168.1.110"
   },
   "remote_hosts": {
     "racknerd": "204.152.223.118"

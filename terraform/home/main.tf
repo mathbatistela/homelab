@@ -19,7 +19,7 @@ locals {
       cores       = 2
       memory      = 4096
       swap        = 512
-      disk_size   = "16G"
+      disk_size   = "32G"
       ip          = "${local.network.local_hosts.infra}${local.network.cidr}"
       nameserver  = null
       mountpoints = []

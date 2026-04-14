@@ -61,7 +61,7 @@
     mode: "0755"
   become: true
 
-- name: "Copy .env file into {{ arr_stack_compose_dir }}/.env"
+- name: "Copy .env file for {{ arr_stack_compose_dir }}"
   ansible.builtin.template:
     src: env.j2
     dest: "{{ arr_stack_compose_dir }}/.env"
@@ -70,7 +70,7 @@
     mode: "0644"
   become: true
 
-- name: "Copy docker-compose.yml into {{ arr_stack_compose_dir }}/docker-compose.yml"
+- name: "Copy docker-compose.yml file for {{ arr_stack_compose_dir }}"
   ansible.builtin.template:
     src: docker-compose.yml.j2
     dest: "{{ arr_stack_compose_dir }}/docker-compose.yml"

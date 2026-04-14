@@ -6,13 +6,7 @@
     mode: "0644"
   register: traefik_download
   when: not ansible_facts.packages['traefik'] is defined
-
-- name: Extract traefik binary
-  ansible.builtin.unarchive:
-    src: /tmp/traefik.tar.gz
-    dest: /usr/local/bin/
-    remote_src: true
-  when: traefik_download is changed
+  notify: Extract traefik binary
 
 - name: Ensure config directory exists
   ansible.builtin.file:

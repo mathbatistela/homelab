@@ -7,7 +7,7 @@
 
 - name: Check current promtail version
   ansible.builtin.command: /usr/local/bin/promtail --version
-  register: promtail_installed_version
+  register: promtail_journal_installed_version
   changed_when: false
   failed_when: false
 
@@ -16,13 +16,13 @@
     url: "https://github.com/grafana/loki/releases/download/v{{ promtail_journal_version }}/promtail-linux-amd64.zip"
     dest: /tmp/promtail.zip
     mode: "0644"
-  when: promtail_journal_version not in (promtail_installed_version.stdout | default(''))
+  when: promtail_journal_version not in (promtail_journal_installed_version.stdout | default(''))
 
 - name: Install unzip
   ansible.builtin.package:
     name: unzip
     state: present
-  when: promtail_journal_version not in (promtail_installed_version.stdout | default(''))
+  when: promtail_journal_version not in (promtail_journal_installed_version.stdout | default(''))
 
 - name: Extract promtail binary
   ansible.builtin.unarchive:
@@ -30,7 +30,7 @@
     dest: /usr/local/bin/
     remote_src: true
     extra_opts: []
-  when: promtail_journal_version not in (promtail_installed_version.stdout | default(''))
+  when: promtail_journal_version not in (promtail_journal_installed_version.stdout | default(''))
   notify: Restart promtail
 
 - name: Rename promtail binary

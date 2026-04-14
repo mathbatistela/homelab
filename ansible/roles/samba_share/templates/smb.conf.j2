@@ -4,7 +4,7 @@
    netbios name = {{ inventory_hostname }}
    security = user
    map to guest = Bad User
-   guest account = {{ samba_force_user }}
+   guest account = {{ samba_share_force_user }}
    dns proxy = no
    log file = /var/log/samba/log.%m
    max log size = 1000
@@ -12,8 +12,8 @@
 [{{ samba_share_name }}]
    path = {{ samba_share_path }}
    browseable = yes
-   guest ok = {{ samba_guest_ok }}
-   read only = {{ samba_read_only }}
+   guest ok = {{ samba_share_guest_ok }}
+   read only = {{ samba_share_read_only }}
    create mask = 0666
    directory mask = 0777
-   force user = {{ samba_force_user }}
+   force user = {{ samba_share_force_user }}

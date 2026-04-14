@@ -4,7 +4,7 @@
     path: "{{ role_path }}/files/influxdb_token.auth"
   delegate_to: localhost
   become: false
-  register: token_file_stat
+  register: influxdb_token_file_stat
   run_once: true
 
 - name: Debug token file existence
@@ -16,9 +16,10 @@
     cmd: "influxdb3 create token --admin"
   run_once: true
   become: false
-  register: influx_token
+  register: influxdb_token
   no_log: true
-  when: not token_file_stat.stat.exists
+  when: not influxdb_token_file_stat.stat.exists
+  changed_when: true
 
 - name: "Save token to .auth file on control"
   ansible.builtin.copy:

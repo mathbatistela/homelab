@@ -29,7 +29,7 @@
         port: "6556"
         proto: tcp
         delete: true
-      ignore_errors: true
+      failed_when: false
 
     - name: Ensure UFW is enabled
       community.general.ufw:

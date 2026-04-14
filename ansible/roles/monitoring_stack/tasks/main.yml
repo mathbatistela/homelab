@@ -1,7 +1,7 @@
 ---
 - name: Create installation directory
   ansible.builtin.file:
-    path: "{{ monitoring_install_dir }}"
+    path: "{{ monitoring_stack_install_dir }}"
     state: directory
     mode: "0755"
 
@@ -26,16 +26,11 @@
     src: prometheus.yml.j2
     dest: "{{ monitoring_stack_dir }}/configs/prometheus/prometheus.yml"
     mode: "0644"
-  register: prometheus_config
+  register: monitoring_stack_prometheus_config
+  notify: Reload Prometheus config
 
 - name: Bring up stack
   ansible.builtin.command:
     cmd: docker compose up -d
     chdir: "{{ monitoring_stack_dir }}"
-  changed_when: true
-
-- name: Reload Prometheus config
-  ansible.builtin.command:
-    cmd: docker restart prometheus
-  when: prometheus_config is changed
   changed_when: true

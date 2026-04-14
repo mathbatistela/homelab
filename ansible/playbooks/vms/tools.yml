@@ -1,5 +1,6 @@
 ---
-- hosts: tools
+- name: Configure tools VM
+  hosts: tools
   become: true
   gather_facts: true
   roles:

@@ -18,7 +18,7 @@ services:
 
   gerbil:
     container_name: gerbil
-    image: fosrl/gerbil:{{ gerbil_version }}
+    image: fosrl/gerbil:{{ pangolin_gerbil_version }}
     restart: unless-stopped
     depends_on:
       pangolin:
@@ -41,7 +41,7 @@ services:
 
   traefik:
     container_name: traefik
-    image: traefik:{{ traefik_version }}
+    image: traefik:{{ pangolin_traefik_version }}
     restart: unless-stopped
     depends_on:
       pangolin:
@@ -58,7 +58,7 @@ services:
 
   crowdsec:
     container_name: crowdsec
-    image: crowdsecurity/crowdsec:{{ crowdsec_version }}
+    image: crowdsecurity/crowdsec:{{ pangolin_crowdsec_version }}
     restart: unless-stopped
     command: -t
     healthcheck:

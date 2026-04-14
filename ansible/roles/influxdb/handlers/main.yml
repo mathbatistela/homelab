@@ -1,4 +1,3 @@
-
 ---
 - name: Restart influxdb3
   ansible.builtin.systemd:

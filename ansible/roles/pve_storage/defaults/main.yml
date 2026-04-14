@@ -1,12 +1,12 @@
 ---
-pve_iso_storage: "iac-isos"
+pve_iso_storage: "iac-isos"  # noqa: var-naming[no-role-prefix]
 pve_storage_path_iso: "/var/lib/vz/iac"
 
-pve_snippets_storage: "iac-snippets"
+pve_snippets_storage: "iac-snippets"  # noqa: var-naming[no-role-prefix]
 pve_storage_path_snippets: "/var/lib/vz/iac"
 
-pve_template_storage: "iac-vm-templates"
+pve_template_storage: "iac-vm-templates"  # noqa: var-naming[no-role-prefix]
 pve_storage_path_templates: "/var/lib/vz/iac"
 
-pve_lxc_template_storage: "iac-lxc-templates"
+pve_lxc_template_storage: "iac-lxc-templates"  # noqa: var-naming[no-role-prefix]
 pve_storage_path_lxc_templates: "/var/lib/vz/iac"

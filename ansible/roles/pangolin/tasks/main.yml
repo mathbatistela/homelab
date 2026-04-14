@@ -68,7 +68,7 @@
   when: pangolin_blueprint | length > 0
   register: pangolin_blueprint_file
 
-- name: Wait for Integration API to be ready
+- name: Wait for Integration API to be ready  # noqa: no-handler
   ansible.builtin.uri:
     url: "{{ pangolin_api_url }}/v1/org/{{ pangolin_org_id }}/domains"
     method: GET
@@ -79,11 +79,12 @@
   become: false
   retries: 6
   delay: 10
-  until: _api_check is not failed
-  register: _api_check
+  until: pangolin_api_check is not failed
+  register: pangolin_api_check
   when: pangolin_blueprint_file is changed
+  changed_when: true
 
-- name: Fetch existing Pangolin resources
+- name: Fetch existing Pangolin resources  # noqa: no-handler
   ansible.builtin.uri:
     url: "{{ pangolin_api_url }}/v1/org/{{ pangolin_org_id }}/resources"
     method: GET
@@ -92,15 +93,17 @@
     status_code: 200
   delegate_to: localhost
   become: false
-  register: _existing_resources
+  register: pangolin_existing_resources
   when: pangolin_blueprint_file is changed
+  changed_when: true
 
-- name: Build list of existing resource IDs to delete
+- name: Build list of existing resource IDs to delete  # noqa: no-handler
   ansible.builtin.set_fact:
-    _resources_to_delete: "{{ _existing_resources.json.data.resources | map(attribute='resourceId') | list }}"
+    pangolin_resources_to_delete: "{{ pangolin_existing_resources.json.data.resources | map(attribute='resourceId') | list }}"
   when: pangolin_blueprint_file is changed
+  changed_when: true
 
-- name: Delete existing Pangolin resources for clean re-apply
+- name: Delete existing Pangolin resources for clean re-apply  # noqa: no-handler
   ansible.builtin.uri:
     url: "{{ pangolin_api_url }}/v1/resource/{{ item }}"
     method: DELETE
@@ -112,12 +115,13 @@
       - 404
   delegate_to: localhost
   become: false
-  loop: "{{ _resources_to_delete | default([]) }}"
+  loop: "{{ pangolin_resources_to_delete | default([]) }}"
   loop_control:
     label: "resource/{{ item }}"
   when: pangolin_blueprint_file is changed
+  changed_when: true
 
-- name: Apply Pangolin blueprint via API
+- name: Apply Pangolin blueprint via API  # noqa: no-handler
   ansible.builtin.uri:
     url: "{{ pangolin_api_url }}/v1/org/{{ pangolin_org_id }}/blueprint"
     method: PUT

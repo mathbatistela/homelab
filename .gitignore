@@ -46,3 +46,4 @@ __pycache__/
 .omc/
 ansible/.omc/
 terraform/home/.omc/
+.sisyphus/

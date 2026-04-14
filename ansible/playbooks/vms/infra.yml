@@ -1,3 +1,4 @@
+---
 - name: "Install Traefik"
   hosts: infra
   gather_facts: true

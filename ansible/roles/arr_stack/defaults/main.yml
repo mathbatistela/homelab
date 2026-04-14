@@ -1,3 +1,4 @@
+---
 arr_stack_host_bind_mount_point: "/mnt/homeshare"
 arr_stack_config_path: "{{ arr_stack_host_bind_mount_point }}/arr"
 arr_stack_data_path: "{{ arr_stack_host_bind_mount_point }}/data"

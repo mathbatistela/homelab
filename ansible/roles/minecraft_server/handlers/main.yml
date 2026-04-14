@@ -1,12 +1,12 @@
 ---
 - name: Reload systemd
   ansible.builtin.systemd:
-    daemon_reload: yes
-  become: yes
+    daemon_reload: true
+  become: true
 
 - name: Start and enable minecraft service
   ansible.builtin.systemd:
     name: minecraft
     state: started
-    enabled: yes
-  become: yes
+    enabled: true
+  become: true

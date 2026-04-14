@@ -1,3 +1,4 @@
+---
 - name: "Deploy *arr media stack under Docker"
   hosts: media
   gather_facts: true

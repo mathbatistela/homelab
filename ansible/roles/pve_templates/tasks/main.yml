@@ -1,3 +1,4 @@
+---
 - name: Get ISO storage directory
   community.general.proxmox_storage_info:
     api_host: "{{ vault.pve.api_host }}"
@@ -40,7 +41,7 @@
   ansible.builtin.get_url:
     url: "{{ item.value.iso_url }}"
     dest: "{{ pve_iso_dir }}/{{ item.value.iso_url | basename | splitext | first }}.img"
-    checksum: "{{ item.value.checksum_algorithm }}:{{ lookup('ansible.builtin.url', item.value.checksum_url) | regex_search(item.value.checksum_regexp, '\\1') | first}}"
+    checksum: "{{ item.value.checksum_algorithm }}:{{ lookup('ansible.builtin.url', item.value.checksum_url) | regex_search(item.value.checksum_regexp, '\\1') | first }}"
     validate_certs: true
     timeout: 60
   loop: "{{ pve_templates_list | dict2items }}"

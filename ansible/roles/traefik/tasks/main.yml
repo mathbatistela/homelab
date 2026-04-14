@@ -1,3 +1,4 @@
+---
 - name: Ensure Traefik binary is installed
   ansible.builtin.get_url:
     url: "https://github.com/traefik/traefik/releases/download/{{ traefik_version }}/traefik_{{ traefik_version }}_linux_amd64.tar.gz"
@@ -39,7 +40,7 @@
       TRAEFIK_DASHBOARD_CREDENTIALS={{ traefik_dashboard_credentials }}
     owner: root
     group: root
-    mode: '0600'
+    mode: "0600"
   notify: Restart Traefik
 
 - name: Ensure Traefik dynamic config dir exists
@@ -50,9 +51,8 @@
     group: root
     mode: "0755"
 
-
 - name: Add Proxmox dynamic config
-  include_role:
+  ansible.builtin.include_role:
     name: traefik
     tasks_from: configure_service
   vars:
@@ -80,7 +80,6 @@
               basicAuth:
                 users:
                   - "{{ traefik_dashboard_credentials }}"
-
 
 
 - name: Install systemd service unit

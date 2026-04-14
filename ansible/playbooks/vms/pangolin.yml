@@ -68,7 +68,7 @@
 
     - name: Build generated Pangolin resources from manifests
       ansible.builtin.set_fact:
-        generated_pangolin_resources: "{{ generated_pangolin_resources | combine({ generated_key: generated_resource }, recursive=True) }}"
+        generated_pangolin_resources: "{{ generated_pangolin_resources | combine({generated_key: generated_resource}, recursive=True) }}"
       loop: "{{ pangolin_manifest_loads.results }}"
       vars:
         manifest: "{{ item.ansible_facts.loaded_service_manifest.service_manifest }}"

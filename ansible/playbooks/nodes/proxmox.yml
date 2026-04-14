@@ -1,3 +1,4 @@
+---
 - name: Proxmox setup storage
   hosts: pve
   gather_facts: false

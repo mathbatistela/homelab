@@ -1,9 +1,10 @@
+---
 x-logging: &default-logging
   driver: json-file
   options:
     max-size: 1m
-    max-file: '1'
-    tag: '{{.Name}}'
+    max-file: "1"
+    tag: "{{.Name}}"
 
 x-common-labels: &common_labels
   - logging=promtail
@@ -36,7 +37,6 @@ services:
     networks: [monitoring]
     labels: *common_labels
     logging: *default-logging
-
   prometheus:
     image: prom/prometheus:v3.5.0
     container_name: prometheus
@@ -61,7 +61,6 @@ services:
     networks: [monitoring]
     labels: *common_labels
     logging: *default-logging
-
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.52.0
     container_name: cadvisor
@@ -80,7 +79,6 @@ services:
     networks: [monitoring]
     labels: *common_labels
     logging: *default-logging
-
   node-exporter:
     image: prom/node-exporter:v1.9.1
     container_name: node-exporter
@@ -99,7 +97,6 @@ services:
     networks: [monitoring]
     labels: *common_labels
     logging: *default-logging
-
   alertmanager:
     image: prom/alertmanager:v0.28.1
     container_name: alertmanager
@@ -118,7 +115,6 @@ services:
     depends_on: [uncomplicated-alert-receiver]
     labels: *common_labels
     logging: *default-logging
-
   uncomplicated-alert-receiver:
     image: ghcr.io/jamesread/uncomplicated-alert-receiver:1.2.3
     container_name: uncomplicated-alert-receiver
@@ -129,7 +125,6 @@ services:
     networks: [monitoring]
     labels: *common_labels
     logging: *default-logging
-
   loki:
     image: grafana/loki:3.5.3
     container_name: loki
@@ -139,14 +134,13 @@ services:
     command: -config.file=/etc/loki/loki.yaml
     volumes:
       - ./configs/loki/loki.yaml:/etc/loki/loki.yaml
-      - ./configs/loki/rules.yaml:/etc/loki/rules/rules.yml   # evita aviso de dir "fake"
+      - ./configs/loki/rules.yaml:/etc/loki/rules/rules.yml # evita aviso de dir "fake"
       - loki-data:/loki
     cpus: 0.5
     mem_limit: 512m
     networks: [monitoring]
     labels: *common_labels
     logging: *default-logging
-
   promtail:
     image: grafana/promtail:3.5.3
     container_name: promtail
@@ -162,12 +156,10 @@ services:
     networks: [monitoring]
     labels: *common_labels
     logging: *default-logging
-
 volumes:
   grafana-data: {}
   prometheus-data: {}
   loki-data: {}
-
 networks:
   monitoring:
     name: monitoring

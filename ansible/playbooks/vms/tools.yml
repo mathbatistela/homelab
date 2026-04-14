@@ -1,3 +1,4 @@
+---
 - hosts: tools
   become: true
   gather_facts: true

@@ -1,3 +1,4 @@
+---
 - name: Configure Tailscale VPN gateway
   hosts: tailscale
   become: true

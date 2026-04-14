@@ -1,10 +1,18 @@
+---
 extends: default
 rules:
   line-length:
     max: 200
   truthy:
-    allowed-values: ['true', 'false', 'yes', 'no']
+    allowed-values: ["true", "false", "yes", "no"]
   comments-indentation: disable
+  comments:
+    min-spaces-from-content: 1
+  braces:
+    max-spaces-inside: 1
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
 ignore: |
   roles/geerlingguy.docker/
   roles/geerlingguy.postgresql/

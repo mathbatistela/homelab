@@ -1,3 +1,4 @@
+---
 - name: Deploy Home Assistant monitoring components
   hosts: ha
   become: true

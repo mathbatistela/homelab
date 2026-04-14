@@ -1,3 +1,4 @@
+---
 pve_vmstorage_disk: "/dev/sda"
 pve_vmstorage_partition_number: 2
 pve_vmstorage_partition_device: "{{ pve_vmstorage_disk }}{{ pve_vmstorage_partition_number }}"

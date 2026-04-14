@@ -1,3 +1,4 @@
+---
 - name: Create ISO storage if missing
   ansible.builtin.command:
     cmd: pvesm add dir {{ pve_iso_storage }} --path {{ pve_storage_path_iso }} --content iso

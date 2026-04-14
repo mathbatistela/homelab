@@ -1,3 +1,4 @@
+---
 traefik_version: "v3.4.1"
 traefik_bin_path: /usr/local/bin/traefik
 traefik_config_path: /etc/traefik

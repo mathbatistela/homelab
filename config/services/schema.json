@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Service Manifest Schema",
+  "description": "Schema for config/services/**/*.yml pilot manifests",
+  "type": "object",
+  "required": ["service_manifest"],
+  "properties": {
+    "service_manifest": {
+      "type": "object",
+      "required": ["name", "display_name", "host", "service", "exposure", "auth", "deployment"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9_-]+$",
+          "description": "Machine-friendly service identifier"
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Human-friendly service name"
+        },
+        "host": {
+          "type": "string",
+          "pattern": "^[a-z0-9_-]+$",
+          "description": "Ansible inventory host that runs this service"
+        },
+        "service": {
+          "type": "object",
+          "required": ["port", "protocol"],
+          "properties": {
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "protocol": {
+              "type": "string",
+              "enum": ["http", "https", "tcp"]
+            }
+          }
+        },
+        "exposure": {
+          "type": "object",
+          "properties": {
+            "local": {
+              "$ref": "#/definitions/exposure"
+            },
+            "public": {
+              "$ref": "#/definitions/exposure"
+            }
+          }
+        },
+        "auth": {
+          "type": "object",
+          "required": ["sso"],
+          "properties": {
+            "sso": {
+              "type": "boolean",
+              "description": "Whether the service is behind Authelia SSO"
+            }
+          }
+        },
+        "deployment": {
+          "type": "object",
+          "required": ["owner"],
+          "properties": {
+            "owner": {
+              "type": "string",
+              "enum": ["role", "app", "manual", "external", "community-script"],
+              "description": "Who deploys this service"
+            },
+            "role": {
+              "type": ["string", "null"],
+              "description": "Ansible role name (when owner=role)"
+            },
+            "app": {
+              "type": "string",
+              "description": "App directory name (when owner=app)"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "exposure": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["generated", "fragment", "custom"]
+        },
+        "template": {
+          "type": "string",
+          "description": "Template name for generated mode"
+        },
+        "subdomain": {
+          "type": "string",
+          "description": "Subdomain for generated public/local exposure"
+        },
+        "fragment": {
+          "type": "string",
+          "description": "Fragment file stem for fragment mode"
+        },
+        "protocol": {
+          "type": "string",
+          "enum": ["http", "https", "tcp"]
+        }
+      }
+    }
+  }
+}

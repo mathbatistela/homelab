@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Homelab Agent Tools",
+  "description": "Agent-safe commands and when to use them in this repo",
+  "tools": [
+    {
+      "name": "check",
+      "command": "make check",
+      "when": "After any structural or config change before declaring done"
+    },
+    {
+      "name": "lint-agents",
+      "command": "make lint-agents",
+      "when": "When modifying Terraform, Makefile, CI workflows, or AGENTS.md"
+    },
+    {
+      "name": "check-network",
+      "command": "make check-network",
+      "when": "After editing config/network.json or ansible/inventories/local/hosts.yml"
+    },
+    {
+      "name": "fix-network",
+      "command": "make fix-network",
+      "when": "When check-network fails due to missing or extra hosts"
+    },
+    {
+      "name": "plan-all",
+      "command": "make plan-all",
+      "when": "Before applying any Terraform changes"
+    },
+    {
+      "name": "apply-all",
+      "command": "make apply-all",
+      "when": "After reviewing plan-all output"
+    },
+    {
+      "name": "syntax-check",
+      "command": "make syntax-check",
+      "when": "After editing any Ansible playbook, role, or inventory variable"
+    },
+    {
+      "name": "dry-run",
+      "command": "make dry-run-<host>",
+      "when": "Before running a playbook on a live host (see AGENTS.md for check-mode caveats)"
+    },
+    {
+      "name": "play",
+      "command": "make play-<host>",
+      "when": "To apply Ansible configuration to a specific VM"
+    },
+    {
+      "name": "add-vm",
+      "command": "make add-vm NAME=<name> IP=<ip>",
+      "when": "Scaffolding a new Proxmox LXC container"
+    },
+    {
+      "name": "add-service",
+      "command": "make add-service NAME=<name> DISPLAY_NAME='<name>' HOST=<host> PORT=<port>",
+      "when": "Creating a new service manifest"
+    },
+    {
+      "name": "rotate-secret",
+      "command": "make rotate-secret VAULT=local KEY=<group>.<secret>",
+      "when": "Rotating a value in an Ansible vault"
+    },
+    {
+      "name": "agent-log",
+      "command": "make agent-log TARGET=<target> STATUS=done",
+      "when": "After completing a significant manual or automated task"
+    },
+    {
+      "name": "agent-decision",
+      "command": "make agent-decision DECISION='<summary>' REASON='<why>'",
+      "when": "When making a non-obvious design choice that future agents should know about"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+repos:
+  - repo: local
+    hooks:
+      - id: lint-agents
+        name: Lint agent conventions
+        entry: make lint-agents
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: check-network
+        name: Check network alignment
+        entry: make check-network
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: ansible-syntax
+        name: Ansible syntax check
+        entry: make syntax-check
+        language: system
+        pass_filenames: false
+        always_run: true

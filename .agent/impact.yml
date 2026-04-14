@@ -1,0 +1,84 @@
+# Impact map: when a file changes, what commands should be run?
+# This helps agents understand the blast radius of a change.
+
+config/network.json:
+  validate:
+    - make check-network
+  apply:
+    - make plan-home
+    - make plan-cloud
+    - make apply-home
+    - make apply-cloud
+
+config/domains.yml:
+  validate:
+    - make syntax-check
+  apply:
+    - make play-infra
+    - make play-pangolin
+
+config/services/**/*.yml:
+  validate:
+    - python scripts/validate_sources.py
+  apply:
+    - make play-infra
+    - make play-pangolin
+
+config/fragments/traefik/*.yml:
+  validate:
+    - make syntax-check
+  apply:
+    - make play-infra
+
+config/fragments/pangolin/*.yml:
+  validate:
+    - make syntax-check
+  apply:
+    - make play-pangolin
+
+terraform/home/*.tf:
+  validate:
+    - cd terraform/home && tofu validate
+  apply:
+    - make plan-home
+    - make apply-home
+
+terraform/cloud/*.tf:
+  validate:
+    - cd terraform/cloud && tofu validate
+  apply:
+    - make plan-cloud
+    - make apply-cloud
+
+ansible/playbooks/vms/*.yml:
+  validate:
+    - make syntax-check
+  apply:
+    - "make play-<host>   # where <host> is the playbook basename"
+
+ansible/playbooks/nodes/*.yml:
+  validate:
+    - make syntax-check
+  apply:
+    - make play-proxmox
+
+ansible/roles/*/
+  validate:
+    - make syntax-check
+  apply:
+    - "make play-<host>   # run all playbooks that include this role"
+
+ansible/inventories/local/group_vars/all/vault.yml:
+  validate:
+    - ansible-vault view ansible/inventories/local/group_vars/all/vault.yml --vault-password-file ansible/vault.auth
+  apply:
+    - "make play-<host>   # run playbooks that consume the changed secret"
+
+scripts/*.py:
+  validate:
+    - make check
+
+Makefile:
+  validate:
+    - make check
+    - make -n check

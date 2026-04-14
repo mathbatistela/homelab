@@ -1,3 +1,4 @@
+---
 postgresql_repo:
   codename: bookworm-pgdg
   key_url: "https://www.postgresql.org/media/keys/ACCC4CF8.asc"

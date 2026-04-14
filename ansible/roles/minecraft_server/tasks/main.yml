@@ -112,8 +112,11 @@
     - minecraft_download
 
 - name: Download server.jar
+  vars:
+    _paper_base_url: "https://api.papermc.io/v2/projects/paper/versions/{{ minecraft_server_version }}/builds/{{ minecraft_server_build }}/downloads"
+    _paper_jar_name: "paper-{{ minecraft_server_version }}-{{ minecraft_server_build }}.jar"
   ansible.builtin.get_url:
-    url: "https://api.papermc.io/v2/projects/paper/versions/{{ minecraft_server_version }}/builds/{{ minecraft_server_build }}/downloads/paper-{{ minecraft_server_version }}-{{ minecraft_server_build }}.jar"
+    url: "{{ _paper_base_url }}/{{ _paper_jar_name }}"
     dest: "{{ minecraft_server_home }}/{{ minecraft_server_jar }}"
     owner: "{{ minecraft_server_user }}"
     group: "{{ minecraft_server_group }}"

@@ -1,3 +1,4 @@
+---
 traefik_local_domain: "{{ local_domain }}"
 traefik_cert_resolver_name: cloudflareLocal
 traefik_dashboard_credentials: "{{ vault.infra.traefik_dashboard_credentials }}"

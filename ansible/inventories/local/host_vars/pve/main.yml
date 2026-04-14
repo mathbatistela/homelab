@@ -1,3 +1,4 @@
+---
 pve_cluster_node: pve
 pve_default_storage: local-lvm
 pve_default_bridge: vmbr0
@@ -20,5 +21,3 @@ pve_homeshare_partition_number: 1
 
 pve_vmstorage_disk: "/dev/sda"
 pve_vmstorage_partition_number: 2
-
-

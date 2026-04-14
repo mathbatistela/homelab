@@ -1,10 +1,13 @@
+---
 - name: Prepare and install PostgreSQL
   hosts: database
   become: true
   gather_facts: true
 
   pre_tasks:
-    - block:
+    - tags: postgresql_repo_setup
+
+      block:
         - name: Ensure GnuPG is installed (for apt_key)
           ansible.builtin.apt:
             name: gnupg
@@ -23,9 +26,7 @@
 
         - name: Update apt cache
           ansible.builtin.apt:
-            update_cache: yes
-
-      tags: postgresql_repo_setup
+            update_cache: true
 
   roles:
     - role: geerlingguy.postgresql

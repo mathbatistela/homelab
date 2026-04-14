@@ -5,7 +5,7 @@
       - gnupg
       - dirmngr
     state: present
-    update_cache: yes
+    update_cache: true
   tags:
     - minecraft_deps
 
@@ -26,7 +26,7 @@
 
 - name: Update apt cache and upgrade packages
   ansible.builtin.apt:
-    update_cache: yes
+    update_cache: true
     upgrade: dist
   tags:
     - minecraft_deps
@@ -59,8 +59,8 @@
     group: "{{ minecraft_server_group }}"
     home: "{{ minecraft_server_home }}"
     shell: /bin/bash
-    create_home: no
-    system: yes
+    create_home: false
+    system: true
   tags:
     - minecraft_user
 
@@ -70,7 +70,7 @@
     state: directory
     owner: "{{ minecraft_server_user }}"
     group: "{{ minecraft_server_group }}"
-    mode: '0755'
+    mode: "0755"
   tags:
     - minecraft_setup
 
@@ -78,7 +78,7 @@
   ansible.builtin.uri:
     url: https://api.papermc.io/v2/projects/paper
     method: GET
-    return_content: yes
+    return_content: true
   register: papermc_versions
   tags:
     - minecraft_download
@@ -93,7 +93,7 @@
   ansible.builtin.uri:
     url: "https://api.papermc.io/v2/projects/paper/versions/{{ minecraft_version }}"
     method: GET
-    return_content: yes
+    return_content: true
   register: papermc_builds
   tags:
     - minecraft_download
@@ -117,7 +117,7 @@
     dest: "{{ minecraft_server_home }}/{{ minecraft_server_jar }}"
     owner: "{{ minecraft_server_user }}"
     group: "{{ minecraft_server_group }}"
-    mode: '0644'
+    mode: "0644"
   tags:
     - minecraft_download
 
@@ -127,7 +127,7 @@
     dest: "{{ minecraft_server_home }}/eula.txt"
     owner: "{{ minecraft_server_user }}"
     group: "{{ minecraft_server_group }}"
-    mode: '0644'
+    mode: "0644"
   tags:
     - minecraft_setup
 
@@ -137,7 +137,7 @@
     dest: /etc/systemd/system/minecraft.service
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   notify:
     - Reload systemd
     - Start and enable minecraft service

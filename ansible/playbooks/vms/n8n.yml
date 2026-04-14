@@ -1,3 +1,4 @@
+---
 - name: Configure n8n
   hosts: n8n
   become: true

@@ -1,3 +1,4 @@
+---
 - name: Ensure conf.d directory exists for dynamic services
   ansible.builtin.file:
     path: "{{ traefik_config_path }}/conf.d"

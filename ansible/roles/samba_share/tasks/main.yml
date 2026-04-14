@@ -3,7 +3,7 @@
   ansible.builtin.apt:
     name: samba
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Ensure Samba share path exists
   ansible.builtin.file:
@@ -23,5 +23,5 @@
 - name: Ensure smbd is running and enabled
   ansible.builtin.systemd:
     name: smbd
-    enabled: yes
+    enabled: true
     state: started

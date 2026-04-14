@@ -1,5 +1,6 @@
+---
 samba_share_path: /mnt/homeshare
 samba_share_name: homeshare
-samba_guest_ok: yes
-samba_read_only: no
+samba_guest_ok: true
+samba_read_only: false
 samba_force_user: root

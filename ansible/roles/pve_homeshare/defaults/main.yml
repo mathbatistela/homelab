@@ -1,3 +1,4 @@
+---
 pve_homeshare_disk: "/dev/sda"
 pve_homeshare_partition_number: 1
 pve_homeshare_partition_device: "{{ pve_homeshare_disk }}{{ pve_homeshare_partition_number }}"

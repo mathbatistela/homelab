@@ -1,3 +1,4 @@
+---
 - name: "Validate that disk exists: {{ pve_vmstorage_disk }}"
   ansible.builtin.stat:
     path: "{{ pve_vmstorage_disk }}"
@@ -52,7 +53,7 @@
 - name: "Inform kernel of partition changes: {{ pve_vmstorage_disk }}"
   ansible.builtin.command:
     cmd: "partprobe {{ pve_vmstorage_disk }}"
-  when: pve_vmstorage_parted_result.changed 
+  when: pve_vmstorage_parted_result.changed
   changed_when: false
   become: true
 

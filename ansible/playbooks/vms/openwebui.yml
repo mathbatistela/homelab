@@ -1,3 +1,4 @@
+---
 - hosts: openwebui
   become: true
   gather_facts: true

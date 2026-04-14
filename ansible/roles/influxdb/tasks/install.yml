@@ -34,8 +34,8 @@
       ansible.builtin.unarchive:
         src: "{{ influxdb_download_url }}"
         dest: "/tmp/"
-        remote_src: yes
-        mode: '0755'
+        remote_src: true
+        mode: "0755"
 
     - name: "Remove old installation directory if it exists"
       ansible.builtin.file:
@@ -46,8 +46,8 @@
       ansible.builtin.copy:
         src: "/tmp/influxdb3-core-{{ influxdb_version }}/"
         dest: "{{ influxdb_install_dir }}/"
-        remote_src: yes
-        mode: '0755'
+        remote_src: true
+        mode: "0755"
         owner: root
         group: root
       notify: Restart influxdb3
@@ -57,7 +57,7 @@
         src: "{{ influxdb_install_dir }}/influxdb3"
         dest: "/usr/local/bin/influxdb3"
         state: link
-        force: yes
+        force: true
 
     - name: "Clean up temporary unarchived directory"
       ansible.builtin.file:
@@ -68,7 +68,7 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: root
     group: root
   loop:
@@ -81,12 +81,12 @@
     dest: /etc/systemd/system/influxdb3.service
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   notify: Restart influxdb3
 
 - name: "Reload systemd, enable and start InfluxDB service"
   ansible.builtin.systemd:
     name: influxdb3
     state: started
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true

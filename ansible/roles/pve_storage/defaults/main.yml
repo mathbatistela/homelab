@@ -1,3 +1,4 @@
+---
 pve_iso_storage: "iac-isos"
 pve_storage_path_iso: "/var/lib/vz/iac"
 

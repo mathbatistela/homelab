@@ -1,3 +1,4 @@
+---
 - name: Setup minecraft server
   hosts: minecraft
   gather_facts: true

@@ -1,3 +1,4 @@
+---
 - name: "Check if admin token file exists"
   ansible.builtin.stat:
     path: "{{ role_path }}/files/influxdb_token.auth"
@@ -10,7 +11,6 @@
   ansible.builtin.debug:
     msg: "Token file exists: {{ token_file_stat.stat.exists }}"
 
-    
 - name: "Generate InfluxDB admin token"
   ansible.builtin.command:
     cmd: "influxdb3 create token --admin"
@@ -20,12 +20,11 @@
   no_log: true
   when: not token_file_stat.stat.exists
 
-
 - name: "Save token to .auth file on control"
   ansible.builtin.copy:
     content: "{{ influx_token.stdout }}"
     dest: "{{ role_path }}/files/influxdb_token.auth"
-    mode: '0600'
+    mode: "0600"
   delegate_to: localhost
   run_once: true
   become: false

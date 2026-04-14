@@ -33,7 +33,7 @@ homelab/
 │   ├── inventories/    # local/ (proxmox) + cloud/ (racknerd)
 │   └── plugins/        # auto_tags callback
 ├── Makefile            # bootstrap, doctor, lint, syntax-check, play-*, plan-*, validate-*
-└── CLAUDE.md           # Detailed project docs + commands
+└── .agent/workflows/   # Cross-agent workflow recipes
 ```
 
 ## WHERE TO LOOK
@@ -68,6 +68,90 @@ homelab/
 - **Service manifest pilot**: `config/services/` holds per-service metadata for simple generated routes/resources. Current pilot services: `actual-budget`, `jellyfin`, `n8n`, `grafana`, `prometheus`, `alertmanager`, `ha`
 - **Service manifest ports**: For manifest-driven services, the service manifest owns the port/protocol. No separate shared port registry exists yet.
 
+## HOW IP ASSIGNMENT WORKS
+
+Host IPs are defined **only** in `config/network.json`. The Ansible vars plugin (`ansible/plugins/vars/network_json.py`) automatically sets `ansible_host` for any inventory host whose name matches a key in `network.json`. This means `hosts.yml` only defines group membership — no IPs.
+
+## HOW SERVICE ROUTING WORKS
+
+Services are exposed via two systems: **Traefik** (local, on the `infra` host) and **Pangolin** (public, on RackNerd).
+
+Each service manifest in `config/services/` declares its exposure mode per scope (`local`/`public`):
+
+- **`mode: generated`** — Traefik/Pangolin config is auto-generated from the manifest fields (subdomain, port, protocol). Zero extra files needed.
+- **`mode: fragment`** — Routing is defined in a fragment file (`config/fragments/traefik/<name>.yml` or `config/fragments/pangolin/<name>.yml`). Used when the service needs custom middleware, auth, special backends, etc.
+
+The playbooks `infra.yml` and `pangolin.yml` load both manifests and fragments at runtime, merging them into the final routing configuration.
+
+### Example: Simple service manifest
+
+```yaml
+service_manifest:
+  name: my-app
+  display_name: My App
+  host: tools
+  service:
+    port: 8080
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: generated
+      template: simple-http
+      subdomain: myapp
+    public:
+      enabled: true
+      mode: generated
+      subdomain: myapp
+      protocol: http
+  auth:
+    sso: false
+  deployment:
+    owner: role
+    role: my_app
+```
+
+### Example: Traefik fragment
+
+```yaml
+traefik_fragment_services:
+  - filename: my-service.yml
+    content: |
+      http:
+        routers:
+          my-service:
+            rule: "Host(`myapp.{{ traefik_local_domain }}`)"
+            entryPoints:
+              - https
+            service: my-service-svc
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+            middlewares:
+              - authelia
+        services:
+          my-service-svc:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['tools'].ansible_host }}:8080"
+```
+
+### Example: Pangolin fragment
+
+```yaml
+pangolin_fragment_resources:
+  unique-resource-id:
+    name: My Service
+    protocol: http
+    full-domain: "myapp.{{ pangolin_base_domain }}"
+    auth:
+      sso-enabled: true
+    targets:
+      - site: "{{ pangolin_site_nice_id }}"
+        hostname: "{{ hostvars['tools'].ansible_host }}"
+        port: 8080
+        method: http
+```
+
 ## ANTI-PATTERNS
 
 - **Never** run `tofu` from `terraform/` root — modules are independent
@@ -76,6 +160,19 @@ homelab/
 - **Never** hardcode IPs in roles — use inventory vars or hostvars references
 - **Never** hardcode IPs in Terraform — read from `config/network.json`
 - monitoring_stack `docker compose up` is **commented out** — manual step required after sync
+
+## AGENT ENTRYPOINTS
+
+When asked to perform a common task, follow these entrypoints:
+
+| Task | Entrypoint | Validation |
+|------|------------|------------|
+| Add a VM | `.agent/workflows/add-vm.md` | `make check` → `make syntax-check` |
+| Add a service | `.agent/workflows/add-service.md` | `make check` → `make dry-run-<host>` |
+| Rotate a secret | `.agent/workflows/rotate-secret.md` | `make dry-run-<host>` → `make play-<host>` |
+| Fix a bug | Read `AGENTS.md` → Check `logs/agent-runs.jsonl` → Make minimal change → `make check` |
+| Plan all infrastructure | `make plan-all` | Review output before `make apply-all` |
+| Validate everything | `make check` | Must pass before any PR or declare-done |
 
 ## COMMANDS
 
@@ -95,13 +192,56 @@ ansible-vault edit inventories/local/group_vars/all/vault.yml
 # Makefile shortcuts (from repo root)
 make bootstrap                   # Create .venv, install Python deps and collections
 make doctor                      # Verify local toolchain and collections
+make check                       # Full validation gate: tofu validate + scripts + syntax-check
+make lint-agents                 # Enforce AGENTS.md conventions / anti-patterns
+make check-network               # Standalone network.json ↔ hosts.yml alignment check
 make play-infra                  # ansible-playbook playbooks/vms/infra.yml
 make play-database               # ansible-playbook playbooks/vms/database.yml
+make dry-run-infra               # ansible-playbook --check --diff playbooks/vms/infra.yml
+make dry-run-database            # ansible-playbook --check --diff playbooks/vms/database.yml
 make lint                        # ansible-lint --offline playbooks/ (lint debt still exists)
 make syntax-check                # syntax-check all playbooks
 make plan-home                   # tofu plan (home module)
 make plan-cloud                  # tofu plan (cloud module)
+make plan-all                    # tofu plan both modules
+make apply-home                  # tofu apply (home module)
+make apply-cloud                 # tofu apply (cloud module)
+make apply-all                   # tofu apply both modules
+make agent-log TARGET=foo        # Append structured entry to logs/agent-runs.jsonl
 ```
+
+## DIRECT ANSIBLE OPERATIONS
+
+```bash
+cd ansible
+
+# Run a specific playbook
+ansible-playbook playbooks/vms/infra.yml
+
+# Run with specific tags
+ansible-playbook playbooks/vms/database.yml --tags postgresql_install
+
+# Run playbook for specific host
+ansible-playbook playbooks/vms/infra.yml --limit infra
+
+# List hosts in inventory
+ansible-inventory --list
+
+# Check connectivity
+ansible all -m ping
+```
+
+## ANSIBLE VAULT
+
+```bash
+cd ansible
+
+ansible-vault edit inventories/local/group_vars/all/vault.yml   # Edit
+ansible-vault view inventories/local/group_vars/all/vault.yml   # View
+ansible-vault rekey inventories/local/group_vars/all/vault.yml  # Change password
+```
+
+The vault password file (`vault.auth`) is git-ignored and must exist for Ansible to decrypt vault files.
 
 ## NETWORK MAP
 
@@ -130,6 +270,24 @@ make plan-cloud                  # tofu plan (cloud module)
 | Variable | IP | Used In |
 |----------|----|---------|
 | `tailscale_ha_ip` | 100.75.65.121 | traefik_services.yml |
+
+## NETWORK AND ACCESS
+
+- Local network: `192.168.1.0/24`
+- Gateway: `192.168.1.254`
+- SSH access: root with key auth (`~/.ssh/homelab`)
+- All VMs: `ansible_user: root`, `ansible_ssh_private_key_file: ~/.ssh/homelab`
+- Local domain: `local.batistela.tech`
+- Public domain: `batistela.tech`
+
+## DATABASE SETUP PATTERN
+
+The database VM hosts multiple database engines. Each application database is configured via host_vars and playbooks:
+- **PostgreSQL**: Users and databases defined under `postgresql_users` and `postgresql_databases` in `host_vars/database/postgresql_databases.yml`
+- **InfluxDB**: Databases defined under `influxdb_databases`
+- **Redis**: Installed via `geerlingguy.redis` role with default configuration
+
+Credentials are stored in vault as `vault.database.<service>_user_pw`.
 
 ## KNOWN ISSUES & IMPROVEMENT OPPORTUNITIES
 

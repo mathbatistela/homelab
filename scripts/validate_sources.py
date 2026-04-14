@@ -20,6 +20,16 @@ import subprocess
 import sys
 from pathlib import Path
 
+try:
+    import jsonschema
+except ImportError:
+    jsonschema = None  # type: ignore
+
+try:
+    import yaml
+except ImportError:
+    yaml = None  # type: ignore
+
 ROOT = Path(__file__).resolve().parent.parent
 
 errors: list[str] = []
@@ -64,7 +74,12 @@ def parse_ansible_hosts() -> set[str]:
 
     path = ROOT / "ansible" / "inventories" / "local" / "hosts.yml"
     with open(path) as f:
-        inventory = yaml.safe_load(f)
+        for doc in yaml.safe_load_all(f):
+            if doc is not None:
+                inventory = doc
+                break
+        else:
+            inventory = {}
 
     hosts = set()
     _collect_hosts(inventory, hosts)
@@ -88,6 +103,7 @@ def _collect_hosts(node: dict, hosts: set[str]):
 
 def _parse_hosts_regex() -> set[str]:
     """Fallback host parser using regex."""
+    # Fallback regex parser doesn't need to change; it scans raw text
     path = ROOT / "ansible" / "inventories" / "local" / "hosts.yml"
     content = path.read_text()
     hosts = set()
@@ -168,9 +184,7 @@ def check_app_configs(app_configs: list[dict], all_network_hosts: set[str]):
 
 def parse_service_manifests() -> list[dict]:
     """Load all service manifests."""
-    try:
-        import yaml
-    except ImportError:
+    if yaml is None:
         return []
 
     manifests = []
@@ -183,6 +197,30 @@ def parse_service_manifests() -> list[dict]:
                 {"path": str(path.relative_to(ROOT)), **data["service_manifest"]}
             )
     return manifests
+
+
+def validate_manifest_schema(manifests: list[dict]):
+    """Validate each service manifest against config/services/schema.json."""
+    schema_path = ROOT / "config" / "services" / "schema.json"
+    if not schema_path.exists():
+        warnings.append("config/services/schema.json missing — skipping schema validation")
+        return
+
+    if jsonschema is None:
+        warnings.append("jsonschema not installed — skipping schema validation")
+        return
+
+    with open(schema_path) as f:
+        schema = json.load(f)
+
+    validator = jsonschema.Draft7Validator(schema)
+
+    for m in manifests:
+        path = m["path"]
+        # Reconstruct the original document shape for validation
+        doc = {"service_manifest": {k: v for k, v in m.items() if k != "path"}}
+        for error in validator.iter_errors(doc):
+            errors.append(f"{path}: schema error: {error.message}")
 
 
 def check_fragment_references(manifests: list[dict]):
@@ -413,7 +451,10 @@ def main():
     # 5. Fragment references
     check_fragment_references(manifests)
 
-    # 6. App configs
+    # 6. Schema validation
+    validate_manifest_schema(manifests)
+
+    # 7. App configs
     check_app_configs(app_configs, all_network_hosts)
 
     # 7. Optional: reachability

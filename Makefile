@@ -1,9 +1,11 @@
-.PHONY: bootstrap doctor lint syntax-check validate \
-        plan-home plan-cloud validate-home validate-cloud apply-home apply-cloud \
+.PHONY: bootstrap doctor lint syntax-check validate check lint-agents check-network \
+        plan-home plan-cloud plan-all validate-home validate-cloud apply-home apply-cloud apply-all \
         play-infra play-database play-media play-minecraft play-tools \
         play-monitoring play-pangolin play-proxmox play-authelia play-tailscale \
+        dry-run-infra dry-run-database dry-run-media dry-run-minecraft dry-run-tools \
+        dry-run-monitoring dry-run-pangolin dry-run-proxmox dry-run-authelia dry-run-tailscale \
         deploy-vm deploy-services deploy-blueprint \
-        apps-list apps-validate apps-build apps-create
+        apps-list apps-validate apps-build apps-create agent-log
 
 VENV := .venv
 PYTHON := $(VENV)/bin/python3
@@ -34,13 +36,29 @@ doctor: $(VENV)/bin/python3
 	@command -v tofu >/dev/null 2>&1 || (printf 'Missing tofu binary\n' && exit 1)
 	@printf 'Doctor OK\n'
 
+# ── Validation gates ─────────────────────────────────────────────────────────
+
+check: $(VENV)/bin/python3
+	cd terraform/home && tofu init -backend=false && tofu validate
+	cd terraform/cloud && tofu init -backend=false && tofu validate
+	$(PYTHON) scripts/validate_sources.py
+	$(PYTHON) scripts/lint_agents.py
+	$(PYTHON) scripts/check_network.py
+	$(MAKE) syntax-check
+
+lint-agents: $(VENV)/bin/python3
+	$(PYTHON) scripts/lint_agents.py
+
+check-network: $(VENV)/bin/python3
+	$(PYTHON) scripts/check_network.py
+
+validate: $(VENV)/bin/python3
+	$(PYTHON) scripts/validate_sources.py
+
 # ── Ansible ──────────────────────────────────────────────────────────────────
 
 lint: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_LINT) --offline playbooks/
-
-validate: $(VENV)/bin/python3
-	$(PYTHON) scripts/validate_sources.py
 
 syntax-check: $(VENV)/bin/python3
 	cd ansible && \
@@ -57,33 +75,75 @@ syntax-check: $(VENV)/bin/python3
 
 play-infra: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/infra.yml
+	@$(PYTHON) scripts/log_agent_run.py $@ done
 
 play-database: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/database.yml
+	@$(PYTHON) scripts/log_agent_run.py $@ done
 
 play-media: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/media.yml
+	@$(PYTHON) scripts/log_agent_run.py $@ done
 
 play-minecraft: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/minecraft.yml
+	@$(PYTHON) scripts/log_agent_run.py $@ done
 
 play-tools: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/tools.yml
+	@$(PYTHON) scripts/log_agent_run.py $@ done
 
 play-monitoring: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/monitoring.yml
+	@$(PYTHON) scripts/log_agent_run.py $@ done
 
 play-pangolin: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local -i inventories/cloud playbooks/vms/pangolin.yml
+	@$(PYTHON) scripts/log_agent_run.py $@ done
 
 play-authelia: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/authelia.yml
+	@$(PYTHON) scripts/log_agent_run.py $@ done
 
 play-tailscale: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/tailscale.yml
+	@$(PYTHON) scripts/log_agent_run.py $@ done
 
 play-proxmox: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/nodes/proxmox.yml
+	@$(PYTHON) scripts/log_agent_run.py $@ done
+
+# ── Ansible dry-run (check mode) ─────────────────────────────────────────────
+
+dry-run-infra: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/infra.yml --check --diff
+
+dry-run-database: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/database.yml --check --diff
+
+dry-run-media: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/media.yml --check --diff
+
+dry-run-minecraft: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/minecraft.yml --check --diff
+
+dry-run-tools: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/tools.yml --check --diff
+
+dry-run-monitoring: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/monitoring.yml --check --diff
+
+dry-run-pangolin: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local -i inventories/cloud playbooks/vms/pangolin.yml --check --diff
+
+dry-run-authelia: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/authelia.yml --check --diff
+
+dry-run-tailscale: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/tailscale.yml --check --diff
+
+dry-run-proxmox: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/nodes/proxmox.yml --check --diff
 
 # ── Terraform ─────────────────────────────────────────────────────────────────
 
@@ -92,6 +152,8 @@ plan-home:
 
 plan-cloud:
 	cd terraform/cloud && tofu plan
+
+plan-all: plan-home plan-cloud
 
 validate-home:
 	cd terraform/home && tofu validate
@@ -105,6 +167,8 @@ apply-home:
 apply-cloud:
 	cd terraform/cloud && tofu apply
 
+apply-all: apply-home apply-cloud
+
 # ── Composite targets ────────────────────────────────────────────────────────
 
 deploy-vm: $(VENV)/bin/python3
@@ -114,15 +178,18 @@ endif
 	$(MAKE) apply-home
 	$(MAKE) apply-cloud
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/$(VM).yml
+	@$(PYTHON) scripts/log_agent_run.py deploy-vm-$(VM) done
 
 deploy-services: $(VENV)/bin/python3
 	$(MAKE) play-infra
 	$(MAKE) play-pangolin
 	$(MAKE) play-monitoring
+	@$(PYTHON) scripts/log_agent_run.py $@ done
 
 deploy-blueprint: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local -i inventories/cloud playbooks/vms/pangolin.yml --tags pangolin
 	$(MAKE) play-monitoring
+	@$(PYTHON) scripts/log_agent_run.py $@ done
 
 # ── Apps ─────────────────────────────────────────────────────────────────────
 
@@ -145,3 +212,8 @@ ifndef APP
 	$(error APP is required. Usage: make apps-create APP=my-app)
 endif
 	$(HOMELAB_APPS) create $(APP)
+
+# ── Agent logging ────────────────────────────────────────────────────────────
+
+agent-log:
+	@$(PYTHON) scripts/log_agent_run.py $(TARGET) $(STATUS)

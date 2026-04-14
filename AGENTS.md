@@ -180,6 +180,11 @@ When asked to perform a common task, follow these entrypoints:
 | Fix a bug | Read `AGENTS.md` → Check `logs/agent-runs.jsonl` → Make minimal change → `make check` |
 | Plan all infrastructure | `make plan-all` | Review output before `make apply-all` |
 | Validate everything | `make check` | Must pass before any PR or declare-done |
+| Fix network drift | `make fix-network` | Run after `make check-network` fails |
+| Scaffold a VM | `make add-vm NAME=docs IP=192.168.1.110` | Creates config + playbook skeleton |
+| Scaffold a service | `make add-service NAME=my-app DISPLAY_NAME="My App" HOST=tools PORT=8080` | Creates manifest + validates schema |
+| Rotate a secret | `make rotate-secret KEY=database.myapp_user_pw` | Safe vault editing |
+| Log a decision | `make agent-decision DECISION='...' REASON='...'` | Append to logs/agent-decisions.jsonl |
 
 ## COMMANDS
 
@@ -215,7 +220,28 @@ make apply-home                  # tofu apply (home module)
 make apply-cloud                 # tofu apply (cloud module)
 make apply-all                   # tofu apply both modules
 make agent-log TARGET=foo STATUS=done   # Append structured entry to logs/agent-runs.jsonl
+make agent-decision DECISION='...' REASON='...' [IMPACT='...']
+                                          # Append decision to logs/agent-decisions.jsonl
 ```
+
+## CHECK-MODE SAFETY
+
+Not all playbooks run cleanly in `--check` mode. Use this table to decide when `--check` is safe:
+
+| Playbook | Safe in `--check`? | Notes |
+|----------|--------------------|-------|
+| `infra.yml` | **Yes** | Pure config file generation |
+| `database.yml` | **Partial** | PostgreSQL repo tasks may report changes; data-altering tasks are idempotent |
+| `media.yml` | **Partial** | Docker compose tasks show changes but do not fail |
+| `tools.yml` | **No** | Docker image pulls and container creations fail in check mode |
+| `monitoring.yml` | **Partial** | Service restarts are skipped; configs render correctly |
+| `pangolin.yml` | **Yes** | File/template only |
+| `minecraft.yml` | **No** | Downloads and systemd operations fail in check mode |
+| `authelia.yml` | **Partial** | Template-based, but some handlers are skipped |
+| `tailscale.yml` | **Partial** | Package install tasks may report changes |
+| `proxmox.yml` | **Partial** | Node-level package tasks may report changes |
+
+**Recommendation**: Before a risky playbook run, use `make syntax-check` plus a targeted `--diff` run on a single tag or role instead of full `--check`.
 
 ## DIRECT ANSIBLE OPERATIONS
 

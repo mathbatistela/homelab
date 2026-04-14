@@ -1,11 +1,12 @@
-.PHONY: bootstrap doctor lint syntax-check validate check lint-agents check-network \
+.PHONY: bootstrap doctor lint syntax-check validate check lint-agents check-network fix-network \
         plan-home plan-cloud plan-all validate-home validate-cloud apply-home apply-cloud apply-all \
         play-infra play-database play-media play-minecraft play-tools \
         play-monitoring play-pangolin play-proxmox play-authelia play-tailscale \
         dry-run-infra dry-run-database dry-run-media dry-run-minecraft dry-run-tools \
         dry-run-monitoring dry-run-pangolin dry-run-proxmox dry-run-authelia dry-run-tailscale \
         deploy-vm deploy-services deploy-blueprint \
-        apps-list apps-validate apps-build apps-create agent-log
+        add-vm add-service rotate-secret \
+        apps-list apps-validate apps-build apps-create agent-log agent-decision
 
 VENV := .venv
 PYTHON := $(VENV)/bin/python3
@@ -51,6 +52,9 @@ lint-agents: $(VENV)/bin/python3
 
 check-network: $(VENV)/bin/python3
 	$(PYTHON) scripts/check_network.py
+
+fix-network: $(VENV)/bin/python3
+	$(PYTHON) scripts/fix_network.py
 
 validate: $(VENV)/bin/python3
 	$(PYTHON) scripts/validate_sources.py
@@ -213,7 +217,42 @@ ifndef APP
 endif
 	$(HOMELAB_APPS) create $(APP)
 
+# ── Generative scaffolding ───────────────────────────────────────────────────
+
+add-vm: $(VENV)/bin/python3
+ifndef NAME
+	$(error NAME is required. Usage: make add-vm NAME=docs IP=192.168.1.110)
+endif
+ifndef IP
+	$(error IP is required. Usage: make add-vm NAME=docs IP=192.168.1.110)
+endif
+	$(PYTHON) scripts/add_vm.py --name $(NAME) --ip $(IP) $(ADD_VM_ARGS)
+
+add-service: $(VENV)/bin/python3
+ifndef NAME
+	$(error NAME is required. Usage: make add-service NAME=my-app DISPLAY_NAME="My App" HOST=tools PORT=8080)
+endif
+ifndef DISPLAY_NAME
+	$(error DISPLAY_NAME is required. Usage: make add-service NAME=my-app DISPLAY_NAME="My App" HOST=tools PORT=8080)
+endif
+ifndef HOST
+	$(error HOST is required. Usage: make add-service NAME=my-app DISPLAY_NAME="My App" HOST=tools PORT=8080)
+endif
+ifndef PORT
+	$(error PORT is required. Usage: make add-service NAME=my-app DISPLAY_NAME="My App" HOST=tools PORT=8080)
+endif
+	$(PYTHON) scripts/add_service.py --name $(NAME) --display-name "$(DISPLAY_NAME)" --host $(HOST) --port $(PORT) $(ADD_SERVICE_ARGS)
+
+rotate-secret: $(VENV)/bin/python3
+ifndef KEY
+	$(error KEY is required. Usage: make rotate-secret KEY=database.myapp_user_pw [VAULT=local])
+endif
+	$(PYTHON) scripts/rotate_secret.py --vault $(or $(VAULT),local) --key $(KEY) $(ROTATE_ARGS)
+
 # ── Agent logging ────────────────────────────────────────────────────────────
 
 agent-log:
 	@$(PYTHON) scripts/log_agent_run.py $(TARGET) $(STATUS)
+
+agent-decision:
+	@$(PYTHON) scripts/log_agent_decision.py --decision "$(DECISION)" --reason "$(REASON)" $(if $(IMPACT),--impact "$(IMPACT)")

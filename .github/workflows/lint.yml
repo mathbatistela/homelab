@@ -22,19 +22,15 @@ jobs:
       - name: Install Ansible collections
         run: cd ansible && ansible-galaxy collection install -r requirements.yml
 
-      - name: Create vault password file
-        env:
-          ANSIBLE_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
-        run: |
-          if [ -n "$ANSIBLE_VAULT_PASSWORD" ]; then
-            echo "$ANSIBLE_VAULT_PASSWORD" > ansible/vault.auth
-          else
-            echo "warning: ANSIBLE_VAULT_PASSWORD secret is not set; syntax-check may fail on encrypted vault files"
-            touch ansible/vault.auth
-          fi
+      - name: Create dummy vault password file for CI
+        run: echo "ci" > ansible/vault.auth
 
       - name: Syntax check all playbooks
         run: make syntax-check
+
+      - name: Ansible lint
+        run: make lint
+        continue-on-error: true
 
       - name: YAML lint
         run: cd ansible && yamllint -c .yamllint.yml .

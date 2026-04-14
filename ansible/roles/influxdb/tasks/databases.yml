@@ -14,11 +14,11 @@
 
 - name: "Get list of existing InfluxDB databases"
   ansible.builtin.command: /usr/local/bin/influxdb3 show databases --token "{{ influxdb_admin_token }}" --format csv
-  register: existing_databases
+  register: influxdb_existing_databases
   changed_when: false
 
 - name: "Create specified InfluxDB databases"
   ansible.builtin.command: /usr/local/bin/influxdb3 create database "{{ item.name }}" --token "{{ influxdb_admin_token }}"
   loop: "{{ influxdb_databases }}"
-  when: "item.name not in existing_databases.stdout_lines"
+  when: "item.name not in influxdb_existing_databases.stdout_lines"
   changed_when: true

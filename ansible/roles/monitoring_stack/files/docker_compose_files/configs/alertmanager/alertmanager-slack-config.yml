@@ -84,7 +84,7 @@ receivers:
           {{ end }}
         username: "AlertManager"
         icon_emoji: ":prometheus:"
-        #api_url: '__SLACK_WEBHOOK_URL__'
+        # api_url: '__SLACK_WEBHOOK_URL__'
 
   - name: "basic-slack"
     slack_configs:

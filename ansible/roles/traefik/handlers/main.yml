@@ -7,3 +7,10 @@
   ansible.builtin.systemd:
     name: traefik
     state: restarted
+
+- name: Extract traefik binary
+  ansible.builtin.unarchive:
+    src: /tmp/traefik.tar.gz
+    dest: /usr/local/bin/
+    remote_src: true
+  changed_when: true

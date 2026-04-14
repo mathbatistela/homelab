@@ -79,13 +79,13 @@
     url: https://api.papermc.io/v2/projects/paper
     method: GET
     return_content: true
-  register: papermc_versions
+  register: minecraft_server_papermc_versions
   tags:
     - minecraft_download
 
 - name: Set fact for the latest Minecraft version
   ansible.builtin.set_fact:
-    minecraft_version: "{{ papermc_versions.json.versions | last }}"
+    minecraft_server_version: "{{ minecraft_server_papermc_versions.json.versions | last }}"
   tags:
     - minecraft_download
 
@@ -94,26 +94,26 @@
     url: "https://api.papermc.io/v2/projects/paper/versions/{{ minecraft_version }}"
     method: GET
     return_content: true
-  register: papermc_builds
+  register: minecraft_server_papermc_builds
   tags:
     - minecraft_download
 
 - name: Set fact for the latest Minecraft build
   ansible.builtin.set_fact:
-    minecraft_build: "{{ papermc_builds.json.builds | last }}"
+    minecraft_server_build: "{{ minecraft_server_papermc_builds.json.builds | last }}"
   tags:
     - minecraft_download
 
 - name: Validate if PaperMC version and build were retrieved
   ansible.builtin.fail:
     msg: "ERROR: Could not retrieve the latest PaperMC version or build. Check https://papermc.io/downloads"
-  when: minecraft_version is not defined or minecraft_build is not defined or minecraft_version == '' or minecraft_build == ''
+  when: minecraft_server_version is not defined or minecraft_server_build is not defined or minecraft_server_version == '' or minecraft_server_build == ''
   tags:
     - minecraft_download
 
 - name: Download server.jar
   ansible.builtin.get_url:
-    url: "https://api.papermc.io/v2/projects/paper/versions/{{ minecraft_version }}/builds/{{ minecraft_build }}/downloads/paper-{{ minecraft_version }}-{{ minecraft_build }}.jar"
+    url: "https://api.papermc.io/v2/projects/paper/versions/{{ minecraft_server_version }}/builds/{{ minecraft_server_build }}/downloads/paper-{{ minecraft_server_version }}-{{ minecraft_server_build }}.jar"
     dest: "{{ minecraft_server_home }}/{{ minecraft_server_jar }}"
     owner: "{{ minecraft_server_user }}"
     group: "{{ minecraft_server_group }}"

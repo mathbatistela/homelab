@@ -1,13 +1,13 @@
 ---
-- name: Check if Proxmox VE storage '{{ pve_vmstorage_storage_id }}' exists
+- name: "Check if Proxmox VE storage exists: '{{ pve_vmstorage_storage_id }}'"
   ansible.builtin.command:
     cmd: "pvesm status --storage {{ pve_vmstorage_storage_id }}"
-  register: vmstorage_pvesm_status
+  register: pve_vmstorage_pvesm_status
   changed_when: false
   failed_when: false
   become: true
 
-- name: Add '{{ pve_vmstorage_storage_id }}' directory storage if missing
+- name: "Add directory storage if missing: '{{ pve_vmstorage_storage_id }}'"
   ansible.builtin.command:
     cmd: >-
       pvesm add dir {{ pve_vmstorage_storage_id }}
@@ -16,11 +16,11 @@
       --shared {{ pve_vmstorage_shared }}
       {{ '--nodes ' + pve_vmstorage_nodes if pve_vmstorage_nodes else '' }}
       {{ '--disable 0' if pve_vmstorage_enable else '--disable 1' }}
-  when: vmstorage_pvesm_status.rc != 0
+  when: pve_vmstorage_pvesm_status.rc != 0
   become: true
   changed_when: true
 
-- name: Update '{{ pve_vmstorage_storage_id }}' properties if it exists
+- name: "Update properties if storage exists: '{{ pve_vmstorage_storage_id }}'"
   ansible.builtin.command:
     cmd: >-
       pvesm set {{ pve_vmstorage_storage_id }}
@@ -28,7 +28,7 @@
       --shared {{ pve_vmstorage_shared }}
       {{ '--nodes ' + pve_vmstorage_nodes if pve_vmstorage_nodes else '' }}
       {{ '--disable 0' if pve_vmstorage_enable else '--disable 1' }}
-  when: vmstorage_pvesm_status.rc == 0
+  when: pve_vmstorage_pvesm_status.rc == 0
   register: pve_vmstorage_pvesm_set
   become: true
   changed_when: "'no changes' not in (pve_vmstorage_pvesm_set.stdout_lines | join(' '))"

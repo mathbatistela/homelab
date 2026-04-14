@@ -24,11 +24,11 @@
 
 - name: "Set fact for the current version"
   ansible.builtin.set_fact:
-    influxd_installed_version: "{{ influxdb_current_version_cmd.stdout | regex_search('(?<=influxdb3 )([0-9]+\\.[0-9]+\\.[0-9]+)') }}"
+    influxdb_installed_version: "{{ influxdb_current_version_cmd.stdout | regex_search('(?<=influxdb3 )([0-9]+\\.[0-9]+\\.[0-9]+)') }}"
   when: influxdb_binary_stat.stat.exists and influxdb_current_version_cmd.stdout is defined
 
 - name: "Installation/Update block for InfluxDB"
-  when: not influxdb_binary_stat.stat.exists or influxd_installed_version != influxdb_version
+  when: not influxdb_binary_stat.stat.exists or influxdb_installed_version != influxdb_version
   block:
     - name: "Download and unarchive the InfluxDB v3 binary"
       ansible.builtin.unarchive:

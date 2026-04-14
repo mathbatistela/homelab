@@ -1,0 +1,13 @@
+---
+- name: Inform kernel of partition changes for pve_homeshare
+  ansible.builtin.command:
+    cmd: "partprobe {{ pve_homeshare_disk }}"
+  changed_when: true
+  become: true
+
+- name: Wait for partition device for pve_homeshare
+  ansible.builtin.wait_for:
+    path: "{{ pve_homeshare_partition_device }}"
+    state: present
+    timeout: 30
+  become: true

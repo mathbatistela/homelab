@@ -1,5 +1,6 @@
 ---
-- hosts: openwebui
+- name: Configure Open WebUI
+  hosts: openwebui
   become: true
   gather_facts: true
   roles:

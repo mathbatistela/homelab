@@ -3,9 +3,9 @@ pangolin_install_dir: "/root"
 pangolin_config_dir: "{{ pangolin_install_dir }}/config"
 
 pangolin_version: "latest"
-gerbil_version: "latest"
-traefik_version: "latest"
-crowdsec_version: "latest"
+pangolin_gerbil_version: "latest"
+pangolin_traefik_version: "latest"
+pangolin_crowdsec_version: "latest"
 
 pangolin_base_domain: "{{ base_domain }}"
 pangolin_dashboard_url: "https://pangolin.{{ pangolin_base_domain }}"

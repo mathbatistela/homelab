@@ -8,3 +8,5 @@
     - actual_budget
     - portainer
     - platypus
+    - role: databasus
+      tags: databasus_install

@@ -1,0 +1,17 @@
+traefik_fragment_services:
+  - filename: databasus.yml
+    content: |
+      http:
+        routers:
+          databasus:
+            rule: "Host(`databasus.{{ traefik_local_domain }}`)"
+            entryPoints:
+              - https
+            service: databasus-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+        services:
+          databasus-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['tools'].ansible_host }}:4005"

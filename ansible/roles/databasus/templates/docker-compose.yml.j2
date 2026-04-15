@@ -1,0 +1,9 @@
+services:
+  databasus:
+    container_name: databasus
+    image: databasus/databasus:{{ databasus_version }}
+    ports:
+      - "{{ databasus_port }}:{{ databasus_port }}"
+    volumes:
+      - {{ databasus_data_dir }}:/databasus-data
+    restart: unless-stopped

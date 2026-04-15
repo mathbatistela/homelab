@@ -1,0 +1,5 @@
+---
+databasus_version: "latest"
+databasus_data_dir: "/opt/databasus/data"
+databasus_compose_dir: "/opt/databasus"
+databasus_port: 4005

@@ -1,0 +1,30 @@
+---
+- name: Ensure Databasus data directory exists
+  ansible.builtin.file:
+    path: "{{ databasus_data_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure Databasus compose directory exists
+  ansible.builtin.file:
+    path: "{{ databasus_compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Copy Databasus docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ databasus_compose_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy Databasus using docker-compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ databasus_compose_dir }}"
+    state: present
+    pull: always

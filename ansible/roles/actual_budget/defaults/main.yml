@@ -2,3 +2,18 @@
 actual_budget_version: "26.4.0"
 actual_budget_data_dir: /mnt/homeshare/docker/actual-budget
 actual_budget_compose_dir: /root/docker-compose-apps/actual-budget
+
+actual_sync_enabled: true
+actual_sync_image: "ghcr.io/agigante80/actual-sync:latest"
+actual_sync_data_dir: /mnt/homeshare/docker/actual-sync/data
+actual_sync_config_dir: /mnt/homeshare/docker/actual-sync/config
+actual_sync_logs_dir: /mnt/homeshare/docker/actual-sync/logs
+actual_sync_server_name: "Actual Budget"
+actual_sync_server_url: "http://actual-budget:5006"
+actual_sync_max_retries: 5
+actual_sync_base_retry_delay_ms: 3000
+actual_sync_schedule: "0 22 * * *"
+actual_sync_log_level: "INFO"
+actual_sync_log_format: "json"
+actual_sync_timezone: "America/Sao_Paulo"
+actual_sync_api_version: "{{ actual_budget_version }}"

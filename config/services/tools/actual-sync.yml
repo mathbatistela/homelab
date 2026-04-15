@@ -1,0 +1,21 @@
+service_manifest:
+  name: actual-sync
+  display_name: Actual Sync
+  host: tools
+  service:
+    port: 3000
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: generated
+      template: simple-http
+      subdomain: budget-sync
+    public:
+      enabled: false
+      mode: generated
+  auth:
+    sso: false
+  deployment:
+    owner: role
+    role: actual_budget

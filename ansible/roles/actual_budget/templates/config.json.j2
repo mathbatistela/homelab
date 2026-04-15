@@ -1,0 +1,28 @@
+{
+  "servers": [
+    {
+      "name": "{{ actual_sync_server_name }}",
+      "url": "{{ actual_sync_server_url }}",
+      "password": "{{ vault.tools.actual_sync_server_password }}",
+      "syncId": "{{ vault.tools.actual_sync_sync_id }}",
+      "dataDir": "/app/data"
+{% if vault.tools.actual_sync_encryption_password is defined and vault.tools.actual_sync_encryption_password | length > 0 %}
+      ,"encryptionPassword": "{{ vault.tools.actual_sync_encryption_password }}"
+{% endif %}
+    }
+  ],
+  "sync": {
+    "maxRetries": {{ actual_sync_max_retries }},
+    "baseRetryDelayMs": {{ actual_sync_base_retry_delay_ms }},
+    "schedule": "{{ actual_sync_schedule }}"
+  },
+  "logging": {
+    "level": "{{ actual_sync_log_level }}",
+    "format": "{{ actual_sync_log_format }}",
+    "logDir": "/app/logs"
+  },
+  "healthCheck": {
+    "port": 3000,
+    "host": "0.0.0.0"
+  }
+}

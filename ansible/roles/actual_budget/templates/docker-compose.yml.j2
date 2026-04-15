@@ -19,6 +19,31 @@ services:
     networks:
       - actual-network
 
+  actual-sync:
+    image: actual-sync:custom-{{ actual_sync_api_version }}
+    container_name: actual-sync
+    pull_policy: never
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - {{ actual_sync_config_dir }}:/app/config:ro
+      - {{ actual_sync_data_dir }}:/app/data
+      - {{ actual_sync_logs_dir }}:/app/logs
+    environment:
+      - TZ={{ actual_sync_timezone }}
+      - NODE_ENV=production
+    networks:
+      - actual-network
+    depends_on:
+      - actual-budget
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
 networks:
   actual-network:
     driver: bridge

@@ -15,6 +15,47 @@
     group: root
     mode: "0755"
 
+- name: Ensure Actual Sync directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "1001"
+    group: "1001"
+    mode: "0755"
+  loop:
+    - "{{ actual_sync_config_dir }}"
+    - "{{ actual_sync_data_dir }}"
+    - "{{ actual_sync_logs_dir }}"
+  when: actual_sync_enabled | bool
+
+- name: Copy Actual Sync config file
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ actual_sync_config_dir }}/config.json"
+    owner: "1001"
+    group: "1001"
+    mode: "0644"
+  when: actual_sync_enabled | bool
+
+- name: Copy custom Actual Sync Dockerfile
+  ansible.builtin.template:
+    src: Dockerfile-actual-sync.j2
+    dest: "{{ actual_budget_compose_dir }}/Dockerfile-actual-sync"
+    owner: root
+    group: root
+    mode: "0644"
+  when: actual_sync_enabled | bool
+
+- name: Build custom Actual Sync image
+  community.docker.docker_image:
+    name: "actual-sync:custom-{{ actual_sync_api_version }}"
+    source: build
+    build:
+      path: "{{ actual_budget_compose_dir }}"
+      dockerfile: Dockerfile-actual-sync
+      pull: true
+  when: actual_sync_enabled | bool
+
 - name: Copy Actual Budget docker-compose file
   ansible.builtin.template:
     src: docker-compose.yml.j2
@@ -27,4 +68,4 @@
   community.docker.docker_compose_v2:
     project_src: "{{ actual_budget_compose_dir }}"
     state: present
-    pull: always
+    pull: policy

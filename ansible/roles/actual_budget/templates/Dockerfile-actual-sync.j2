@@ -1,0 +1,4 @@
+FROM {{ actual_sync_image }}
+USER root
+RUN npm install @actual-app/api@{{ actual_sync_api_version }} --save && chown -R 1001:1001 /app
+USER 1001

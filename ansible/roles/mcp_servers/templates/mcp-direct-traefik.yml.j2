@@ -1,0 +1,30 @@
+traefik_fragment_services:
+  - filename: mcp-direct.yml
+    content: |
+      http:
+        routers:
+{% for server in mcp_servers %}
+          mcp-{{ server.name }}-direct:
+            rule: "Host(`mcp.local.batistela.tech`) && PathPrefix(`/{{ server.name }}`)"
+            entryPoints:
+              - https
+            service: mcp-{{ server.name }}-service
+            tls:
+              certResolver: cloudflareLocal
+            middlewares:
+              - strip-mcp-{{ server.name }}
+{% endfor %}
+        middlewares:
+{% for server in mcp_servers %}
+          strip-mcp-{{ server.name }}:
+            stripPrefix:
+              prefixes:
+                - "/{{ server.name }}"
+{% endfor %}
+        services:
+{% for server in mcp_servers %}
+          mcp-{{ server.name }}-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['tools'].ansible_host }}:{{ server.port }}"
+{% endfor %}

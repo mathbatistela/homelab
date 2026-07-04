@@ -1,0 +1,55 @@
+services:
+{% for server in mcp_servers %}
+  {{ server.name }}:
+    container_name: mcp-{{ server.name }}
+    image: {{ server.image }}
+    restart: unless-stopped
+    ports:
+      - "{{ server.port }}:{{ server.port }}"
+    environment:
+      MCP_BRIDGE_PORT: "{{ server.port }}"
+      MCP_BRIDGE_BIND_HOST: "0.0.0.0"
+      MCP_BRIDGE_DATA_DIR: "/data"
+      MCP_SSE_AUTHORIZATION: "{{ mcp_mcpo_api_key }}"
+{% for key, value in server.env.items() %}
+      {{ key }}: "{{ value }}"
+{% endfor %}
+    volumes:
+      - {{ mcp_servers_data_dir }}/{{ server.name }}:/data
+    networks:
+      - {{ mcp_servers_network_name }}
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:{{ server.port }}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+{% endfor %}
+
+  mcpo:
+    container_name: {{ mcp_mcpo_container_name }}
+    image: {{ mcp_mcpo_image }}
+    restart: unless-stopped
+    ports:
+      - "{{ mcp_mcpo_port }}:{{ mcp_mcpo_port }}"
+    command:
+      - mcpo
+      - --config
+      - /app/config.json
+      - --port
+      - "{{ mcp_mcpo_port }}"
+      - --api-key
+      - "{{ mcp_mcpo_api_key }}"
+    volumes:
+      - {{ mcp_servers_data_dir }}/mcpo-config.json:/app/config.json:ro
+    networks:
+      - {{ mcp_servers_network_name }}
+    depends_on:
+{% for server in mcp_servers %}
+      {{ server.name }}:
+        condition: service_healthy
+{% endfor %}
+
+networks:
+  {{ mcp_servers_network_name }}:
+    name: {{ mcp_servers_network_name }}

@@ -1,0 +1,25 @@
+---
+mcp_servers_compose_dir: /opt/mcp-servers
+mcp_servers_data_dir: /opt/mcp-servers/data
+mcp_servers_network_name: mcp-servers
+mcp_servers_traefik_fragment_path: "{{ playbook_dir }}/../../../config/fragments/traefik/mcp-direct.yml"
+
+# Shared mcpo settings
+mcp_mcpo_image: ghcr.io/open-webui/mcpo:main
+mcp_mcpo_container_name: mcpo
+mcp_mcpo_port: 8010
+mcp_mcpo_api_key: "{{ vault.tools.mcp_mcpo_api_key }}"
+
+# List of MCP servers to deploy
+mcp_servers:
+  - name: actual-budget
+    display_name: "Actual Budget MCP"
+    image: ghcr.io/agigante80/actual-mcp-server:latest
+    port: 3600
+    uid: "100"
+    gid: "100"
+    env:
+      ACTUAL_SERVER_URL: "https://budget.local.batistela.tech"
+      ACTUAL_PASSWORD: "{{ vault.tools.mcp_actual_password }}"
+      ACTUAL_BUDGET_SYNC_ID: "aef6a814-b200-44e9-9607-f8866cb5c188"
+      NODE_ENV: production

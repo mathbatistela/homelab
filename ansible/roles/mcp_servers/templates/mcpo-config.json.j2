@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+{% for server in mcp_servers %}
+    "{{ server.name }}": {
+      "type": "streamable-http",
+      "url": "http://mcp-{{ server.name }}:{{ server.port }}/http",
+      "headers": {
+        "Authorization": "Bearer {{ mcp_mcpo_api_key }}"
+      }
+    }{% if not loop.last %},{% endif %}
+{% endfor %}
+  }
+}

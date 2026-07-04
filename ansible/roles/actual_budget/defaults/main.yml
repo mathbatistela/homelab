@@ -1,5 +1,5 @@
 ---
-actual_budget_version: "26.4.0"
+actual_budget_version: "26.5.0"
 actual_budget_data_dir: /mnt/homeshare/docker/actual-budget
 actual_budget_compose_dir: /root/docker-compose-apps/actual-budget
 

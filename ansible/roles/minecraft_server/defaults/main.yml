@@ -2,5 +2,79 @@
 minecraft_server_user: minecraft
 minecraft_server_group: minecraft
 minecraft_server_home: /opt/minecraft
-minecraft_server_java_package: temurin-21-jdk
+minecraft_server_java_package: temurin-25-jdk
 minecraft_server_jar: server.jar
+
+# PaperMC version — bump to update (playbook auto-fetches latest build for this version)
+minecraft_server_mc_version: "26.1.2"
+
+# World backup — auto-triggered when minecraft_server_mc_version changes
+minecraft_server_backup_dir: "{{ minecraft_server_home }}/backups"
+minecraft_server_backup_keep: 5
+minecraft_server_backup_enabled: true
+
+# JVM memory and performance (Aikar's G1GC flags — override to customize)
+minecraft_server_memory_min: "2G"
+minecraft_server_memory_max: "4G"
+minecraft_server_jvm_flags: >-
+  -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200
+  -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch
+  -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M
+  -XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4
+  -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90
+  -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32
+  -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1
+  -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true
+
+# RCON — set minecraft_server_rcon_password in vault.yml
+minecraft_server_rcon_enabled: false
+minecraft_server_rcon_port: 25575
+minecraft_server_rcon_password: ""
+
+# server.properties — written only on initial deploy; Minecraft manages it after that
+minecraft_server_motd: "A Minecraft Server"
+minecraft_server_difficulty: normal
+minecraft_server_gamemode: survival
+minecraft_server_max_players: 20
+minecraft_server_view_distance: 10
+minecraft_server_simulation_distance: 10
+minecraft_server_online_mode: false
+minecraft_server_pvp: true
+minecraft_server_spawn_protection: 16
+minecraft_server_port: 25565
+minecraft_server_level_seed: "888880777356331877"
+
+# Plugin versions
+minecraft_plugin_viaversion_version: "5.9.1"
+minecraft_plugin_skinsrestorer_version: "15.12.2"
+minecraft_plugin_bluemap_version: "5.20"
+minecraft_plugin_chunky_version: "1.5.3"
+minecraft_plugin_plan_version: "5.7"
+minecraft_plugin_plan_build: "3306"
+minecraft_plugin_geyser_version: "2.10.0"
+minecraft_plugin_geyser_build: "1162"
+
+minecraft_server_plugins:
+  - name: ViaVersion
+    jar: "ViaVersion-{{ minecraft_plugin_viaversion_version }}.jar"
+    url: "https://hangar.papermc.io/api/v1/projects/ViaVersion/versions/{{ minecraft_plugin_viaversion_version }}/PAPER/download"
+    cleanup_pattern: "ViaVersion-*.jar"
+  - name: SkinsRestorer
+    jar: "SkinsRestorer.jar"
+    url: "https://hangar.papermc.io/api/v1/projects/SkinsRestorer/versions/{{ minecraft_plugin_skinsrestorer_version }}/PAPER/download"
+  - name: BlueMap
+    jar: "bluemap-{{ minecraft_plugin_bluemap_version }}-paper.jar"
+    url: "https://github.com/BlueMap-Minecraft/BlueMap/releases/download/v{{ minecraft_plugin_bluemap_version }}/bluemap-{{ minecraft_plugin_bluemap_version }}-paper.jar"
+    cleanup_pattern: "bluemap-*-paper.jar"
+  - name: Chunky
+    jar: "Chunky-Bukkit-{{ minecraft_plugin_chunky_version }}.jar"
+    url: "https://hangar.papermc.io/api/v1/projects/Chunky/versions/{{ minecraft_plugin_chunky_version }}/PAPER/download"
+    cleanup_pattern: "Chunky-Bukkit-*.jar"
+  - name: Plan
+    jar: "Plan-{{ minecraft_plugin_plan_version }}-build-{{ minecraft_plugin_plan_build }}.jar"
+    url: "https://github.com/plan-player-analytics/Plan/releases/download/{{ minecraft_plugin_plan_version }}.{{ minecraft_plugin_plan_build }}/Plan-{{ minecraft_plugin_plan_version }}-build-{{ minecraft_plugin_plan_build }}.jar"
+    cleanup_pattern: "Plan-*.jar"
+  - name: Geyser
+    jar: "Geyser-Spigot-{{ minecraft_plugin_geyser_version }}-{{ minecraft_plugin_geyser_build }}.jar"
+    url: "https://download.geysermc.org/v2/projects/geyser/versions/{{ minecraft_plugin_geyser_version }}/builds/{{ minecraft_plugin_geyser_build }}/downloads/spigot"
+    cleanup_pattern: "Geyser-Spigot-*.jar"

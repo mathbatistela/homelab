@@ -6,15 +6,13 @@ After=network.target
 User={{ minecraft_server_user }}
 Group={{ minecraft_server_group }}
 WorkingDirectory={{ minecraft_server_home }}
-ExecStart=/usr/bin/screen -dmS {{ minecraft_server_user }} /usr/bin/java -Xms2G -Xmx4G -jar {{ minecraft_server_jar }} nogui
-ExecStop=/usr/bin/screen -S {{ minecraft_server_user }} -X stuff "stop\n"
+ExecStart=/usr/bin/java -Xms{{ minecraft_server_memory_min }} -Xmx{{ minecraft_server_memory_max }} {{ minecraft_server_jvm_flags }} -jar {{ minecraft_server_jar }} nogui
 TimeoutStopSec=60
 Restart=on-failure
 RestartSec=5
-Type=forking
+Type=simple
 StandardOutput=journal
 StandardError=journal
-KillMode=mixed
 
 [Install]
 WantedBy=multi-user.target

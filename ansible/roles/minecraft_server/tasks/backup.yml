@@ -1,0 +1,59 @@
+---
+- name: Create backup directory
+  ansible.builtin.file:
+    path: "{{ minecraft_server_backup_dir }}"
+    state: directory
+    owner: "{{ minecraft_server_user }}"
+    group: "{{ minecraft_server_group }}"
+    mode: "0755"
+  tags:
+    - minecraft_backup
+
+- name: Find world directories
+  ansible.builtin.find:
+    paths: "{{ minecraft_server_home }}"
+    patterns: "world*"
+    file_type: directory
+    depth: 1
+  register: _world_dirs
+  tags:
+    - minecraft_backup
+
+- name: Stop Minecraft service for backup
+  ansible.builtin.systemd:
+    name: minecraft
+    state: stopped
+  when: _world_dirs.files | length > 0
+  tags:
+    - minecraft_backup
+
+- name: Archive world data
+  ansible.builtin.archive:
+    path: "{{ _world_dirs.files | map(attribute='path') | list }}"
+    dest: "{{ minecraft_server_backup_dir }}/world-backup-{{ ansible_date_time.iso8601_basic_short }}.tar.gz"
+    format: gz
+    owner: "{{ minecraft_server_user }}"
+    group: "{{ minecraft_server_group }}"
+    mode: "0644"
+  when: _world_dirs.files | length > 0
+  tags:
+    - minecraft_backup
+
+- name: Find old backups to prune
+  ansible.builtin.shell: |
+    ls -t {{ minecraft_server_backup_dir }}/world-backup-*.tar.gz 2>/dev/null | \
+      tail -n +{{ minecraft_server_backup_keep + 1 }}
+  args:
+    executable: /bin/bash
+  register: _old_backups
+  changed_when: false
+  tags:
+    - minecraft_backup
+
+- name: Prune old backups
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ _old_backups.stdout_lines }}"
+  tags:
+    - minecraft_backup

@@ -1,0 +1,24 @@
+traefik_fragment_services:
+  - filename: mcp-direct.yml
+    content: |
+      http:
+        routers:
+          mcp-actual-budget-direct:
+            rule: "Host(`mcp.local.batistela.tech`) && PathPrefix(`/actual-budget`)"
+            entryPoints:
+              - https
+            service: mcp-actual-budget-service
+            tls:
+              certResolver: cloudflareLocal
+            middlewares:
+              - strip-mcp-actual-budget
+        middlewares:
+          strip-mcp-actual-budget:
+            stripPrefix:
+              prefixes:
+                - "/actual-budget"
+        services:
+          mcp-actual-budget-service:
+            loadBalancer:
+              servers:
+                - url: "http://192.168.1.107:3600"

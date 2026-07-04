@@ -1,0 +1,61 @@
+---
+- name: Ensure MCP servers data directory exists
+  ansible.builtin.file:
+    path: "{{ mcp_servers_data_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure MCP server data subdirectories exist
+  ansible.builtin.file:
+    path: "{{ mcp_servers_data_dir }}/{{ item.name }}"
+    state: directory
+    owner: "{{ item.uid | default('root') }}"
+    group: "{{ item.gid | default('root') }}"
+    mode: "0755"
+  loop: "{{ mcp_servers }}"
+
+- name: Ensure MCP servers compose directory exists
+  ansible.builtin.file:
+    path: "{{ mcp_servers_compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Copy MCP servers docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ mcp_servers_compose_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Copy mcpo config file
+  ansible.builtin.template:
+    src: mcpo-config.json.j2
+    dest: "{{ mcp_servers_data_dir }}/mcpo-config.json"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Ensure Traefik fragments directory exists on controller
+  ansible.builtin.file:
+    path: "{{ mcp_servers_traefik_fragment_path | dirname }}"
+    state: directory
+  delegate_to: localhost
+  become: false
+
+- name: Generate Traefik fragment for direct MCP access
+  ansible.builtin.template:
+    src: mcp-direct-traefik.yml.j2
+    dest: "{{ mcp_servers_traefik_fragment_path }}"
+  delegate_to: localhost
+  become: false
+
+- name: Deploy MCP servers using docker-compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ mcp_servers_compose_dir }}"
+    state: present
+    pull: policy

@@ -9,25 +9,43 @@
   tags:
     - minecraft_deps
 
-- name: Add Adoptium GPG key
-  ansible.builtin.apt_key:
+- name: Ensure apt keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - minecraft_deps
+
+- name: Download Adoptium GPG key
+  ansible.builtin.get_url:
     url: https://packages.adoptium.net/artifactory/api/gpg/key/public
-    state: present
+    dest: /etc/apt/keyrings/adoptium.asc
+    mode: "0644"
+    force: false
+  tags:
+    - minecraft_deps
+
+- name: Remove legacy unsigned Adoptium repo file if present
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/adoptium.list.list
+    state: absent
   tags:
     - minecraft_deps
 
 - name: Add Adoptium APT repository
   ansible.builtin.apt_repository:
-    repo: deb https://packages.adoptium.net/artifactory/deb bookworm main
+    repo: "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb bookworm main"
     state: present
-    filename: adoptium.list
+    filename: adoptium
   tags:
     - minecraft_deps
 
-- name: Update apt cache and upgrade packages
+- name: Update apt cache
   ansible.builtin.apt:
     update_cache: true
-    upgrade: dist
   tags:
     - minecraft_deps
     - minecraft_update
@@ -40,7 +58,6 @@
       - curl
       - jq
       - unzip
-      - screen
       - sudo
     state: present
   tags:
@@ -74,53 +91,78 @@
   tags:
     - minecraft_setup
 
-- name: Get the latest PaperMC version
-  ansible.builtin.uri:
-    url: https://api.papermc.io/v2/projects/paper
-    method: GET
-    return_content: true
-  register: minecraft_server_papermc_versions
+- name: Check currently installed PaperMC version
+  ansible.builtin.stat:
+    path: "{{ minecraft_server_home }}/.papermc_version"
+  register: _version_file_stat
   tags:
-    - minecraft_download
+    - always
 
-- name: Set fact for the latest Minecraft version
+- name: Read currently installed PaperMC version
+  ansible.builtin.slurp:
+    src: "{{ minecraft_server_home }}/.papermc_version"
+  register: _version_file_content
+  when: _version_file_stat.stat.exists
+  tags:
+    - always
+
+- name: Set version change fact
   ansible.builtin.set_fact:
-    minecraft_server_version: "{{ minecraft_server_papermc_versions.json.versions | last }}"
+    _mc_version_changed: "{{ not _version_file_stat.stat.exists or
+      (_version_file_content.content | default('') | b64decode | trim) != minecraft_server_mc_version }}"
   tags:
-    - minecraft_download
+    - always
 
-- name: Get the latest build for the determined version
+- name: Backup world data
+  ansible.builtin.include_tasks: backup.yml
+  when: (minecraft_server_backup_enabled | default(true)) and _mc_version_changed
+
+- name: Query PaperMC latest build via GraphQL
   ansible.builtin.uri:
-    url: "https://api.papermc.io/v2/projects/paper/versions/{{ minecraft_version }}"
-    method: GET
+    url: https://fill.papermc.io/graphql
+    method: POST
+    headers:
+      Content-Type: application/json
+      Accept: application/json
+    body_format: json
+    body:
+      query: >-
+        { project(key: "paper") { version(key: "{{ minecraft_server_mc_version }}")
+        { builds(first: 1, orderBy: { direction: DESC }) { edges { node {
+        number downloads { name url } } } } } } }
     return_content: true
-  register: minecraft_server_papermc_builds
+    status_code: 200
+  register: _paper_gql
   tags:
     - minecraft_download
 
-- name: Set fact for the latest Minecraft build
+- name: Set PaperMC download facts
   ansible.builtin.set_fact:
-    minecraft_server_build: "{{ minecraft_server_papermc_builds.json.builds | last }}"
+    _paper_jar_name: "{{ _paper_gql.json.data.project.version.builds.edges[0].node.downloads[0].name }}"
+    _paper_download_url: "{{ _paper_gql.json.data.project.version.builds.edges[0].node.downloads[0].url }}"
   tags:
     - minecraft_download
 
-- name: Validate if PaperMC version and build were retrieved
-  ansible.builtin.fail:
-    msg: "ERROR: Could not retrieve the latest PaperMC version or build. Check https://papermc.io/downloads"
-  when: minecraft_server_version is not defined or minecraft_server_build is not defined or minecraft_server_version == '' or minecraft_server_build == ''
-  tags:
-    - minecraft_download
-
-- name: Download server.jar
-  vars:
-    _paper_base_url: "https://api.papermc.io/v2/projects/paper/versions/{{ minecraft_server_version }}/builds/{{ minecraft_server_build }}/downloads"
-    _paper_jar_name: "paper-{{ minecraft_server_version }}-{{ minecraft_server_build }}.jar"
+- name: Download PaperMC versioned jar
   ansible.builtin.get_url:
-    url: "{{ _paper_base_url }}/{{ _paper_jar_name }}"
-    dest: "{{ minecraft_server_home }}/{{ minecraft_server_jar }}"
+    url: "{{ _paper_download_url }}"
+    dest: "{{ minecraft_server_home }}/{{ _paper_jar_name }}"
     owner: "{{ minecraft_server_user }}"
     group: "{{ minecraft_server_group }}"
     mode: "0644"
+    force: false
+  tags:
+    - minecraft_download
+
+- name: Install PaperMC as server.jar
+  ansible.builtin.copy:
+    src: "{{ minecraft_server_home }}/{{ _paper_jar_name }}"
+    dest: "{{ minecraft_server_home }}/{{ minecraft_server_jar }}"
+    remote_src: true
+    owner: "{{ minecraft_server_user }}"
+    group: "{{ minecraft_server_group }}"
+    mode: "0644"
+  notify: Restart minecraft service
   tags:
     - minecraft_download
 
@@ -134,6 +176,57 @@
   tags:
     - minecraft_setup
 
+- name: Check if server.properties exists
+  ansible.builtin.stat:
+    path: "{{ minecraft_server_home }}/server.properties"
+  register: _server_props_stat
+  tags:
+    - minecraft_config
+
+- name: Deploy server.properties
+  ansible.builtin.template:
+    src: server.properties.j2
+    dest: "{{ minecraft_server_home }}/server.properties"
+    owner: "{{ minecraft_server_user }}"
+    group: "{{ minecraft_server_group }}"
+    mode: "0644"
+  when: not _server_props_stat.stat.exists
+  notify: Restart minecraft service
+  tags:
+    - minecraft_config
+
+- name: Set enable-rcon in server.properties
+  ansible.builtin.lineinfile:
+    path: "{{ minecraft_server_home }}/server.properties"
+    regexp: "^enable-rcon="
+    line: "enable-rcon={{ minecraft_server_rcon_enabled | lower }}"
+    owner: "{{ minecraft_server_user }}"
+    group: "{{ minecraft_server_group }}"
+  notify: Restart minecraft service
+  tags:
+    - minecraft_config
+    - minecraft_rcon
+
+- name: Configure RCON credentials in server.properties
+  ansible.builtin.lineinfile:
+    path: "{{ minecraft_server_home }}/server.properties"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    owner: "{{ minecraft_server_user }}"
+    group: "{{ minecraft_server_group }}"
+  loop:
+    - { key: "rcon.port", value: "{{ minecraft_server_rcon_port }}" }
+    - { key: "rcon.password", value: "{{ minecraft_server_rcon_password }}" }
+  notify: Restart minecraft service
+  when: minecraft_server_rcon_enabled | bool
+  no_log: true
+  tags:
+    - minecraft_config
+    - minecraft_rcon
+
+- name: Manage plugins
+  ansible.builtin.include_tasks: plugins.yml
+
 - name: Create systemd service file for Minecraft
   ansible.builtin.template:
     src: minecraft.service.j2
@@ -144,5 +237,25 @@
   notify:
     - Reload systemd
     - Start and enable minecraft service
+  tags:
+    - minecraft_service
+
+- name: Record installed PaperMC version
+  ansible.builtin.copy:
+    content: "{{ minecraft_server_mc_version }}"
+    dest: "{{ minecraft_server_home }}/.papermc_version"
+    owner: "{{ minecraft_server_user }}"
+    group: "{{ minecraft_server_group }}"
+    mode: "0644"
+  tags:
+    - minecraft_download
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Ensure Minecraft service is running
+  ansible.builtin.systemd:
+    name: minecraft
+    state: started
   tags:
     - minecraft_service

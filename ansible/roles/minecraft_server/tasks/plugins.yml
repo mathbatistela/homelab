@@ -1,0 +1,48 @@
+---
+- name: Create plugins directory
+  ansible.builtin.file:
+    path: "{{ minecraft_server_home }}/plugins"
+    state: directory
+    owner: "{{ minecraft_server_user }}"
+    group: "{{ minecraft_server_group }}"
+    mode: "0755"
+  tags:
+    - minecraft_plugins
+
+- name: Find outdated versioned plugin jars
+  ansible.builtin.find:
+    paths: "{{ minecraft_server_home }}/plugins"
+    patterns: "{{ item.cleanup_pattern }}"
+    excludes: "{{ item.jar }}"
+  loop: "{{ minecraft_server_plugins | selectattr('cleanup_pattern', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: _outdated_jars
+  tags:
+    - minecraft_plugins
+
+- name: Remove outdated versioned plugin jars
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ _outdated_jars.results | map(attribute='files') | flatten }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  notify: Restart minecraft service
+  tags:
+    - minecraft_plugins
+
+- name: Download plugin jars
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "{{ minecraft_server_home }}/plugins/{{ item.jar }}"
+    owner: "{{ minecraft_server_user }}"
+    group: "{{ minecraft_server_group }}"
+    mode: "0644"
+    force: false
+  loop: "{{ minecraft_server_plugins }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Restart minecraft service
+  tags:
+    - minecraft_plugins

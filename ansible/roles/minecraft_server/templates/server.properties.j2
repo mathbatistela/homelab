@@ -1,0 +1,17 @@
+#Minecraft server properties
+#Managed by Ansible — initial values only (Minecraft rewrites this file on each start)
+motd={{ minecraft_server_motd }}
+difficulty={{ minecraft_server_difficulty }}
+gamemode={{ minecraft_server_gamemode }}
+max-players={{ minecraft_server_max_players }}
+view-distance={{ minecraft_server_view_distance }}
+simulation-distance={{ minecraft_server_simulation_distance }}
+online-mode={{ minecraft_server_online_mode | lower }}
+pvp={{ minecraft_server_pvp | lower }}
+spawn-protection={{ minecraft_server_spawn_protection }}
+server-port={{ minecraft_server_port }}
+level-name=world
+level-seed={{ minecraft_server_level_seed }}
+enable-rcon={{ minecraft_server_rcon_enabled | lower }}
+rcon.port={{ minecraft_server_rcon_port }}
+rcon.password={{ minecraft_server_rcon_password }}

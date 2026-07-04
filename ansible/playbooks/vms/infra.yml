@@ -64,7 +64,7 @@
         fragment_traefik_services: "{{ fragment_traefik_services + item.ansible_facts.loaded_traefik_fragment.traefik_fragment_services }}"
       loop: "{{ traefik_fragment_loads.results }}"
   tasks:
-    - name: "Configure {{ item.service_name | default(item.filename) }}"
+    - name: Configure Traefik service
       ansible.builtin.include_role:
         name: traefik
         tasks_from: configure_service

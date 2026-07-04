@@ -255,7 +255,7 @@ groups:
         annotations:
           summary: "Container {{ $labels.name }} disk usage is high"
           description: "The container {{ $labels.name }} on instance {{ $labels.instance }} is using more than 80% of its disk quota.\nVALUE = {{ $value }}\nLABELS = {{ $labels }}"
-        expr: container_fs_usage_bytes / container_fs_limit_bytes > 0.8
+        expr: container_fs_usage_bytes{name=~".+"} / container_fs_limit_bytes{name=~".+"} > 0.8
         for: 5m
         labels:
           severity: warning
@@ -264,7 +264,7 @@ groups:
         annotations:
           summary: "Container {{ $labels.name }} almost out of disk space"
           description: "The container {{ $labels.name }} on instance {{ $labels.instance }} is using more than 90% of its disk quota.\nVALUE = {{ $value }}\nLABELS = {{ $labels }}"
-        expr: container_fs_usage_bytes / container_fs_limit_bytes > 0.9
+        expr: container_fs_usage_bytes{name=~".+"} / container_fs_limit_bytes{name=~".+"} > 0.9
         for: 5m
         labels:
           severity: critical

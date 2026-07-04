@@ -33,7 +33,7 @@ services:
     depends_on: [prometheus]
     ports: ["3000:3000"]
     cpus: 0.5
-    mem_limit: 512m
+    mem_limit: 1g
     networks: [monitoring]
     labels: *common_labels
     logging: *default-logging
@@ -57,7 +57,7 @@ services:
     depends_on: [alertmanager]
     ports: ["9090:9090"]
     cpus: 0.5
-    mem_limit: 512m
+    mem_limit: 1g
     networks: [monitoring]
     labels: *common_labels
     logging: *default-logging
@@ -137,7 +137,7 @@ services:
       - ./configs/loki/rules.yaml:/etc/loki/rules/rules.yml # evita aviso de dir "fake"
       - loki-data:/loki
     cpus: 0.5
-    mem_limit: 512m
+    mem_limit: 1g
     networks: [monitoring]
     labels: *common_labels
     logging: *default-logging

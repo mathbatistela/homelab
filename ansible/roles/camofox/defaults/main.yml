@@ -15,3 +15,11 @@ camofox_release: "beta.25"
 camofox_arch: x86_64
 camofox_image: "camofox-browser:{{ camofox_version }}-{{ camofox_arch }}"
 camofox_port: 9377
+
+# Live view (noVNC): watch the stealth browser while Hermes drives it, at
+# http://<ai-tools>:{{ camofox_novnc_port }}. Enabling runs the browser headed on
+# an Xvfb display exposed over VNC. LAN-internal; set a password to lock it down.
+camofox_vnc_enabled: true
+camofox_novnc_port: 6080
+camofox_vnc_resolution: "1920x1080"
+camofox_vnc_password: ""   # empty = no auth (LAN only); set to require a password

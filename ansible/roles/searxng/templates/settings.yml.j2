@@ -1,0 +1,14 @@
+# Managed by Ansible (role: searxng). Inherits SearXNG defaults; overrides below.
+use_default_settings: true
+
+server:
+  secret_key: "{{ searxng_secret_key }}"
+  limiter: false          # internal single-consumer use; no bot limiter needed
+  image_proxy: true
+
+search:
+  # Enable JSON output so Hermes/agents can query the API programmatically:
+  #   GET /search?q=<query>&format=json
+  formats:
+    - html
+    - json

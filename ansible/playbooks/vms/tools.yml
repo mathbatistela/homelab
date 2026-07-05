@@ -13,3 +13,4 @@
     - role: mcp_servers
       tags: mcp_servers_install
     - librechat
+    - searxng

@@ -1,0 +1,39 @@
+---
+- name: Create SearXNG compose directory
+  ansible.builtin.file:
+    path: "{{ searxng_compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create SearXNG config directory
+  ansible.builtin.file:
+    path: "{{ searxng_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy SearXNG settings.yml
+  ansible.builtin.template:
+    src: settings.yml.j2
+    dest: "{{ searxng_config_dir }}/settings.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart searxng
+
+- name: Deploy SearXNG docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ searxng_compose_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy SearXNG using docker-compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ searxng_compose_dir }}"
+    state: present
+    pull: always

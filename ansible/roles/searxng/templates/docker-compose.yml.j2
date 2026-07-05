@@ -1,0 +1,26 @@
+services:
+  searxng:
+    image: {{ searxng_image }}
+    container_name: searxng
+    restart: unless-stopped
+    ports:
+      - "{{ searxng_port }}:8080"
+    volumes:
+      - {{ searxng_config_dir }}:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL={{ searxng_base_url }}
+      # This LXC has IPv6 disabled; the image bakes GRANIAN_HOST=:: (IPv6), so the
+      # granian server crashes with "Address family not supported". Force IPv4.
+      - GRANIAN_HOST=0.0.0.0
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "1"

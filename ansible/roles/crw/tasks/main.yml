@@ -1,0 +1,23 @@
+---
+- name: Create crw compose directory
+  ansible.builtin.file:
+    path: "{{ crw_compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy crw docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ crw_compose_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart crw
+
+- name: Deploy crw using docker-compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ crw_compose_dir }}"
+    state: present
+    pull: always

@@ -1,0 +1,7 @@
+---
+# crw — fast Rust Firecrawl-compatible scraper/crawler/search API (alternative to
+# Firecrawl). Internal; single container (HTTP renderer tier). Exposed locally as
+# fastcrw.local.batistela.tech.
+crw_compose_dir: /root/docker-compose-apps/crw
+crw_image: ghcr.io/us/crw:latest
+crw_port: 3000

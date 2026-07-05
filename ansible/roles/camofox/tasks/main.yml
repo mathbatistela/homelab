@@ -1,0 +1,64 @@
+---
+- name: Ensure build dependencies for camofox are present
+  ansible.builtin.apt:
+    name:
+      - git
+      - make
+      - curl
+      - ca-certificates
+    state: present
+    update_cache: true
+
+- name: Clone/update camofox-browser source
+  ansible.builtin.git:
+    repo: "{{ camofox_repo }}"
+    dest: "{{ camofox_dir }}"
+    version: master
+    update: true
+    # Discard the server.js patch below (re-applied after) so pulls never conflict.
+    force: true
+
+# Upstream bug: server.js calls localVirtualDisplay.get() without awaiting it, so
+# a Promise is passed to Camoufox as DISPLAY ("[object Promise]") and every
+# browser launch fails with "cannot open display". Await it. Idempotent: the
+# regexp no longer matches once patched. Runs at build time (baked into the image).
+- name: Patch camofox virtual-display await bug
+  ansible.builtin.replace:
+    path: "{{ camofox_dir }}/server.js"
+    regexp: 'vdDisplay = localVirtualDisplay\.get\(\);'
+    replace: 'vdDisplay = await localVirtualDisplay.get();'
+
+# server.js calls playwright-core's firefox.newContext directly (bypassing
+# camoufox-js's compat layer). playwright-core >=~1.59 sends a viewport with
+# `isMobile`, which Camoufox's Juggler rejects ("isMobile not described in this
+# scheme"), breaking every tab. Pin to the package.json floor (camoufox-js
+# compatible) which predates that behavior. Baked into the image at build time.
+- name: Pin playwright-core to a Camoufox-compatible version
+  ansible.builtin.replace:
+    path: "{{ camofox_dir }}/package.json"
+    regexp: '"playwright-core":\s*"\^?1\.[0-9]+\.[0-9]+"'
+    replace: '"playwright-core": "1.58.0"'
+
+- name: Check whether the camofox image already exists
+  community.docker.docker_image_info:
+    name: "{{ camofox_image }}"
+  register: camofox_img
+
+# `make build` runs `make fetch` (downloads the ~300MB Camoufox browser + yt-dlp
+# into dist/) then a --no-cache docker build. Only run it when the target image
+# is missing; bumping camofox_version changes the tag and re-triggers a build.
+- name: Build camofox image on target
+  ansible.builtin.command:
+    cmd: "make build ARCH={{ camofox_arch }} VERSION={{ camofox_version }} RELEASE={{ camofox_release }}"
+    chdir: "{{ camofox_dir }}"
+  when: camofox_img.images | length == 0
+  changed_when: true
+
+- name: Run camofox-browser container
+  community.docker.docker_container:
+    name: camofox-browser
+    image: "{{ camofox_image }}"
+    restart_policy: unless-stopped
+    published_ports:
+      - "{{ camofox_port }}:9377"
+    state: started

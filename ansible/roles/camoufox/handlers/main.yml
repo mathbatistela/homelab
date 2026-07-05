@@ -1,5 +1,0 @@
----
-- name: Restart camoufox
-  community.docker.docker_compose_v2:
-    project_src: "{{ camoufox_compose_dir }}"
-    state: restarted

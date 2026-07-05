@@ -10,5 +10,5 @@
       tags: mcp_servers_install
     - role: searxng
       tags: searxng_install
-    - role: camoufox
-      tags: camoufox_install
+    - role: camofox
+      tags: camofox_install

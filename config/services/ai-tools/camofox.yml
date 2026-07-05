@@ -1,0 +1,19 @@
+service_manifest:
+  name: camofox
+  display_name: Camofox (stealth browser)
+  host: ai-tools
+  service:
+    # jo-inc/camofox-browser HTTP control API (Camoufox stealth Firefox).
+    # Consumed by the Hermes agent via CAMOFOX_URL=http://ai-tools:9377.
+    port: 9377
+    protocol: http
+  exposure:
+    local:
+      enabled: false
+    public:
+      enabled: false
+  auth:
+    sso: false
+  deployment:
+    owner: role
+    role: camofox

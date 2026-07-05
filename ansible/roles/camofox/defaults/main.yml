@@ -1,0 +1,17 @@
+---
+# jo-inc/camofox-browser — self-hosted Camoufox (stealth Firefox) exposed as an
+# HTTP control API on ai-tools. This is the variant the Hermes agent consumes
+# via CAMOFOX_URL (http://<ai-tools>:9377); NOT the daijro Playwright-WS server.
+# Built on-target from source (upstream publishes no image).
+camofox_repo: https://github.com/jo-inc/camofox-browser
+camofox_dir: /root/docker-compose-apps/camofox-browser
+# Camoufox browser build. Must match the Firefox version the bundled playwright-core
+# targets (1.61.x -> Firefox 151), else the Juggler protocol mismatches (e.g.
+# "Browser.setDefaultViewport ... isMobile not described in this scheme"). The
+# upstream Makefile default (135.0.1-beta.24) is stale; v150.0.2-beta.25 (Firefox
+# 150) pairs with the current playwright-core.
+camofox_version: "150.0.2"
+camofox_release: "beta.25"
+camofox_arch: x86_64
+camofox_image: "camofox-browser:{{ camofox_version }}-{{ camofox_arch }}"
+camofox_port: 9377

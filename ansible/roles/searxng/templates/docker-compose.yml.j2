@@ -1,8 +1,30 @@
 services:
+  valkey:
+    image: {{ searxng_valkey_image }}
+    container_name: searxng-valkey
+    restart: unless-stopped
+    command: valkey-server --save 30 1 --loglevel warning
+    volumes:
+      - {{ searxng_valkey_dir }}:/data
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "1"
+
   searxng:
     image: {{ searxng_image }}
     container_name: searxng
     restart: unless-stopped
+    depends_on:
+      - valkey
     ports:
       - "{{ searxng_port }}:8080"
     volumes:

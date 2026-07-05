@@ -12,3 +12,34 @@ search:
   formats:
     - html
     - json
+  safe_search: 0
+  default_lang: "en"
+  autocomplete: "duckduckgo"
+
+outgoing:
+  # Default 3s is too short — slow engines time out and drop to 0 results.
+  request_timeout: 10.0
+  max_request_timeout: 20.0
+  pool_connections: 100
+  pool_maxsize: 20
+  enable_http2: true
+
+# Result/cache backend — reduces repeat upstream hits (less engine rate-limiting).
+valkey:
+  url: valkey://valkey:6379/0
+
+engines:
+  # Google/Startpage aggressively rate-limit a self-hosted IP → intermittent 0
+  # results across the whole query. Prefer engines that tolerate self-hosting.
+  - name: startpage
+    disabled: true
+  - name: mojeek
+    disabled: false
+  - name: wikipedia
+    disabled: false
+  - name: duckduckgo
+    disabled: false
+  - name: brave
+    disabled: false
+  - name: bing
+    disabled: false

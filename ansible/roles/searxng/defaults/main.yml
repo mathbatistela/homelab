@@ -2,7 +2,9 @@
 # SearXNG metasearch, internal-only (for Hermes/agents to query). JSON API enabled.
 searxng_compose_dir: /root/docker-compose-apps/searxng
 searxng_config_dir: /root/docker-compose-apps/searxng/config
+searxng_valkey_dir: /root/docker-compose-apps/searxng/valkey
 searxng_image: searxng/searxng:latest
+searxng_valkey_image: valkey/valkey:8-alpine
 searxng_port: 8080
 searxng_secret_key: "{{ vault.tools.searxng_secret_key }}"
 searxng_base_url: "http://{{ hostvars['tools'].ansible_host }}:{{ searxng_port }}/"

@@ -1,0 +1,17 @@
+service_manifest:
+  name: firecrawl
+  display_name: Firecrawl
+  host: firecrawl
+  service:
+    port: 3002
+    protocol: http
+  exposure:
+    local:
+      enabled: false
+    public:
+      enabled: false
+  auth:
+    sso: false
+  deployment:
+    owner: role
+    role: firecrawl

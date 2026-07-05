@@ -1,0 +1,23 @@
+---
+# Self-contained Firecrawl stack (api + playwright + nuq-postgres + redis) via Docker.
+# Internal only (USE_DB_AUTHENTICATION=false, no reverse-proxy exposure).
+firecrawl_compose_dir: /root/docker-compose-apps/firecrawl
+firecrawl_pgdata_dir: /root/docker-compose-apps/firecrawl/pgdata
+
+firecrawl_api_image: ghcr.io/firecrawl/firecrawl:latest
+firecrawl_playwright_image: ghcr.io/firecrawl/playwright-service:latest
+firecrawl_nuqpg_image: ghcr.io/firecrawl/nuq-postgres:latest
+firecrawl_redis_image: redis:alpine
+
+firecrawl_port: 3002
+firecrawl_num_workers: 4
+
+# Bundled nuq-postgres superuser password
+firecrawl_pg_password: "{{ vault.firecrawl.nuq_postgres_pw }}"
+
+# Shared RabbitMQ (on the database VM) — admin user for now
+firecrawl_rabbitmq_user: admin
+firecrawl_rabbitmq_url: "amqp://{{ firecrawl_rabbitmq_user }}:{{ vault.database.rabbitmq_admin_pw }}@{{ hostvars['database'].ansible_host }}:5672"
+
+# Shared SearXNG (on the tools VM) for Firecrawl /search
+firecrawl_searxng_endpoint: "http://{{ hostvars['tools'].ansible_host }}:8080"

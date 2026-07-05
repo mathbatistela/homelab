@@ -121,6 +121,18 @@ locals {
       mountpoints = []
     }
 
+    firecrawl = {
+      vmid        = 112
+      hostname    = "firecrawl"
+      cores       = 4
+      memory      = 8192
+      swap        = 1024
+      disk_size   = "40G"
+      ip          = "${local.network.local_hosts.firecrawl}${local.network.cidr}"
+      nameserver  = null
+      mountpoints = []
+    }
+
   }
 }
 

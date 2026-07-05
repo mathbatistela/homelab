@@ -1,0 +1,19 @@
+traefik_fragment_services:
+  - filename: hermes.yml
+    content: |
+      http:
+        routers:
+          hermes:
+            rule: "Host(`hermes.{{ traefik_local_domain }}`)"
+            entryPoints:
+              - https
+            service: hermes-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+            middlewares:
+              - authelia@file
+        services:
+          hermes-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['hermes'].ansible_host }}:8787"

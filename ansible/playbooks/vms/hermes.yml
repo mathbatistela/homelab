@@ -1,0 +1,8 @@
+---
+- name: "Configure hermes VM"
+  hosts: hermes
+  gather_facts: true
+  become: true
+  roles:
+    - geerlingguy.docker
+    - hermes

@@ -1,0 +1,41 @@
+services:
+  # Supplies the Hermes agent source (via the hermes-agent-src volume) that the
+  # WebUI imports to run chat in-process, and runs the long-lived scheduler.
+  hermes-agent:
+    image: {{ hermes_agent_image }}
+    container_name: hermes-agent
+    command: gateway run
+    restart: unless-stopped
+    environment:
+      - HERMES_HOME=/home/hermes/.hermes
+      - HERMES_UID={{ hermes_uid }}
+      - HERMES_GID={{ hermes_gid }}
+    volumes:
+      - {{ hermes_home_dir }}:/home/hermes/.hermes
+      - hermes-agent-src:/opt/hermes
+
+  # Web UI. Runs the agent in-process (reads HERMES_HOME + the mounted agent
+  # source at $HERMES_HOME/hermes-agent). HERMES_API_URL is intentionally NOT
+  # set: it only drives the Tasks/cron health probe, not chat, and setting it
+  # to a non-serving gateway produces a false "agent not responding" banner.
+  hermes-webui:
+    image: {{ hermes_webui_image }}
+    container_name: hermes-webui
+    depends_on:
+      - hermes-agent
+    restart: unless-stopped
+    ports:
+      - "{{ hermes_webui_port }}:8787"
+    environment:
+      - HERMES_WEBUI_HOST=0.0.0.0
+      - HERMES_WEBUI_PORT=8787
+      - HERMES_WEBUI_STATE_DIR=/home/hermeswebui/.hermes/webui
+      - WANTED_UID={{ hermes_uid }}
+      - WANTED_GID={{ hermes_gid }}
+    volumes:
+      - {{ hermes_home_dir }}:/home/hermeswebui/.hermes
+      - hermes-agent-src:/home/hermeswebui/.hermes/hermes-agent:ro
+      - {{ hermes_workspace_dir }}:/workspace
+
+volumes:
+  hermes-agent-src:

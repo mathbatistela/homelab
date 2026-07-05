@@ -1,0 +1,20 @@
+[Unit]
+Description=Hermes Web UI (native, runs the agent in-process)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory={{ hermes_webui_dir }}
+Environment=HERMES_HOME={{ hermes_home }}
+Environment=HERMES_WEBUI_HOST={{ hermes_webui_host }}
+Environment=HERMES_WEBUI_PORT={{ hermes_webui_port }}
+Environment=HERMES_WEBUI_AGENT_DIR={{ hermes_agent_dir }}
+ExecStart=/bin/bash {{ hermes_webui_dir }}/start.sh --foreground
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

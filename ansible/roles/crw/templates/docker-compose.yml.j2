@@ -1,0 +1,12 @@
+services:
+  crw:
+    image: {{ crw_image }}
+    container_name: crw
+    restart: unless-stopped
+    ports:
+      - "{{ crw_port }}:3000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"

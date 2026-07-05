@@ -1,0 +1,20 @@
+service_manifest:
+  name: crw
+  display_name: crw (Firecrawl alt)
+  host: firecrawl
+  service:
+    port: 3000
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: generated
+      template: simple-http
+      subdomain: fastcrw
+    public:
+      enabled: false
+  auth:
+    sso: false
+  deployment:
+    owner: role
+    role: crw

@@ -11,7 +11,8 @@
     "tailscale": "192.168.1.108",
     "authelia": "192.168.1.109",
     "minecraft-be": "192.168.1.115",
-    "openwebui": "192.168.1.110"
+    "openwebui": "192.168.1.110",
+    "hermes": "192.168.1.111"
   },
   "remote_hosts": {
     "racknerd": "204.152.223.118"

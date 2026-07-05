@@ -109,6 +109,18 @@ locals {
       nameserver  = null
       mountpoints = []
     }
+    hermes = {
+      vmid        = 111
+      hostname    = "hermes"
+      cores       = 4
+      memory      = 8192
+      swap        = 1024
+      disk_size   = "40G"
+      ip          = "${local.network.local_hosts.hermes}${local.network.cidr}"
+      nameserver  = null
+      mountpoints = []
+    }
+
   }
 }
 

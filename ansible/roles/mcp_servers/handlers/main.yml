@@ -1,0 +1,6 @@
+---
+- name: Restart mcpo
+  community.docker.docker_container:
+    name: "{{ mcp_mcpo_container_name }}"
+    state: started
+    restart: true

@@ -13,7 +13,7 @@
     "minecraft-be": "192.168.1.115",
     "openwebui": "192.168.1.110",
     "hermes": "192.168.1.111",
-    "firecrawl": "192.168.1.112"
+    "ai-tools": "192.168.1.112"
   },
   "remote_hosts": {
     "racknerd": "204.152.223.118"

@@ -71,6 +71,7 @@ syntax-check: $(VENV)/bin/python3
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/media.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/minecraft.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/tools.yml --syntax-check && \
+	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/ai-tools.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/monitoring.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local -i inventories/cloud playbooks/vms/pangolin.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/authelia.yml --syntax-check && \
@@ -216,6 +217,9 @@ ifndef APP
 	$(error APP is required. Usage: make apps-create APP=my-app)
 endif
 	$(HOMELAB_APPS) create $(APP)
+
+build-actual-mcp-image:
+	docker build -t actual-mcp:custom-26.5.0 ansible/roles/mcp_servers/files/actual-mcp
 
 # ── Generative scaffolding ───────────────────────────────────────────────────
 

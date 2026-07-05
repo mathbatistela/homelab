@@ -1,0 +1,29 @@
+From: Homelab <homelab@batistela.tech>
+Date: Sun, 5 Jul 2026 00:00:00 +0000
+Subject: [PATCH] Keep Actual API connection alive across tool calls
+
+The upstream sstefanov/actual-mcp shuts down the Actual Budget API after
+every tool call. Because initActualApi() performs a fresh login and
+downloadBudget() on the next call, this quickly exhausts Actual server's
+rate limit on /account/login.
+
+Keep the singleton connection alive for the lifetime of the process so
+that only the first tool call pays the login/sync cost.
+
+---
+ src/tools/index.ts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/tools/index.ts b/src/tools/index.ts
+index 0ab6aad..5864e7b 100644
+--- a/src/tools/index.ts
++++ b/src/tools/index.ts
+@@ -96,7 +96,7 @@ export const setupTools = (server: Server, enableWrite: boolean): void => {
+       console.error(`Error executing tool ${request.params.name}:`, err);
+       return errorFromCatch(err);
+     } finally {
+-      await shutdownActualApi();
++      // Keep Actual API connection alive across tool calls to avoid re-auth rate limits
+     }
+   });
+ };

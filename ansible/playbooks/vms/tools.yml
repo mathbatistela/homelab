@@ -7,10 +7,5 @@
     - geerlingguy.docker
     - actual_budget
     - portainer
-    - platypus
     - role: databasus
       tags: databasus_install
-    - role: mcp_servers
-      tags: mcp_servers_install
-    - librechat
-    - searxng

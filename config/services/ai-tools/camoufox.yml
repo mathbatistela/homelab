@@ -1,0 +1,18 @@
+service_manifest:
+  name: camoufox
+  display_name: Camoufox (stealth browser)
+  host: ai-tools
+  service:
+    # Playwright WebSocket server (ws://ai-tools:9222/<ws_path>). Not HTTP; LAN-internal.
+    port: 9222
+    protocol: tcp
+  exposure:
+    local:
+      enabled: false
+    public:
+      enabled: false
+  auth:
+    sso: false
+  deployment:
+    owner: role
+    role: camoufox

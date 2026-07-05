@@ -1,0 +1,9 @@
+---
+# Shared RabbitMQ broker (management plugin) via Docker. Reusable by any service.
+rabbitmq_compose_dir: /root/docker-compose-apps/rabbitmq
+rabbitmq_data_dir: /root/docker-compose-apps/rabbitmq/data
+rabbitmq_image: rabbitmq:3-management
+rabbitmq_amqp_port: 5672
+rabbitmq_mgmt_port: 15672
+rabbitmq_admin_user: admin
+rabbitmq_admin_password: "{{ vault.database.rabbitmq_admin_pw }}"

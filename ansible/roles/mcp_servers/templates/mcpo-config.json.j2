@@ -3,7 +3,7 @@
 {% for server in mcp_servers %}
     "{{ server.name }}": {
       "type": "streamable-http",
-      "url": "http://mcp-{{ server.name }}:{{ server.port }}/http",
+      "url": "http://mcp-{{ server.name }}:{{ server.port }}{{ server.mcp_path | default('/http') }}",
       "headers": {
         "Authorization": "Bearer {{ mcp_mcpo_api_key }}"
       }

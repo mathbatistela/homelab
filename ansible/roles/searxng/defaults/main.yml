@@ -7,4 +7,4 @@ searxng_image: searxng/searxng:latest
 searxng_valkey_image: valkey/valkey:8-alpine
 searxng_port: 8080
 searxng_secret_key: "{{ vault.tools.searxng_secret_key }}"
-searxng_base_url: "http://{{ hostvars['tools'].ansible_host }}:{{ searxng_port }}/"
+searxng_base_url: "http://{{ hostvars['ai-tools'].ansible_host }}:{{ searxng_port }}/"

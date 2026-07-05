@@ -2,7 +2,13 @@
 mcp_servers_compose_dir: /opt/mcp-servers
 mcp_servers_data_dir: /opt/mcp-servers/data
 mcp_servers_network_name: mcp-servers
+# actual-budget now lives on the tools VM; actual-mcp reaches it over the LAN
+# (http://<tools>:5006) instead of sharing a local docker network.
+mcp_servers_extra_networks: []
 mcp_servers_traefik_fragment_path: "{{ playbook_dir }}/../../../config/fragments/traefik/mcp-direct.yml"
+
+# Custom actual-mcp image built on the target host from files/actual-mcp.
+mcp_actual_mcp_image: "actual-mcp:custom-26.5.0"
 
 # Shared mcpo settings
 mcp_mcpo_image: ghcr.io/open-webui/mcpo:main
@@ -14,12 +20,29 @@ mcp_mcpo_api_key: "{{ vault.tools.mcp_mcpo_api_key }}"
 mcp_servers:
   - name: actual-budget
     display_name: "Actual Budget MCP"
-    image: ghcr.io/agigante80/actual-mcp-server:latest
-    port: 3600
-    uid: "100"
-    gid: "100"
+    # Custom build from https://github.com/s-stefanov/actual-mcp@2492580
+    # Upstream sstefanov/actual-mcp:latest (v1.11.3) ships @actual-app/api 26.3.0,
+    # which fails with "out-of-sync-migrations" against Actual server 26.5.0.
+    # Rebuild locally when the upstream image catches up or Actual server is upgraded.
+    image: "{{ mcp_actual_mcp_image }}"
+    port: 3010
+    uid: "1000"
+    gid: "1000"
+    command:
+      - "--sse"
+      - "--port"
+      - "3010"
+      - "--enable-bearer"
+      - "--enable-write"
     env:
-      ACTUAL_SERVER_URL: "https://budget.local.batistela.tech"
+      ACTUAL_SERVER_URL: "http://{{ hostvars['tools'].ansible_host }}:5006"
       ACTUAL_PASSWORD: "{{ vault.tools.mcp_actual_password }}"
       ACTUAL_BUDGET_SYNC_ID: "aef6a814-b200-44e9-9607-f8866cb5c188"
+      ACTUAL_DATA_DIR: "/data"
+      BEARER_TOKEN: "{{ mcp_mcpo_api_key }}"
       NODE_ENV: production
+    networks:
+      - "{{ mcp_servers_network_name }}"
+    mcp_path: "/mcp"
+    healthcheck_test: '["CMD", "node", "-e", "require(''net'').createConnection(3010).on(''connect'',()=>process.exit(0)).on(''error'',()=>process.exit(1))"]'
+    healthcheck_start_period: "60s"

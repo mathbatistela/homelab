@@ -1,0 +1,15 @@
+---
+# Camoufox — stealth Firefox fork exposed as a Playwright WebSocket server on
+# ai-tools. Internal/LAN only. Clients connect with:
+#   playwright.firefox.connect("ws://ai-tools:{{ camoufox_port }}/{{ camoufox_ws_path }}")
+# Optionally usable by crw's stealth tier.
+camoufox_compose_dir: /root/docker-compose-apps/camoufox
+camoufox_image: "camoufox-server:local"
+
+# Published WS port on the ai-tools host (socat forwards it to the internal port).
+camoufox_port: 9222
+# Port Camoufox's Playwright server binds to inside the container (loopback);
+# socat bridges the published port -> this, so the bind address never matters.
+camoufox_internal_port: 9223
+# Fixed ws path so clients have a deterministic endpoint.
+camoufox_ws_path: camoufox

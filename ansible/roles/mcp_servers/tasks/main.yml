@@ -24,6 +24,25 @@
     group: root
     mode: "0755"
 
+- name: Copy actual-mcp build context to target
+  ansible.builtin.copy:
+    src: actual-mcp/
+    dest: "{{ mcp_servers_compose_dir }}/build/actual-mcp/"
+    owner: root
+    group: root
+    mode: "0644"
+  register: actual_mcp_context
+
+- name: Build custom actual-mcp image on target
+  community.docker.docker_image:
+    name: "{{ mcp_actual_mcp_image }}"
+    source: build
+    build:
+      path: "{{ mcp_servers_compose_dir }}/build/actual-mcp"
+      pull: true
+    force_source: "{{ actual_mcp_context.changed }}"
+    state: present
+
 - name: Copy MCP servers docker-compose file
   ansible.builtin.template:
     src: docker-compose.yml.j2
@@ -39,6 +58,7 @@
     owner: root
     group: root
     mode: "0644"
+  notify: Restart mcpo
 
 - name: Ensure Traefik fragments directory exists on controller
   ansible.builtin.file:

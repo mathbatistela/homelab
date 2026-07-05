@@ -121,14 +121,14 @@ locals {
       mountpoints = []
     }
 
-    firecrawl = {
+    ai-tools = {
       vmid        = 112
-      hostname    = "firecrawl"
+      hostname    = "ai-tools"
       cores       = 4
       memory      = 8192
       swap        = 1024
       disk_size   = "40G"
-      ip          = "${local.network.local_hosts.firecrawl}${local.network.cidr}"
+      ip          = "${local.network.local_hosts.ai-tools}${local.network.cidr}"
       nameserver  = null
       mountpoints = []
     }

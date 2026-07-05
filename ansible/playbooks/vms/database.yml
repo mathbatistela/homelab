@@ -55,14 +55,6 @@
 
   tags: redis_install
 
-- name: Deploy shared RabbitMQ broker
-  hosts: database
-  become: true
-  gather_facts: true
-  roles:
-    - role: rabbitmq
-  tags: rabbitmq_install
-
 - name: Deploy journal log collection
   hosts: database
   become: true

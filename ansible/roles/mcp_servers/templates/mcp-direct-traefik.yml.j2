@@ -26,5 +26,5 @@ traefik_fragment_services:
           mcp-{{ server.name }}-service:
             loadBalancer:
               servers:
-                - url: "http://{{ hostvars['tools'].ansible_host }}:{{ server.port }}"
+                - url: "http://{{ hostvars['ai-tools'].ansible_host }}:{{ server.port }}"
 {% endfor %}

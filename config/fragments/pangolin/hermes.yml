@@ -1,0 +1,12 @@
+pangolin_fragment_resources:
+  hermes:
+    name: Hermes
+    protocol: http
+    full-domain: "hermes.{{ pangolin_base_domain }}"
+    auth:
+      sso-enabled: true
+    targets:
+      - site: "{{ pangolin_site_nice_id }}"
+        hostname: "{{ hostvars['hermes'].ansible_host }}"
+        port: 8787
+        method: http

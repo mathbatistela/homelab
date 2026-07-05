@@ -1,0 +1,39 @@
+---
+- name: Create Hermes compose directory
+  ansible.builtin.file:
+    path: "{{ hermes_compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create Hermes home (state) directory
+  ansible.builtin.file:
+    path: "{{ hermes_home_dir }}"
+    state: directory
+    owner: "{{ hermes_uid }}"
+    group: "{{ hermes_gid }}"
+    mode: "0750"
+
+- name: Create Hermes workspace directory
+  ansible.builtin.file:
+    path: "{{ hermes_workspace_dir }}"
+    state: directory
+    owner: "{{ hermes_uid }}"
+    group: "{{ hermes_gid }}"
+    mode: "0750"
+
+- name: Deploy Hermes docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ hermes_compose_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Deploy Hermes using docker-compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ hermes_compose_dir }}"
+    state: present
+    pull: always
+    remove_orphans: true

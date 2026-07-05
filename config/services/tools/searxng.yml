@@ -1,0 +1,17 @@
+service_manifest:
+  name: searxng
+  display_name: SearXNG
+  host: tools
+  service:
+    port: 8080
+    protocol: http
+  exposure:
+    local:
+      enabled: false
+    public:
+      enabled: false
+  auth:
+    sso: false
+  deployment:
+    owner: role
+    role: searxng

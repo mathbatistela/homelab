@@ -1,11 +1,17 @@
 ---
-hermes_compose_dir: /root/docker-compose-apps/hermes
-hermes_home_dir: /root/docker-compose-apps/hermes/hermes-home
-hermes_workspace_dir: /root/docker-compose-apps/hermes/workspace
-hermes_uid: 1000
-hermes_gid: 1000
+# Native install of Hermes (agent + WebUI), managed by systemd. No Docker.
+# The WebUI runs the agent in-process; access is gated by Authelia (local) and
+# Pangolin SSO (public), so no built-in WebUI password is set.
+hermes_home: /root/.hermes
+hermes_agent_dir: /usr/local/lib/hermes-agent          # official installer FHS path (root)
+hermes_agent_bin: /usr/local/bin/hermes
+hermes_installer_url: https://hermes-agent.nousresearch.com/install.sh
+
+hermes_webui_dir: /opt/hermes-webui
+hermes_webui_repo: https://github.com/nesquena/hermes-webui.git
+hermes_webui_version: master
+hermes_webui_host: 0.0.0.0
 hermes_webui_port: 8787
-hermes_agent_image: nousresearch/hermes-agent:latest
-# No built-in WebUI password: access is gated by Authelia (local) and Pangolin
-# SSO (public) in front. The WebUI runs auth-disabled behind the trusted proxy.
-hermes_webui_image: ghcr.io/nesquena/hermes-webui:latest
+
+# Install Playwright Chromium so the agent's browse tools work (best-effort).
+hermes_install_chromium: true

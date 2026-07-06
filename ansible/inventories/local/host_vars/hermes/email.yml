@@ -1,0 +1,12 @@
+---
+# Enable Hermes email gateway adapter (IMAP/SMTP via Zoho Mail).
+# The password lives in the Ansible vault as vault.hermes.email_password.
+hermes_email_enabled: true
+hermes_email_address: "{{ admin_email }}"
+hermes_email_imap_host: imap.zoho.com
+hermes_email_smtp_host: smtp.zoho.com
+hermes_email_imap_port: 993
+hermes_email_smtp_port: 587
+hermes_email_poll_interval: 15
+hermes_email_allowed_users: "{{ admin_email }}"
+hermes_email_home_address: "{{ admin_email }}"

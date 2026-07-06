@@ -6,6 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory={{ hermes_webui_dir }}
+EnvironmentFile={{ hermes_home }}/.env
 Environment=HERMES_HOME={{ hermes_home }}
 Environment=HERMES_WEBUI_HOST={{ hermes_webui_host }}
 Environment=HERMES_WEBUI_PORT={{ hermes_webui_port }}

@@ -55,3 +55,44 @@
     enabled: true
     state: started
     daemon_reload: true
+
+- name: Ensure Hermes environment file exists with safe permissions
+  ansible.builtin.file:
+    path: "{{ hermes_home }}/.env"
+    state: touch
+    owner: root
+    group: root
+    mode: "0600"
+  changed_when: false
+
+- name: Back up Hermes environment file before modifying it
+  ansible.builtin.shell:
+    cmd: "cp -a {{ hermes_home }}/.env {{ hermes_home }}/.env.ansible-backup-$(date +%Y%m%d%H%M%S)"
+  changed_when: false
+
+- name: Remove stale system-level hermes-gateway unit if present
+  ansible.builtin.file:
+    path: /etc/systemd/system/hermes-gateway.service
+    state: absent
+  notify: Reload systemd
+
+- name: Configure Hermes email gateway environment variables
+  ansible.builtin.lineinfile:
+    path: "{{ hermes_home }}/.env"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    state: present
+  loop:
+    - { key: "EMAIL_ADDRESS", value: "{{ hermes_email_address }}" }
+    - { key: "EMAIL_PASSWORD", value: "{{ hermes_email_password }}" }
+    - { key: "EMAIL_IMAP_HOST", value: "{{ hermes_email_imap_host }}" }
+    - { key: "EMAIL_SMTP_HOST", value: "{{ hermes_email_smtp_host }}" }
+    - { key: "EMAIL_IMAP_PORT", value: "{{ hermes_email_imap_port }}" }
+    - { key: "EMAIL_SMTP_PORT", value: "{{ hermes_email_smtp_port }}" }
+    - { key: "EMAIL_POLL_INTERVAL", value: "{{ hermes_email_poll_interval }}" }
+    - { key: "EMAIL_ALLOWED_USERS", value: "{{ hermes_email_allowed_users }}" }
+    - { key: "EMAIL_HOME_ADDRESS", value: "{{ hermes_email_home_address }}" }
+  notify: Restart hermes-gateway user service
+  when: hermes_email_enabled | bool
+
+

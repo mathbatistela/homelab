@@ -1,0 +1,17 @@
+traefik_fragment_services:
+  - filename: camofox-vnc.yml
+    content: |
+      http:
+        routers:
+          camofox-vnc:
+            rule: "Host(`camofox-vnc.{{ traefik_local_domain }}`)"
+            entryPoints:
+              - https
+            service: camofox-vnc-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+        services:
+          camofox-vnc-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['ai-tools'].ansible_host }}:6080"

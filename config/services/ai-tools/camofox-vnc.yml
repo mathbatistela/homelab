@@ -1,0 +1,20 @@
+service_manifest:
+  name: camofox-vnc
+  display_name: Camofox noVNC
+  host: ai-tools
+  service:
+    # noVNC web UI for the Camofox browser desktop (port 6080 on ai-tools).
+    port: 6080
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: fragment
+      fragment: camofox-vnc
+    public:
+      enabled: false
+  auth:
+    sso: false
+  deployment:
+    owner: role
+    role: camofox

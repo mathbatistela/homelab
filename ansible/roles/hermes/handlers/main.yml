@@ -4,3 +4,13 @@
     name: hermes-webui
     state: restarted
     daemon_reload: true
+
+- name: Restart hermes-gateway user service
+  ansible.builtin.shell:
+    cmd: "XDG_RUNTIME_DIR=/run/user/0 hermes gateway restart"
+  changed_when: true
+  failed_when: false
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true

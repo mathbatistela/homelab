@@ -1,8 +1,8 @@
 .PHONY: bootstrap doctor lint syntax-check validate check lint-agents check-network fix-network \
         plan-home plan-cloud plan-all validate-home validate-cloud apply-home apply-cloud apply-all \
-        play-infra play-database play-media play-minecraft play-tools \
+        play-infra play-hermes play-database play-media play-minecraft play-tools \
         play-monitoring play-pangolin play-proxmox play-authelia play-tailscale \
-        dry-run-infra dry-run-database dry-run-media dry-run-minecraft dry-run-tools \
+        dry-run-infra dry-run-hermes dry-run-database dry-run-media dry-run-minecraft dry-run-tools \
         dry-run-monitoring dry-run-pangolin dry-run-proxmox dry-run-authelia dry-run-tailscale \
         deploy-vm deploy-services deploy-blueprint \
         add-vm add-service rotate-secret \
@@ -67,6 +67,7 @@ lint: $(VENV)/bin/python3
 syntax-check: $(VENV)/bin/python3
 	cd ansible && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/infra.yml --syntax-check && \
+	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/hermes.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/database.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/media.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/minecraft.yml --syntax-check && \
@@ -80,6 +81,10 @@ syntax-check: $(VENV)/bin/python3
 
 play-infra: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/infra.yml
+	@$(PYTHON) scripts/log_agent_run.py $@ done
+
+play-hermes: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/hermes.yml
 	@$(PYTHON) scripts/log_agent_run.py $@ done
 
 play-database: $(VENV)/bin/python3
@@ -122,6 +127,9 @@ play-proxmox: $(VENV)/bin/python3
 
 dry-run-infra: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/infra.yml --check --diff
+
+dry-run-hermes: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/hermes.yml --check --diff
 
 dry-run-database: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/database.yml --check --diff

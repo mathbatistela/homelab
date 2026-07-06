@@ -15,3 +15,16 @@ hermes_webui_port: 8787
 
 # Install Playwright Chromium so the agent's browse tools work (best-effort).
 hermes_install_chromium: true
+
+# Email gateway adapter (IMAP/SMTP). Disabled by default; enable once
+# vault.hermes.email_password is set. See docs/hermes.md
+hermes_email_enabled: false
+hermes_email_address: "{{ admin_email | default('matheus@batistela.tech') }}"
+hermes_email_password: "{{ vault.hermes.email_password | default('') }}"
+hermes_email_imap_host: imap.zoho.com
+hermes_email_smtp_host: smtp.zoho.com
+hermes_email_imap_port: 993
+hermes_email_smtp_port: 587
+hermes_email_poll_interval: 15
+hermes_email_allowed_users: "{{ admin_email | default('matheus@batistela.tech') }}"
+hermes_email_home_address: "{{ admin_email | default('matheus@batistela.tech') }}"

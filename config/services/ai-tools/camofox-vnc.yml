@@ -14,9 +14,12 @@ service_manifest:
       # while the API stays on the root path of the same host.
       fragment: camofox-vnc
     public:
-      enabled: false
+      enabled: true
+      mode: generated
+      subdomain: camofox
+      protocol: http
   auth:
-    sso: false
+    sso: true
   deployment:
     owner: role
     role: camofox

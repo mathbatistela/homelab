@@ -12,6 +12,13 @@ traefik_fragment_services:
               certResolver: cloudflareLocal
             middlewares:
               - strip-mcp-actual-budget
+          mcp-evolution-direct:
+            rule: "Host(`mcp.local.batistela.tech`) && PathPrefix(`/evolution`)"
+            entryPoints:
+              - https
+            service: mcp-evolution-service
+            tls:
+              certResolver: cloudflareLocal
         middlewares:
           strip-mcp-actual-budget:
             stripPrefix:
@@ -22,3 +29,7 @@ traefik_fragment_services:
             loadBalancer:
               servers:
                 - url: "http://192.168.1.112:3010"
+          mcp-evolution-service:
+            loadBalancer:
+              servers:
+                - url: "http://192.168.1.112:3020"

@@ -11,15 +11,19 @@ traefik_fragment_services:
             service: mcp-{{ server.name }}-service
             tls:
               certResolver: cloudflareLocal
+{% if server.traefik_strip_prefix | default(true) %}
             middlewares:
               - strip-mcp-{{ server.name }}
+{% endif %}
 {% endfor %}
         middlewares:
 {% for server in mcp_servers %}
+{% if server.traefik_strip_prefix | default(true) %}
           strip-mcp-{{ server.name }}:
             stripPrefix:
               prefixes:
                 - "/{{ server.name }}"
+{% endif %}
 {% endfor %}
         services:
 {% for server in mcp_servers %}

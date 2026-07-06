@@ -20,6 +20,7 @@ camofox_port: 9377
 # http://<ai-tools>:{{ camofox_novnc_port }}. Enabling runs the browser headed on
 # an Xvfb display exposed over VNC. LAN-internal; set a password to lock it down.
 camofox_vnc_enabled: true
-camofox_novnc_port: 6080
+camofox_novnc_port: 6080          # noVNC web UI
+camofox_vnc_port: 5901            # native VNC server (mapped to container port 5900)
 camofox_vnc_resolution: "1920x1080"
 camofox_vnc_password: ""   # empty = no auth (LAN only); set to require a password

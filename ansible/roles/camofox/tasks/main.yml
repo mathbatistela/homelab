@@ -27,6 +27,7 @@
     path: "{{ camofox_dir }}/server.js"
     regexp: 'vdDisplay = localVirtualDisplay\.get\(\);'
     replace: 'vdDisplay = await localVirtualDisplay.get();'
+  register: camofox_patch_server_js
 
 # server.js calls playwright-core's firefox.newContext directly (bypassing
 # camoufox-js's compat layer). playwright-core >=~1.59 sends a viewport with
@@ -38,6 +39,36 @@
     path: "{{ camofox_dir }}/package.json"
     regexp: '"playwright-core":\s*"\^?1\.[0-9]+\.[0-9]+"'
     replace: '"playwright-core": "1.58.0"'
+  register: camofox_patch_playwright
+
+# Upstream bug: vnc-watcher.sh detects the Xvfb display by grepping process args
+# for "/Xvfb :<n>". Current Camoufox uses -displayfd (dynamic display allocation),
+# so the display number is never in ps args and x11vnc never starts. Detect the
+# display from the authoritative /tmp/.X11-unix/ socket instead. Baked into image.
+- name: Patch vnc-watcher display detection for -displayfd
+  ansible.builtin.replace:
+    path: "{{ camofox_dir }}/plugins/vnc/vnc-watcher.sh"
+    regexp: '(?s)while true; do\s+# Find Xvfb with our patched resolution\s+FOUND=\$\(ps -eo args= 2>/dev/null \| awk -v res="\$VNC_RESOLUTION" ''\s+.*?\s+'' \| head -1\)'
+    replace: |
+      while true; do
+        # Find the active Xvfb display. Upstream Xvfb uses -displayfd (dynamic
+        # display allocation), so the display number is not in ps args. The Unix
+        # socket in /tmp/.X11-unix/ is authoritative.
+        FOUND=$(ls -t /tmp/.X11-unix/ 2>/dev/null | awk '/^X[0-9]+$/ { print ":" substr($0, 2); exit }')
+  register: camofox_patch_vnc_watcher
+
+- name: Stop and remove camofox container when source patches change
+  community.docker.docker_container:
+    name: camofox-browser
+    state: absent
+  when: camofox_patch_server_js is changed or camofox_patch_playwright is changed or camofox_patch_vnc_watcher is changed
+
+- name: Remove stale camofox image when source patches change
+  community.docker.docker_image:
+    name: "{{ camofox_image }}"
+    state: absent
+    force_absent: true
+  when: camofox_patch_server_js is changed or camofox_patch_playwright is changed or camofox_patch_vnc_watcher is changed
 
 - name: Check whether the camofox image already exists
   community.docker.docker_image_info:

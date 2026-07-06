@@ -18,6 +18,21 @@ ssh root@hermes systemctl status hermes-webui hermes-gateway
 ssh root@hermes tail -f ~/.hermes/logs/gateway.log
 ```
 
+## Development tooling
+
+The Hermes playbook also applies the generic `dev_dependencies` role so the VM
+has a useful development baseline. For this repo, that means base tools
+(`git`, `make`, Python venv support, `rsync`, `jq`, `yq`, etc.), GitHub CLI
+(`gh`), and the OpenTofu `tofu` CLI from the official OpenTofu apt repository.
+
+Docker packages are available through the same role but disabled by default:
+
+```yaml
+dev_dependencies_install_docker: true
+```
+
+Only enable Docker after the Hermes LXC has the required nesting/runtime support.
+
 ## Email gateway (Zoho Mail)
 
 Hermes can receive and reply to emails via IMAP/SMTP. The Zoho Mail account used here can be the same one used elsewhere in the homelab, but it is configured independently in the local Ansible vault.

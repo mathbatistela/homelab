@@ -1,0 +1,146 @@
+---
+- name: Install development packages
+  ansible.builtin.apt:
+    name: "{{ dev_dependencies_packages }}"
+    state: present
+    update_cache: true
+
+- name: Ensure OpenTofu keyring directory exists
+  ansible.builtin.file:
+    path: "{{ dev_dependencies_opentofu_keyring_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - dev_dependencies_install_opentofu | bool
+    - not ansible_check_mode
+
+- name: Install OpenTofu package signing key
+  ansible.builtin.get_url:
+    url: https://get.opentofu.org/opentofu.gpg
+    dest: "{{ dev_dependencies_opentofu_gpg_key }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - dev_dependencies_install_opentofu | bool
+    - not ansible_check_mode
+
+- name: Download OpenTofu repository signing key
+  ansible.builtin.get_url:
+    url: https://packages.opentofu.org/opentofu/tofu/gpgkey
+    dest: /tmp/opentofu-repo.gpg.key
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - dev_dependencies_install_opentofu | bool
+    - not ansible_check_mode
+
+- name: Dearmor OpenTofu repository signing key
+  ansible.builtin.command:
+    cmd: "gpg --dearmor -o {{ dev_dependencies_opentofu_repo_key }} /tmp/opentofu-repo.gpg.key"
+    creates: "{{ dev_dependencies_opentofu_repo_key }}"
+  when:
+    - dev_dependencies_install_opentofu | bool
+    - not ansible_check_mode
+
+- name: Ensure OpenTofu repository signing key permissions
+  ansible.builtin.file:
+    path: "{{ dev_dependencies_opentofu_repo_key }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - dev_dependencies_install_opentofu | bool
+    - not ansible_check_mode
+
+- name: Configure OpenTofu apt repository
+  ansible.builtin.copy:
+    dest: "{{ dev_dependencies_opentofu_sources }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      deb [signed-by={{ dev_dependencies_opentofu_gpg_key }},{{ dev_dependencies_opentofu_repo_key }}] https://packages.opentofu.org/opentofu/tofu/any/ any main
+      deb-src [signed-by={{ dev_dependencies_opentofu_gpg_key }},{{ dev_dependencies_opentofu_repo_key }}] https://packages.opentofu.org/opentofu/tofu/any/ any main
+  when:
+    - dev_dependencies_install_opentofu | bool
+    - not ansible_check_mode
+
+- name: Install OpenTofu
+  ansible.builtin.apt:
+    name: tofu
+    state: present
+    update_cache: true
+  when:
+    - dev_dependencies_install_opentofu | bool
+    - not ansible_check_mode
+
+- name: Install GitHub CLI package signing key
+  ansible.builtin.get_url:
+    url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+    dest: "{{ dev_dependencies_github_cli_keyring }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - dev_dependencies_install_github_cli | bool
+    - not ansible_check_mode
+
+- name: Configure GitHub CLI apt repository
+  ansible.builtin.copy:
+    dest: "{{ dev_dependencies_github_cli_sources }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      deb [arch={{ ansible_facts.architecture | replace('x86_64', 'amd64') }} signed-by={{ dev_dependencies_github_cli_keyring }}] https://cli.github.com/packages stable main
+  when:
+    - dev_dependencies_install_github_cli | bool
+    - not ansible_check_mode
+
+- name: Install GitHub CLI
+  ansible.builtin.apt:
+    name: gh
+    state: present
+    update_cache: true
+  when:
+    - dev_dependencies_install_github_cli | bool
+    - not ansible_check_mode
+
+- name: Download uv installer
+  ansible.builtin.get_url:
+    url: "{{ dev_dependencies_uv_installer_url }}"
+    dest: "{{ dev_dependencies_uv_installer_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - dev_dependencies_install_uv | bool
+    - not ansible_check_mode
+
+- name: Install uv
+  ansible.builtin.command:
+    cmd: "sh {{ dev_dependencies_uv_installer_path }}"
+    creates: "{{ dev_dependencies_uv_bin }}"
+  environment:
+    UV_INSTALL_DIR: "{{ dev_dependencies_uv_install_dir }}"
+  when:
+    - dev_dependencies_install_uv | bool
+    - not ansible_check_mode
+
+- name: Install Docker development packages
+  ansible.builtin.apt:
+    name: "{{ dev_dependencies_docker_packages }}"
+    state: present
+    update_cache: true
+  when: dev_dependencies_install_docker | bool
+
+- name: Enable Docker service
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+  when: dev_dependencies_install_docker | bool

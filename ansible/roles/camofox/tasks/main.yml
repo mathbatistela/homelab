@@ -61,7 +61,8 @@
     restart_policy: unless-stopped
     published_ports: >-
       {{ ['%d:9377' % camofox_port]
-         + (['%d:6080' % camofox_novnc_port] if camofox_vnc_enabled else []) }}
+         + (['%d:6080' % camofox_novnc_port] if camofox_vnc_enabled else [])
+         + (['%d:5900' % camofox_vnc_port] if camofox_vnc_enabled else []) }}
     env: >-
       {{ ({'ENABLE_VNC': '1', 'VNC_BIND': '0.0.0.0', 'VNC_RESOLUTION': camofox_vnc_resolution}
           | combine({'VNC_PASSWORD': camofox_vnc_password} if (camofox_vnc_password | length > 0) else {}))

@@ -81,11 +81,12 @@ make validate-cloud   # tofu validate (cloud module)
 
 ## NOTES
 
-- `n8n`, `authelia`, and `ha` have **no Terraform resources** — provisioned manually or externally
+- `ha` (Home Assistant) has **no Terraform resource** — provisioned manually or externally
+- `n8n` and `authelia` are Terraform-managed LXC containers; `minecraft-be` is also defined in `home/main.tf`
 - `home/` uses Telmate/proxmox provider for Proxmox VE API
 - `cloud/` uses Cloudflare provider for DNS management
 - Both modules use shared `config/network.json` for IP allocation consistency
 - `minecraft-be` is defined in `home/main.tf` but may not be deployed
 
 ---
-**Last Updated**: 2026-03-29
+**Last Updated**: 2026-07-05

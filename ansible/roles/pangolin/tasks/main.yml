@@ -81,7 +81,9 @@
   delay: 10
   until: pangolin_api_check is not failed
   register: pangolin_api_check
-  when: pangolin_blueprint_file is changed
+  when:
+    - pangolin_blueprint_file is changed
+    - not ansible_check_mode
   changed_when: true
 
 - name: Fetch existing Pangolin resources  # noqa: no-handler
@@ -94,13 +96,17 @@
   delegate_to: localhost
   become: false
   register: pangolin_existing_resources
-  when: pangolin_blueprint_file is changed
+  when:
+    - pangolin_blueprint_file is changed
+    - not ansible_check_mode
   changed_when: true
 
 - name: Build list of existing resource IDs to delete  # noqa: no-handler
   ansible.builtin.set_fact:
     pangolin_resources_to_delete: "{{ pangolin_existing_resources.json.data.resources | map(attribute='resourceId') | list }}"
-  when: pangolin_blueprint_file is changed
+  when:
+    - pangolin_blueprint_file is changed
+    - not ansible_check_mode
   changed_when: true
 
 - name: Delete existing Pangolin resources for clean re-apply  # noqa: no-handler
@@ -118,7 +124,9 @@
   loop: "{{ pangolin_resources_to_delete | default([]) }}"
   loop_control:
     label: "resource/{{ item }}"
-  when: pangolin_blueprint_file is changed
+  when:
+    - pangolin_blueprint_file is changed
+    - not ansible_check_mode
   changed_when: true
 
 - name: Apply Pangolin blueprint via API  # noqa: no-handler
@@ -135,4 +143,6 @@
       - 201
   delegate_to: localhost
   become: false
-  when: pangolin_blueprint_file is changed
+  when:
+    - pangolin_blueprint_file is changed
+    - not ansible_check_mode

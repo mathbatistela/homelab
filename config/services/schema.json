@@ -55,7 +55,7 @@
           "properties": {
             "sso": {
               "type": "boolean",
-              "description": "Whether the service is behind Authelia SSO"
+              "description": "Whether public exposure uses Pangolin SSO"
             }
           }
         },

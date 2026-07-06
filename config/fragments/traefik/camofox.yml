@@ -1,0 +1,17 @@
+traefik_fragment_services:
+  - filename: camofox.yml
+    content: |
+      http:
+        routers:
+          camofox:
+            rule: "Host(`camofox.{{ traefik_local_domain }}`)"
+            entryPoints:
+              - https
+            service: camofox-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+        services:
+          camofox-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['ai-tools'].ansible_host }}:9377"

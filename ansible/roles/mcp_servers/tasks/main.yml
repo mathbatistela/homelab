@@ -15,6 +15,8 @@
     group: "{{ item.gid | default('root') }}"
     mode: "0755"
   loop: "{{ mcp_servers }}"
+  loop_control:
+    label: "{{ item.name }}"
 
 - name: Ensure MCP servers compose directory exists
   ansible.builtin.file:
@@ -41,6 +43,25 @@
       path: "{{ mcp_servers_compose_dir }}/build/actual-mcp"
       pull: true
     force_source: "{{ actual_mcp_context.changed }}"
+    state: present
+
+- name: Copy mcp-evolution build context to target
+  ansible.builtin.copy:
+    src: mcp-evolution/
+    dest: "{{ mcp_servers_compose_dir }}/build/mcp-evolution/"
+    owner: root
+    group: root
+    mode: "0644"
+  register: mcp_evolution_context
+
+- name: Build mcp-evolution image on target
+  community.docker.docker_image:
+    name: "{{ mcp_evolution_image }}"
+    source: build
+    build:
+      path: "{{ mcp_servers_compose_dir }}/build/mcp-evolution"
+      pull: true
+    force_source: "{{ mcp_evolution_context.changed }}"
     state: present
 
 - name: Copy MCP servers docker-compose file

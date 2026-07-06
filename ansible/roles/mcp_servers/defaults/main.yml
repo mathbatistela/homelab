@@ -9,6 +9,7 @@ mcp_servers_traefik_fragment_path: "{{ playbook_dir }}/../../../config/fragments
 
 # Custom actual-mcp image built on the target host from files/actual-mcp.
 mcp_actual_mcp_image: "actual-mcp:custom-26.5.0"
+mcp_evolution_image: "mcp-evolution:latest"
 
 # Shared mcpo settings
 mcp_mcpo_image: ghcr.io/open-webui/mcpo:main
@@ -45,4 +46,34 @@ mcp_servers:
       - "{{ mcp_servers_network_name }}"
     mcp_path: "/mcp"
     healthcheck_test: '["CMD", "node", "-e", "require(''net'').createConnection(3010).on(''connect'',()=>process.exit(0)).on(''error'',()=>process.exit(1))"]'
+    healthcheck_start_period: "60s"
+  - name: evolution
+    display_name: "Evolution API WhatsApp MCP"
+    # mcp-evolution is stdio-only, so this image runs it through supergateway
+    # and exposes streamable HTTP for direct LAN clients.
+    image: "{{ mcp_evolution_image }}"
+    port: 3020
+    command:
+      - "--stdio"
+      - "mcp-evolution"
+      - "--outputTransport"
+      - "streamableHttp"
+      - "--port"
+      - "3020"
+      - "--streamableHttpPath"
+      - "/evolution/mcp"
+      - "--stateful"
+      - "--sessionTimeout"
+      - "300000"
+    env:
+      EVOLUTION_API_URL: "http://{{ hostvars['tools'].ansible_host }}:8184"
+      EVOLUTION_API_KEY: "{{ vault.tools.mcp_evolution_api_key }}"
+      EVOLUTION_INSTANCE: "{{ vault.tools.mcp_evolution_instance }}"
+      NODE_ENV: production
+    networks:
+      - "{{ mcp_servers_network_name }}"
+    mcpo_enabled: false
+    mcp_path: "/evolution/mcp"
+    traefik_strip_prefix: false
+    healthcheck_test: '["CMD", "node", "-e", "require(''net'').createConnection(3020).on(''connect'',()=>process.exit(0)).on(''error'',()=>process.exit(1))"]'
     healthcheck_start_period: "60s"

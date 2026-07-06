@@ -10,6 +10,8 @@ service_manifest:
     local:
       enabled: true
       mode: fragment
+      # Serves noVNC under camofox.local.batistela.tech/vnc.html
+      # while the API stays on the root path of the same host.
       fragment: camofox-vnc
     public:
       enabled: false

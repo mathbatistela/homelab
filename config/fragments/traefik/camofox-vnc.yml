@@ -4,12 +4,13 @@ traefik_fragment_services:
       http:
         routers:
           camofox-vnc:
-            rule: "Host(`camofox-vnc.{{ traefik_local_domain }}`)"
+            rule: "Host(`camofox.{{ traefik_local_domain }}`) && (PathPrefix(`/vnc`) || PathPrefix(`/app`) || PathPrefix(`/core`) || PathPrefix(`/vendor`) || PathPrefix(`/include`) || PathPrefix(`/utils`) || PathPrefix(`/websockify`))"
             entryPoints:
               - https
             service: camofox-vnc-service
             tls:
               certResolver: {{ traefik_cert_resolver_name }}
+            priority: 100
         services:
           camofox-vnc-service:
             loadBalancer:

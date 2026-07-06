@@ -13,12 +13,10 @@ service_manifest:
       mode: fragment
       fragment: camofox
     public:
-      enabled: true
-      mode: generated
-      subdomain: camofox
-      protocol: http
+      # API control plane is kept private; only noVNC is exposed locally.
+      enabled: false
   auth:
-    sso: true
+    sso: false
   deployment:
     owner: role
     role: camofox

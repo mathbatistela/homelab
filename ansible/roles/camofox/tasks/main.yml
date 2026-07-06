@@ -9,14 +9,14 @@
     state: present
     update_cache: true
 
-- name: Clone/update camofox-browser source
+- name: Clone camofox-browser source (skip updates to preserve local patches)
   ansible.builtin.git:
     repo: "{{ camofox_repo }}"
     dest: "{{ camofox_dir }}"
     version: master
-    update: true
-    # Discard the server.js patch below (re-applied after) so pulls never conflict.
-    force: true
+    update: false
+    # Patches are applied below; update=false prevents conflicts and avoids
+    # rebuilding the image on every playbook run.
 
 # Upstream bug: server.js calls localVirtualDisplay.get() without awaiting it, so
 # a Promise is passed to Camoufox as DISPLAY ("[object Promise]") and every
@@ -56,6 +56,28 @@
         # socket in /tmp/.X11-unix/ is authoritative.
         FOUND=$(ls -t /tmp/.X11-unix/ 2>/dev/null | awk '/^X[0-9]+$/ { print ":" substr($0, 2); exit }')
   register: camofox_patch_vnc_watcher
+
+# Upstream robustness: if x11vnc dies (e.g. XIO error after Xvfb restart) but the
+# display number is unchanged, the watcher never re-attaches. Detect a dead
+# x11vnc and re-attach even when the display hasn't changed.
+- name: Patch vnc-watcher to re-attach when x11vnc dies
+  ansible.builtin.replace:
+    path: "{{ camofox_dir }}/plugins/vnc/vnc-watcher.sh"
+    regexp: >-
+      if \[ -n "\$FOUND" \] && \[ "\$FOUND" != "\$CURRENT_DISPLAY" \]; then\n\s+# New or changed display -- \(re\)attach x11vnc\n\s+if \[ -n "\$X11VNC_PID" \] && kill -0 "\$X11VNC_PID" 2>/dev/null; then\n\s+log "Camoufox display changed \(\$CURRENT_DISPLAY -> \$FOUND\), restarting x11vnc"\n\s+kill "\$X11VNC_PID" 2>/dev/null \|\| true\n\s+sleep 0\.5\n\s+fi
+    replace: |
+      X11VNC_ALIVE=false
+      if [ -n "$X11VNC_PID" ] && kill -0 "$X11VNC_PID" 2>/dev/null; then
+        X11VNC_ALIVE=true
+      fi
+
+      if [ -n "$FOUND" ] && { [ "$FOUND" != "$CURRENT_DISPLAY" ] || [ "$X11VNC_ALIVE" != "true" ]; }; then
+        # New/changed display or x11vnc died -- (re)attach x11vnc
+        if [ "$X11VNC_ALIVE" = "true" ]; then
+          log "Camoufox display changed ($CURRENT_DISPLAY -> $FOUND), restarting x11vnc"
+          kill "$X11VNC_PID" 2>/dev/null || true
+          sleep 0.5
+        fi
 
 - name: Stop and remove camofox container when source patches change
   community.docker.docker_container:

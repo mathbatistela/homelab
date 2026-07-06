@@ -41,43 +41,21 @@
     replace: '"playwright-core": "1.58.0"'
   register: camofox_patch_playwright
 
-# Upstream bug: vnc-watcher.sh detects the Xvfb display by grepping process args
-# for "/Xvfb :<n>". Current Camoufox uses -displayfd (dynamic display allocation),
-# so the display number is never in ps args and x11vnc never starts. Detect the
-# display from the authoritative /tmp/.X11-unix/ socket instead. Baked into image.
-- name: Patch vnc-watcher display detection for -displayfd
-  ansible.builtin.replace:
-    path: "{{ camofox_dir }}/plugins/vnc/vnc-watcher.sh"
-    regexp: '(?s)while true; do\s+# Find Xvfb with our patched resolution\s+FOUND=\$\(ps -eo args= 2>/dev/null \| awk -v res="\$VNC_RESOLUTION" ''\s+.*?\s+'' \| head -1\)'
-    replace: |
-      while true; do
-        # Find the active Xvfb display. Upstream Xvfb uses -displayfd (dynamic
-        # display allocation), so the display number is not in ps args. The Unix
-        # socket in /tmp/.X11-unix/ is authoritative.
-        FOUND=$(ls -t /tmp/.X11-unix/ 2>/dev/null | awk '/^X[0-9]+$/ { print ":" substr($0, 2); exit }')
+# Upstream vnc-watcher.sh has several issues:
+#   1. Detects Xvfb display by grepping process args, but Camoufox uses
+#      -displayfd (dynamic display allocation), so the display number is never in
+#      ps args and x11vnc never starts.
+#   2. If x11vnc dies but the display number is unchanged, the watcher never
+#      re-attaches.
+#   3. With `set -e`, a single x11vnc start failure (e.g. Xvfb not yet ready)
+#      kills the watcher entirely, leaving noVNC without a VNC backend.
+# Replace the whole file with a corrected version. Baked into image at build time.
+- name: Install patched vnc-watcher.sh
+  ansible.builtin.template:
+    src: vnc-watcher.sh.j2
+    dest: "{{ camofox_dir }}/plugins/vnc/vnc-watcher.sh"
+    mode: "0755"
   register: camofox_patch_vnc_watcher
-
-# Upstream robustness: if x11vnc dies (e.g. XIO error after Xvfb restart) but the
-# display number is unchanged, the watcher never re-attaches. Detect a dead
-# x11vnc and re-attach even when the display hasn't changed.
-- name: Patch vnc-watcher to re-attach when x11vnc dies
-  ansible.builtin.replace:
-    path: "{{ camofox_dir }}/plugins/vnc/vnc-watcher.sh"
-    regexp: >-
-      if \[ -n "\$FOUND" \] && \[ "\$FOUND" != "\$CURRENT_DISPLAY" \]; then\n\s+# New or changed display -- \(re\)attach x11vnc\n\s+if \[ -n "\$X11VNC_PID" \] && kill -0 "\$X11VNC_PID" 2>/dev/null; then\n\s+log "Camoufox display changed \(\$CURRENT_DISPLAY -> \$FOUND\), restarting x11vnc"\n\s+kill "\$X11VNC_PID" 2>/dev/null \|\| true\n\s+sleep 0\.5\n\s+fi
-    replace: |
-      X11VNC_ALIVE=false
-      if [ -n "$X11VNC_PID" ] && kill -0 "$X11VNC_PID" 2>/dev/null; then
-        X11VNC_ALIVE=true
-      fi
-
-      if [ -n "$FOUND" ] && { [ "$FOUND" != "$CURRENT_DISPLAY" ] || [ "$X11VNC_ALIVE" != "true" ]; }; then
-        # New/changed display or x11vnc died -- (re)attach x11vnc
-        if [ "$X11VNC_ALIVE" = "true" ]; then
-          log "Camoufox display changed ($CURRENT_DISPLAY -> $FOUND), restarting x11vnc"
-          kill "$X11VNC_PID" 2>/dev/null || true
-          sleep 0.5
-        fi
 
 - name: Stop and remove camofox container when source patches change
   community.docker.docker_container:
@@ -90,7 +68,7 @@
     name: "{{ camofox_image }}"
     state: absent
     force_absent: true
-  when: camofox_patch_server_js is changed or camofox_patch_playwright is changed or camofox_patch_vnc_watcher is changed
+  when: camofox_patch_server_js is changed or camofox_patch_playwright is changed
 
 - name: Check whether the camofox image already exists
   community.docker.docker_image_info:
@@ -120,4 +98,7 @@
       {{ ({'ENABLE_VNC': '1', 'VNC_BIND': '0.0.0.0', 'VNC_RESOLUTION': camofox_vnc_resolution}
           | combine({'VNC_PASSWORD': camofox_vnc_password} if (camofox_vnc_password | length > 0) else {}))
          if camofox_vnc_enabled else {} }}
+    volumes: >-
+      {{ [camofox_dir ~ '/plugins/vnc/vnc-watcher.sh:/app/plugins/vnc/vnc-watcher.sh:ro']
+         if camofox_vnc_enabled else [] }}
     state: started

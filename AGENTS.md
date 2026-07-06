@@ -45,9 +45,12 @@ homelab/
 | Add DNS for new VM | `terraform/cloud/vms_dns.tf` + `config/network.json` | IPs come from `config/network.json`; update `local_hosts` there |
 | Configure new service | `ansible/playbooks/vms/<host>.yml` | One playbook per target VM |
 | Create Ansible role | `ansible/roles/<name>/` | Needs tasks/, defaults/ minimum |
-| Expose service via Traefik | `ansible/inventories/local/host_vars/infra/traefik_*_services.yml` | Add to the relevant concern file; `traefik_services.yml` composes them |
-| Expose service via Pangolin | `ansible/inventories/cloud/group_vars/all/pangolin_blueprint_*.yml` | Add to the relevant concern file; `pangolin_blueprint.yml` composes them |
+| Expose service via Traefik (generated) | `config/services/<group>/<service>.yml` | Set `exposure.local.mode: generated` in the service manifest |
+| Expose service via Traefik (custom) | `config/fragments/traefik/<name>.yml` | Use when generated mode is not enough (custom middleware, open local DNS, etc.) |
+| Expose service via Pangolin (generated) | `config/services/<group>/<service>.yml` | Set `exposure.public.mode: generated` + `auth.sso: true/false` |
+| Expose service via Pangolin (custom) | `config/fragments/pangolin/<name>.yml` | Use for complex public resources (TCP, custom rules, etc.) |
 | Add database | `ansible/inventories/local/host_vars/database/postgresql_databases.yml` | Add to `postgresql_users` + `postgresql_databases` |
+| Install dev tooling baseline | `ansible/roles/dev_dependencies/` | Applied by `hermes.yml`; enable Docker per-host with `dev_dependencies_install_docker: true` |
 | Store secrets | `ansible/inventories/local/group_vars/all/vault.yml` | Access as `vault.<group>.<secret>` |
 | Host-specific vars | `ansible/inventories/local/host_vars/<host>/` | infra, database, pve have host_vars |
 | Change network config | `config/network.json` | Gateway, subnet, cidr, all host IPs live here |
@@ -340,6 +343,10 @@ Service ports are still scattered across multiple locations:
 ## SERVICE MANIFEST ARCHITECTURE
 
 `config/services/` holds per-service metadata for simple generated routes/resources. `infra.yml` and `pangolin.yml` load manifests at runtime and generate Traefik/Pangolin configs for services with `mode: generated`. Complex services use manual fragments in `config/fragments/traefik/` and `config/fragments/pangolin/`.
+
+- `auth.sso: true` → Pangolin public resource is created with `auth.sso-enabled: true`.
+- `auth.sso: false` → Pangolin public resource has no SSO (open to the internet unless protected another way).
+- Local Traefik exposure is independent of `auth.sso`; a `mode: fragment` Traefik route can be open (no Authelia) even when public exposure uses SSO.
 
 Schema rule of thumb:
 - `mode: generated` → standard resource generated from manifest

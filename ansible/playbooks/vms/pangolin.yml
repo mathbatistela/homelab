@@ -77,7 +77,7 @@
           name: "{{ manifest.display_name | default(manifest.name) }}"
           protocol: "{{ manifest.exposure.public.protocol | default(manifest.service.protocol) }}"
           full-domain: "{{ manifest.exposure.public.subdomain }}.{{ pangolin_base_domain }}"
-          auth: "{{ {'sso-enabled': true} if (manifest.exposure.public.auth.sso | default(false)) else omit }}"
+          auth: "{{ {'sso-enabled': true} if (manifest.auth.sso | default(false)) else omit }}"
           targets:
             - site: "{{ pangolin_site_nice_id }}"
               hostname: "{{ hostvars[manifest.host].ansible_host }}"

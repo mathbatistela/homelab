@@ -9,11 +9,16 @@ service_manifest:
     protocol: http
   exposure:
     local:
-      enabled: false
+      enabled: true
+      mode: fragment
+      fragment: camofox
     public:
-      enabled: false
+      enabled: true
+      mode: generated
+      subdomain: camofox
+      protocol: http
   auth:
-    sso: false
+    sso: true
   deployment:
     owner: role
     role: camofox

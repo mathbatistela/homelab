@@ -1,6 +1,6 @@
 # ANSIBLE LAYER
 
-**Last Updated**: 2026-03-29
+**Last Updated**: 2026-07-05
 
 Configures services on Proxmox LXC containers and a remote VPS. Multi-inventory (local + cloud), encrypted vault, custom callback plugin.
 
@@ -13,17 +13,17 @@ ansible/
 ├── plugins/callbacks/       # auto_tags.py — auto-generates tag per role name
 ├── inventories/
 │   ├── local/               # Proxmox hosts (proxmox group, monitored_nodes, docker_monitored)
-│   │   ├── hosts.yml        # 8 managed hosts + unmanaged group (ha, n8n)
+│   │   ├── hosts.yml        # 12 managed hosts + unmanaged group (ha, openwebui)
 │   │   ├── group_vars/all/  # network.yml mirror + vault.yml (secrets)
 │   │   └── host_vars/       # infra/ (traefik fragments + composition), database/ (postgresql + postgresql_databases), pve/ (storage)
 │   └── cloud/               # RackNerd VPS (racknerd group)
 │       ├── hosts.yml         # 1 host: racknerd_vm0 (IP from vault vars)
 │       └── group_vars/all/   # network.yml mirror + pangolin blueprint fragments/composition + vault.yml
 ├── playbooks/
-│   ├── vms/                 # Per-VM: database, infra, media, minecraft, tools, pangolin, authelia, tailscale, monitoring
+│   ├── vms/                 # Per-VM: ai-tools, authelia, database, ha, hermes, infra, media, minecraft, monitoring, n8n, openwebui, pangolin, tailscale, tools
 │   ├── nodes/               # proxmox.yml (PVE node: storage, homeshare, templates)
 │   └── monitoring.yml       # Standalone: monitoring_stack on infra
-└── roles/                   # 16 custom + 3 external (vendored)
+└── roles/                   # 25 custom + 3 external (vendored)
 ```
 
 ## WHERE TO LOOK
@@ -66,6 +66,15 @@ ansible/
 | `pve_homeshare` | pve | NFS/bind mount setup | — |
 | `pve_vmstorage` | pve | VM disk storage | — |
 | `pve_templates` | pve | LXC template downloads | — |
+| `hermes` | hermes | Native systemd install of Hermes agent + WebUI | Uses official installer + git clone |
+| `camofox` | ai-tools | jo-inc/camofox-browser Docker container | Browser automation target for Hermes |
+| `searxng` | ai-tools | SearXNG metasearch engine | Docker Compose with Valkey cache |
+| `crw` | ai-tools | Rust Firecrawl alternative (`fastcrw`) | Docker Compose |
+| `mcp_servers` | ai-tools | MCP servers behind mcpo + direct Traefik fragment | Includes actual-mcp Dockerfile |
+| `databasus` | tools | Databasus Docker container | Port 4005 |
+| `n8n` | n8n | n8n automation server | Docker container |
+| `home_assistant` | ha | Home Assistant role | For unmanaged HA host |
+| `promtail_journal` | various | Journal log collection via promtail | Used by tailscale, openwebui |
 
 ### External (Vendored in `roles/`, not `collections/`)
 
@@ -80,13 +89,13 @@ ansible/
 ```
 all
 ├── proxmox              # All LXC containers (root SSH, key auth)
-│   ├── pve, media, infra, database, minecraft, tools, tailscale, authelia
+│   ├── authelia, ai-tools, database, hermes, infra, media, minecraft, minecraft-be, n8n, pve, tailscale, tools
 ├── monitored_nodes      # Hosts with node_exporter + promtail
-│   ├── pve, media, database, minecraft, tools, tailscale
+│   ├── pve, media, database, minecraft, tools, tailscale, openwebui, n8n, hermes, ai-tools
 ├── docker_monitored     # Hosts with cadvisor
-│   ├── media, tools
-├── unmanaged            # No playbook; IPs accessible via hostvars
-│   ├── ha (192.168.1.75), n8n (192.168.1.106)
+│   ├── media, tools, hermes, ai-tools
+├── unmanaged            # No Terraform resource; IPs accessible via hostvars
+│   ├── ha (192.168.1.70), openwebui (192.168.1.110)
 └── racknerd (cloud)     # Remote VPS
     └── racknerd_vm0
 ```
@@ -146,7 +155,7 @@ config/services/**/*.yml       → pilot per-service manifests for simple genera
 All service references now use consistent patterns:
 - `traefik_services.yml`: HA, n8n, and test service now use `hostvars['ha'].ansible_host`, `hostvars['n8n'].ansible_host`, and `tailscale_ha_ip`
 - `pangolin_blueprint.yml`: all 12+ hardcoded IPs replaced with `hostvars['<host>'].ansible_host` for managed and unmanaged hosts
-- Unmanaged hosts (HA, n8n) added to `unmanaged` inventory group so their IPs are accessible via `hostvars`
+- Unmanaged hosts (HA, openwebui) added to `unmanaged` inventory group so their IPs are accessible via `hostvars`; n8n is managed via Terraform
 
 ### RESOLVED: Domain Variable Chain is Redundant
 
@@ -233,6 +242,7 @@ Ports defined in multiple locations with no single reference:
 - `pangolin.yml` is the only cross-host playbook: UFW on `racknerd_vm0` → Newt agent on `infra`
 - `database.yml` uses `pre_tasks` block to add PostgreSQL APT repo before the `geerlingguy.postgresql` role runs
 - Cloud inventory vars for `racknerd_vm0` reference variables that must be defined in cloud vault/group_vars
-- `authelia.yml` and `tailscale.yml` are placeholder playbooks — hosts are deployed but not yet Ansible-managed
+- `authelia.yml` is a placeholder playbook — host is deployed but not yet Ansible-managed
+- `tailscale.yml` has a placeholder first play plus a real `promtail_journal` deployment
 - `infra.yml` uses data-driven Traefik config: concern files compose into `host_vars/infra/traefik_services.yml`, then looped in a single play
 - `monitoring.yml` is a standalone playbook (not per-VM pattern) — deploys monitoring_stack on infra only

@@ -25,7 +25,7 @@ homelab/
 │       ├── outputs.tf   # dns_records output
 │       └── providers.tf # Cloudflare ~> 5.5.0, AWS ~> 5.0.0
 ├── ansible/            # Service configuration (see ansible/AGENTS.md)
-│   ├── playbooks/vms/  # One playbook per VM (12 playbooks)
+│   ├── playbooks/vms/  # One playbook per configured VM (14 playbooks)
 │   ├── playbooks/nodes/# Node-level playbooks (proxmox)
 │   ├── roles/          # 20+ custom + external (geerlingguy.*)
 │   ├── inventories/    # local/ (proxmox) + cloud/ (racknerd)
@@ -284,21 +284,23 @@ The vault password file (`vault.auth`) is git-ignored and must exist for Ansible
 | media | 192.168.1.101 | 101 | *arr stack, Samba, Kavita, ebookdl |
 | infra | 192.168.1.102 | 102 | Traefik, monitoring stack, Newt agent |
 | database | 192.168.1.103 | 103 | PostgreSQL 17, InfluxDB 3, Redis |
-| openwebui | 192.168.1.110 | 110 | Open WebUI (Ollama frontend) |
 | minecraft | 192.168.1.105 | 105 | Minecraft server (bare metal, no Docker) |
+| n8n | 192.168.1.106 | 106 | n8n automation |
+| tools | 192.168.1.107 | 107 | Portainer, Actual Budget, adhd-board, databasus |
+| tailscale | 192.168.1.108 | 108 | VPN gateway (playbook has stub + promtail_journal) |
+| authelia | 192.168.1.109 | 109 | Auth (playbook stub) |
+| openwebui | 192.168.1.110 | — | Open WebUI (Ollama frontend) — unmanaged, no Terraform resource |
+| hermes | 192.168.1.111 | 111 | Hermes agent + WebUI |
+| ai-tools | 192.168.1.112 | 112 | AI tooling host (Camofox, SearXNG, MCP servers, crw) |
 | minecraft-be | 192.168.1.115 | 115 | Minecraft Bedrock server |
-| n8n | 192.168.1.106 | — | n8n automation (no Terraform resource) |
-| tools | 192.168.1.107 | 107 | Portainer, Actual Budget, adhd-board |
-| tailscale | 192.168.1.108 | 108 | VPN gateway |
-| authelia | 192.168.1.109 | — | Auth (no Terraform resource) |
 | racknerd | 204.152.223.118 | — | Remote VPS (Pangolin tunnel) |
 
-**Unmanaged hosts** (in Ansible `unmanaged` group, no playbook, IPs accessible via `hostvars`):
+**Unmanaged hosts** (in Ansible `unmanaged` group, no Terraform resource, IPs accessible via `hostvars`):
 
-| Host | IP | Referenced Via |
-|------|----|----------------|
-| ha | 192.168.1.70 | `hostvars['ha'].ansible_host` |
-| n8n | 192.168.1.106 | `hostvars['n8n'].ansible_host` |
+| Host | IP | Notes |
+|------|----|-------|
+| ha | 192.168.1.70 | Home Assistant; referenced via `hostvars['ha'].ansible_host` |
+| openwebui | 192.168.1.110 | Has playbook (`openwebui.yml`) but no Terraform resource |
 
 **Tunnel/Tailscale IPs** (defined in `config/domains.yml` and mirrored in inventory `network.yml` files when needed):
 
@@ -345,8 +347,9 @@ Schema rule of thumb:
 
 ## NOTES
 
-- `authelia`, `n8n`, and Home Assistant have **no Terraform resource** — provisioned manually
-- `authelia` and `tailscale` have placeholder playbooks — deployed but not yet fully Ansible-managed
+- Home Assistant (`ha`) has **no Terraform resource** — provisioned manually
+- `authelia` and `n8n` are Terraform-managed; `authelia.yml` is currently a stub playbook
+- `tailscale.yml` has a stub first play plus a real `promtail_journal` deployment
 - `pangolin.yml` playbook is cross-host: configures UFW on `racknerd_vm0` + deploys Newt agent on `infra`
 - External roles (`geerlingguy.*`) are vendored in `ansible/roles/`, not in `collections/`
 - Cloud inventory uses variables for host connection (`racknerd_vm0_ip`, etc.) — defined in cloud vault

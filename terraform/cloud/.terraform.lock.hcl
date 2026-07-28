@@ -5,6 +5,13 @@ provider "registry.opentofu.org/cloudflare/cloudflare" {
   version     = "5.5.0"
   constraints = "~> 5.5.0"
   hashes = [
+    "h1:9+ZXbLTmeAJdqSiz543TdhSOkCj7lgzsB2irSPekMT8=",
+    "h1:BOvaovMwesAuDAguOK/ful6FN3Qx8/z7ClTyvHIBZDE=",
+    "h1:Dz2qYhlGe1i4nBSMXy+3M+fli0zQvnN7Vf24F/+lLUo=",
+    "h1:HzVFE1F2FSqxr4x8+GDdxLJILqksHuyyrI/IDL/NKYM=",
+    "h1:Uu0YECGLZFEKCD/WdClf1APuY41uPEJA9wNLzwd0MwE=",
+    "h1:W7uCb3fcax/RBc1u/ac4ltgp0AIjK9IusimW5Np5W38=",
+    "h1:mUi7WsyN2X4okp7xci+viUAevxQihKzaik3s2y68zhs=",
     "h1:wZhU174xytOMZ1t6uDUQiLtR/XKpi2RH9OzMz0XqP9Q=",
     "zh:178f29dee2edac39252780819f34004b1841770c61ee7fb5a625afaece6495cd",
     "zh:6faf26203167ae20ca5c8ece4a8bb1c4187137505058fb7b1a4bd5095823e648",
@@ -22,6 +29,15 @@ provider "registry.opentofu.org/hashicorp/aws" {
   version     = "5.100.0"
   constraints = "~> 5.0"
   hashes = [
+    "h1:7/GgVlN+KplSVCuc8qb4ct2R7gotYooPNRd0cnj9GxE=",
+    "h1:BrNG7eFOdRrRRbHdvrTjMJ8X8Oh/tiegURiKf7J2db8=",
+    "h1:C6eM6fGJVktK2M5vH3Yhv5NnqmegcBDY0EuDHhiXoVY=",
+    "h1:C7yD4Be2zhVdjnilsKPfucYAYMG5UCJYuUSoY6FCtGQ=",
+    "h1:H8CH2vfXXP/WQgJw+Qrn72umKs9UlGYQvn+QdnwO8Nc=",
+    "h1:J7L5bgyYNRAbtwAFJl2Lj+IMI2DJTrbbL33PTK4OWVY=",
+    "h1:JJ+EJQ+sIN3XRmNmrSUnUQtR8i3P22z+AbtAf8O/cRE=",
+    "h1:Wm5Ofhc15lX1OMMCt7iDV0NY5FDIouQDjX7I1iab55s=",
+    "h1:crKvBCgX6RlMcE6Ewm8o8YVuIg6mkXqKNgt/kSFYTvQ=",
     "h1:zef23ac/YWw9O2FepFWRs+my9iWWUkniL4dT4LnCKjU=",
     "zh:1a41f3ee26720fee7a9a0a361890632a1701b5dc1cf5355dc651ddbe115682ff",
     "zh:30457f36690c19307921885cc5e72b9dbeba369445815903acd5c39ac0e41e7a",

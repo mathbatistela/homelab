@@ -133,6 +133,18 @@ locals {
       mountpoints = []
     }
 
+    mailbot = {
+      vmid        = 113
+      hostname    = "mailbot"
+      cores       = 4
+      memory      = 6144
+      swap        = 2048
+      disk_size   = "20G"
+      ip          = "${local.network.local_hosts.mailbot}${local.network.cidr}"
+      nameserver  = null
+      mountpoints = []
+    }
+
   }
 }
 

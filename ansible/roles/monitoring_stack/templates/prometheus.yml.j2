@@ -56,3 +56,13 @@ scrape_configs:
     metrics_path: /api/prometheus
     authorization:
       credentials: "{{ vault.ha.prometheus_token }}"
+
+{% for config in prometheus_scrape_configs_extra | default([]) %}
+  - job_name: {{ config.job_name }}
+    static_configs:
+{% for static_config in config.static_configs %}
+      - targets: [{% for target in static_config.targets %}'{{ target }}'{% if not loop.last %}, {% endif %}{% endfor %}]
+{% endfor %}
+    scrape_interval: {{ config.scrape_interval | default('30s') }}
+    scrape_timeout: {{ config.scrape_timeout | default('10s') }}
+{% endfor %}

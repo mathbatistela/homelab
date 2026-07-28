@@ -1,0 +1,7 @@
+---
+prometheus_scrape_configs_extra:
+  - job_name: mailbot
+    static_configs:
+      - targets: ["mailbot.local.batistela.tech:9091"]
+    scrape_interval: 30s
+    scrape_timeout: 10s

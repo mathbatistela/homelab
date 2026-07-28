@@ -1,9 +1,9 @@
 .PHONY: bootstrap doctor lint syntax-check validate check lint-agents check-network fix-network \
         plan-home plan-cloud plan-all validate-home validate-cloud apply-home apply-cloud apply-all \
         play-infra play-hermes play-database play-media play-minecraft play-tools \
-        play-monitoring play-pangolin play-proxmox play-authelia play-tailscale \
+        play-monitoring play-pangolin play-proxmox play-authelia play-tailscale play-mailbot \
         dry-run-infra dry-run-hermes dry-run-database dry-run-media dry-run-minecraft dry-run-tools \
-        dry-run-monitoring dry-run-pangolin dry-run-proxmox dry-run-authelia dry-run-tailscale \
+        dry-run-monitoring dry-run-pangolin dry-run-proxmox dry-run-authelia dry-run-tailscale dry-run-mailbot \
         deploy-vm deploy-services deploy-blueprint \
         add-vm add-service rotate-secret \
         apps-list apps-validate apps-build apps-create agent-log agent-decision
@@ -77,6 +77,7 @@ syntax-check: $(VENV)/bin/python3
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local -i inventories/cloud playbooks/vms/pangolin.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/authelia.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/tailscale.yml --syntax-check && \
+	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/mailbot.yml --syntax-check && \
 	  ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/nodes/proxmox.yml --syntax-check
 
 play-infra: $(VENV)/bin/python3
@@ -123,6 +124,10 @@ play-proxmox: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/nodes/proxmox.yml
 	@$(PYTHON) scripts/log_agent_run.py $@ done
 
+play-mailbot: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/mailbot.yml
+	@$(PYTHON) scripts/log_agent_run.py $@ done
+
 # ── Ansible dry-run (check mode) ─────────────────────────────────────────────
 
 dry-run-infra: $(VENV)/bin/python3
@@ -157,6 +162,9 @@ dry-run-tailscale: $(VENV)/bin/python3
 
 dry-run-proxmox: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/nodes/proxmox.yml --check --diff
+
+dry-run-mailbot: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/mailbot.yml --check --diff
 
 # ── Terraform ─────────────────────────────────────────────────────────────────
 

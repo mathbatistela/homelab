@@ -1,0 +1,23 @@
+service_manifest:
+  name: navidrome
+  display_name: Navidrome
+  host: media
+  service:
+    port: 4533
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: generated
+      template: simple-http
+      subdomain: music
+    public:
+      enabled: true
+      mode: generated
+      subdomain: music
+      protocol: http
+  auth:
+    sso: false
+  deployment:
+    owner: role
+    role: navidrome

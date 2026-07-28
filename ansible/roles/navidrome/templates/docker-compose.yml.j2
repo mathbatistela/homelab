@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  navidrome:
+    image: deluan/navidrome:{{ navidrome_version }}
+    container_name: navidrome
+    restart: unless-stopped
+    ports:
+      - "{{ navidrome_port }}:4533"
+    volumes:
+      - "{{ navidrome_data_dir }}:/data"
+      - "{{ navidrome_music_dir }}:/music:ro"
+    environment:
+      ND_SCANSCHEDULE: "{{ navidrome_scan_schedule }}"
+      ND_LOGLEVEL: "{{ navidrome_log_level }}"
+      ND_ENABLETRANSCODINGCONFIG: "{{ navidrome_enable_transcoding }}"
+      ND_ENABLESHARING: "{{ navidrome_enable_sharing }}"
+      ND_DEFAULTLANGUAGE: "{{ navidrome_default_language }}"
+      ND_LASTFM_ENABLED: "{{ navidrome_lastfm_enabled }}"
+      ND_SPOTIFY_ENABLED: "{{ navidrome_spotify_enabled }}"

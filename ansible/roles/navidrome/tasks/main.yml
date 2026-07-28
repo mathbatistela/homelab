@@ -1,0 +1,30 @@
+---
+- name: "Ensure Navidrome data directory exists on homeshare"
+  ansible.builtin.file:
+    path: "{{ navidrome_data_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "Create compose directory for Navidrome"
+  ansible.builtin.file:
+    path: "{{ navidrome_compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "Copy Navidrome docker-compose file"
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ navidrome_compose_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "Deploy Navidrome using docker-compose"
+  community.docker.docker_compose_v2:
+    project_src: "{{ navidrome_compose_dir }}"
+    state: present
+    pull: "always"

@@ -1,0 +1,13 @@
+---
+navidrome_version: "latest"
+navidrome_data_dir: "/mnt/homeshare/docker/navidrome/data"
+navidrome_compose_dir: "/opt/navidrome"
+navidrome_music_dir: "/mnt/homeshare/data/media/music"
+navidrome_port: "4533"
+navidrome_scan_schedule: "6h"
+navidrome_log_level: "info"
+navidrome_enable_transcoding: true
+navidrome_enable_sharing: true
+navidrome_default_language: "pt"
+navidrome_lastfm_enabled: false
+navidrome_spotify_enabled: false

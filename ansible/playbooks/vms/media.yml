@@ -12,3 +12,10 @@
   become: true
   roles:
     - samba_share
+
+- name: "Deploy Navidrome music server"
+  hosts: media
+  gather_facts: true
+  become: true
+  roles:
+    - navidrome

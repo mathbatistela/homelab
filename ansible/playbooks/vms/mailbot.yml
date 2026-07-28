@@ -1,0 +1,29 @@
+---
+- name: "Install dev dependencies"
+  hosts: mailbot
+  gather_facts: true
+  become: true
+  roles:
+    - dev_dependencies
+
+- name: "Deploy node_exporter"
+  hosts: mailbot
+  gather_facts: true
+  become: true
+  roles:
+    - node_exporter
+
+# promtail skipped — mailbot LXC has no Docker. Logs via journald → Loki scraper on infra.
+# - name: "Deploy Promtail"
+#   hosts: mailbot
+#   gather_facts: true
+#   become: true
+#   roles:
+#     - promtail
+
+- name: "Configure mailbot VM"
+  hosts: mailbot
+  gather_facts: true
+  become: true
+  roles:
+    - mailbot

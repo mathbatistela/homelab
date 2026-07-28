@@ -1,0 +1,10 @@
+[Unit]
+Description=Mailbot Email Classification Worker Timer
+Requires=mailbot-worker.service
+
+[Timer]
+OnUnitActiveSec=5min
+Unit=mailbot-worker.service
+
+[Install]
+WantedBy=timers.target

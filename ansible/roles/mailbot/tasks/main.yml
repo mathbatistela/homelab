@@ -1,0 +1,116 @@
+---
+- name: Install system packages
+  ansible.builtin.apt:
+    name:
+      - python3
+      - python3-pip
+      - python3-venv
+      - git
+      - curl
+      - zstd
+      - rsync
+    state: present
+    update_cache: true
+  tags:
+    - install
+
+- name: Sync mailbot project to LXC
+  ansible.posix.synchronize:
+    src: /root/projects/mailbot/
+    dest: "{{ mailbot_repo_path }}/"
+    rsync_path: rsync
+    rsync_opts:
+      - "--exclude=.venv"
+      - "--exclude=__pycache__"
+      - "--exclude=*.pyc"
+      - "--exclude=.git"
+    delete: false
+  tags:
+    - install
+
+- name: Create Python virtualenv
+  ansible.builtin.command:
+    cmd: python3 -m venv "{{ mailbot_repo_path }}/.venv"
+    creates: "{{ mailbot_repo_path }}/.venv/bin/python"
+  tags:
+    - install
+
+- name: Install pip dependencies
+  ansible.builtin.pip:
+    requirements: "{{ mailbot_repo_path }}/requirements.txt"
+    virtualenv: "{{ mailbot_repo_path }}/.venv"
+  tags:
+    - install
+
+- name: Download Ollama installer
+  ansible.builtin.get_url:
+    url: https://ollama.com/install.sh
+    dest: /tmp/ollama-install.sh
+    mode: "0755"
+  tags:
+    - ollama
+
+- name: Install Ollama
+  ansible.builtin.command:
+    cmd: /tmp/ollama-install.sh
+    creates: /usr/local/bin/ollama
+  tags:
+    - ollama
+
+- name: Clean up Ollama installer
+  ansible.builtin.file:
+    path: /tmp/ollama-install.sh
+    state: absent
+  tags:
+    - ollama
+
+- name: Pull Ollama model
+  ansible.builtin.command:
+    cmd: "ollama pull {{ mailbot_default_model }}"
+    creates: "/usr/share/ollama/.ollama/models/manifests/registry.ollama.ai/library/{{ mailbot_default_model | replace(':', '/v') }}"
+  register: mailbot_ollama_pull
+  changed_when: mailbot_ollama_pull.rc == 0
+  failed_when: false
+  tags:
+    - ollama
+
+- name: Template .env file
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ mailbot_repo_path }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+  tags:
+    - config
+
+- name: Deploy systemd service unit
+  ansible.builtin.template:
+    src: mailbot-worker.service.j2
+    dest: /etc/systemd/system/mailbot-worker.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart mailbot-worker timer
+  tags:
+    - systemd
+
+- name: Deploy systemd timer unit
+  ansible.builtin.template:
+    src: mailbot-worker.timer.j2
+    dest: /etc/systemd/system/mailbot-worker.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart mailbot-worker timer
+  tags:
+    - systemd
+
+- name: Enable and start mailbot timer
+  ansible.builtin.systemd:
+    name: mailbot-worker.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags:
+    - systemd

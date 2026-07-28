@@ -1,0 +1,6 @@
+---
+- name: Restart mailbot-worker timer
+  ansible.builtin.systemd:
+    name: mailbot-worker.timer
+    state: restarted
+    daemon_reload: true

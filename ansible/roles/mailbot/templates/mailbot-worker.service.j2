@@ -1,0 +1,16 @@
+[Unit]
+Description=Mailbot Email Classification Worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory={{ mailbot_repo_path }}
+EnvironmentFile={{ mailbot_repo_path }}/.env
+ExecStart={{ mailbot_repo_path }}/.venv/bin/python -m mailbot.worker
+Restart=no
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

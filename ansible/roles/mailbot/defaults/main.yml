@@ -1,0 +1,13 @@
+---
+mailbot_repo_path: /opt/mailbot
+mailbot_database_host: "database.local.batistela.tech"
+mailbot_database_port: 5432
+mailbot_database_name: mailbot_database
+mailbot_database_user: mailbot_user
+mailbot_ollama_url: "http://localhost:11434"
+mailbot_default_model: "llama3.2:1b"
+mailbot_batch_size: 50
+mailbot_sleep_between_batches: 5
+mailbot_prometheus_port: 9091
+mailbot_log_level: "INFO"
+mailbot_dry_run: true

@@ -29,6 +29,13 @@
   register: monitoring_stack_prometheus_config
   notify: Reload Prometheus config
 
+- name: Template Grafana datasources from inventory
+  ansible.builtin.template:
+    src: grafana-datasources.yml.j2
+    dest: "{{ monitoring_stack_dir }}/configs/grafana/provisioning/datasources.yml"
+    mode: "0644"
+  register: monitoring_stack_grafana_datasources
+
 - name: Bring up stack
   ansible.builtin.command:
     cmd: docker compose up -d

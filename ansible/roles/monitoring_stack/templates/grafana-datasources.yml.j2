@@ -1,0 +1,45 @@
+---
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    orgId: 1
+    url: http://prometheus:9090
+    version: 1
+    editable: true
+    isDefault: true
+  - name: Alertmanager
+    type: alertmanager
+    uid: alertmanager
+    orgId: 1
+    url: http://alertmanager:9093
+    access: proxy
+    jsonData:
+      implementation: "prometheus"
+  - name: Loki
+    type: loki
+    uid: loki
+    orgId: 1
+    access: proxy
+    url: http://loki:3100
+    version: 1
+    editable: false
+  - name: Mailbot PostgreSQL
+    type: postgres
+    uid: mailbot-postgres
+    orgId: 1
+    access: proxy
+    url: database.local.batistela.tech:5432
+    database: mailbot_database
+    user: mailbot_user
+    secureJsonData:
+      password: "{{ vault.database.mailbot_user_pw }}"
+    jsonData:
+      sslmode: "disable"
+      postgresVersion: 1600
+      timescaledb: false
+    version: 1
+    editable: true

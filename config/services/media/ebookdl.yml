@@ -2,6 +2,7 @@ service_manifest:
   name: ebookdl
   display_name: ebookdl
   host: media
+  status: archived
   service:
     port: 5001
     protocol: http
@@ -9,7 +10,7 @@ service_manifest:
     local:
       enabled: false
     public:
-      enabled: true
+      enabled: false
       mode: generated
       subdomain: ebookdl
       protocol: http

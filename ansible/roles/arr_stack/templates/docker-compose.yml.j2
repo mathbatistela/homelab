@@ -67,20 +67,6 @@ services:
       - "{{ arr_stack_config_path }}/recyclarr/config:/config"
     restart: unless-stopped
 
-  homarr:
-    image: ghcr.io/ajnart/homarr:latest
-    container_name: homarr
-    hostname: homarr
-    volumes:
-      - "{{ arr_stack_config_path }}/homarr/configs:/app/data/configs"
-      - "{{ arr_stack_config_path }}/homarr/icons:/app/public/icons"
-      - "{{ arr_stack_config_path }}/homarr/data:/data"
-    ports:
-      - "7575:7575"
-    restart: unless-stopped
-    env_file:
-      - .env
-
   jellyfin:
     image: linuxserver/jellyfin:latest
     container_name: jellyfin

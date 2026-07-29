@@ -20,6 +20,7 @@ def download_track(track_id: str, user: str) -> tuple[bool, str]:
     cmd = [
         "tiddl",
         "download",
+        "--rewrite-metadata",
         "--path", str(output_path),
         "--track-quality", QUALITY,
         "--output", "{album.artist}/{album.title}/{item.number:02d}. {item.title}",
@@ -52,6 +53,7 @@ def download_playlist(playlist_id: str, user: str) -> tuple[bool, str]:
     cmd = [
         "tiddl",
         "download",
+        "--rewrite-metadata",
         "--path", str(output_path),
         "--track-quality", QUALITY,
         "--output", "{album.artist}/{album.title}/{item.number:02d}. {item.title}",

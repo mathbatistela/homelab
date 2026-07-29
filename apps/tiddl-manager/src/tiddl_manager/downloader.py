@@ -20,11 +20,11 @@ def download_track(track_id: str, user: str) -> tuple[bool, str]:
     cmd = [
         "tiddl",
         "download",
-        "url",
-        f"track/{track_id}",
         "--path", str(output_path),
         "--track-quality", QUALITY,
         "--output", "{album.artist}/{album.title}/{item.number:02d}. {item.title}",
+        "url",
+        f"track/{track_id}",
     ]
 
     log.info("Downloading track %s for user %s", track_id, user)
@@ -52,12 +52,12 @@ def download_playlist(playlist_id: str, user: str) -> tuple[bool, str]:
     cmd = [
         "tiddl",
         "download",
-        "url",
-        f"playlist/{playlist_id}",
         "--path", str(output_path),
         "--track-quality", QUALITY,
         "--output", "{album.artist}/{album.title}/{item.number:02d}. {item.title}",
         "--threads-count", "4",
+        "url",
+        f"playlist/{playlist_id}",
     ]
 
     log.info("Downloading playlist %s for user %s", playlist_id, user)

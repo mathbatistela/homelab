@@ -16,6 +16,7 @@ from .state import (
 )
 from .sync import sync_all
 from .downloader import download_track, download_playlist
+from .navidrome import trigger_scan
 
 app = typer.Typer(
     name="tiddl-manager",
@@ -167,6 +168,25 @@ def sync(
         total_skip += r["skipped"]
 
     typer.echo(f"\nTotal: {total_new} downloaded, {total_skip} skipped")
+
+    if total_new > 0:
+        typer.echo("Triggering Navidrome scan...")
+        result = trigger_scan()
+        if result["status"] == "triggered":
+            typer.echo("✓ Navidrome scan started")
+
+
+@app.command()
+def scan():
+    """Trigger a manual Navidrome library scan."""
+    typer.echo("Triggering Navidrome scan...")
+    result = trigger_scan()
+    if result["status"] == "triggered":
+        typer.echo("✓ Scan started — music will appear shortly")
+    elif result["status"] == "skipped":
+        typer.echo(f"✗ {result['reason']}")
+    else:
+        typer.echo(f"✗ Failed: {result.get('error', 'unknown')}")
 
 
 @app.command()

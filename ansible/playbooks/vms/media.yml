@@ -19,3 +19,10 @@
   become: true
   roles:
     - navidrome
+
+- name: "Deploy tiddl-manager Tidal subscription syncer"
+  hosts: media
+  gather_facts: true
+  become: true
+  roles:
+    - tiddl_manager

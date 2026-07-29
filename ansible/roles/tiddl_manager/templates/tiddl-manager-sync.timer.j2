@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily tiddl-manager sync trigger
+Requires=tiddl-manager-sync.service
+
+[Timer]
+OnCalendar={{ tiddl_manager_sync_oncalendar }}
+RandomizedDelaySec=600
+Persistent=true
+
+[Install]
+WantedBy=timers.target

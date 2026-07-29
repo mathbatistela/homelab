@@ -1,0 +1,19 @@
+[Unit]
+Description=tiddl-manager — sync Tidal playlist subscriptions
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+RequiresMountsFor={{ tiddl_manager_music_dir }}
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory={{ tiddl_manager_compose_dir }}
+ExecStartPre=/usr/bin/docker compose build --quiet
+ExecStart=/usr/bin/docker compose run --rm tiddl-manager sync
+ExecStopPost=/usr/bin/docker compose down
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tiddl-manager
+
+# Timeout: 60 minutes for large syncs
+TimeoutStartSec=3600

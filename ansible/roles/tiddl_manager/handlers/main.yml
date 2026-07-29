@@ -1,0 +1,6 @@
+---
+- name: Restart tiddl-manager timer
+  ansible.builtin.systemd:
+    name: tiddl-manager-sync.timer
+    state: restarted
+    daemon_reload: true

@@ -1,0 +1,66 @@
+---
+- name: Ensure tiddl-manager compose directory exists
+  ansible.builtin.file:
+    path: "{{ tiddl_manager_compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Sync tiddl-manager source to media VM
+  ansible.posix.synchronize:
+    src: "{{ playbook_dir }}/../../apps/tiddl-manager/"
+    dest: "{{ tiddl_manager_src_dir }}/"
+    rsync_opts:
+      - "--exclude=__pycache__"
+      - "--exclude=*.pyc"
+      - "--delete"
+    rsync_path: rsync
+
+- name: Ensure tiddl-manager state directory exists
+  ansible.builtin.file:
+    path: "{{ tiddl_manager_state_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Copy docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ tiddl_manager_compose_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Build tiddl-manager Docker image
+  community.docker.docker_compose_v2:
+    project_src: "{{ tiddl_manager_compose_dir }}"
+    build: always
+    state: present
+  register: tiddl_manager_build
+
+- name: Install systemd timer unit
+  ansible.builtin.template:
+    src: tiddl-manager-sync.timer.j2
+    dest: /etc/systemd/system/tiddl-manager-sync.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart tiddl-manager timer
+
+- name: Install systemd service unit
+  ansible.builtin.template:
+    src: tiddl-manager-sync.service.j2
+    dest: /etc/systemd/system/tiddl-manager-sync.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart tiddl-manager timer
+
+- name: Enable and start tiddl-manager sync timer
+  ansible.builtin.systemd:
+    name: tiddl-manager-sync.timer
+    enabled: true
+    state: started
+    daemon_reload: true

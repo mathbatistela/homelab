@@ -11,7 +11,7 @@ resource "cloudflare_dns_record" "ssh_hosts" {
   for_each = { for h in local.hosts : h.name => h }
 
   zone_id = var.cloudflare_zone_id
-  name    = each.value.local ? "${each.value.name}.local" : each.value.name
+  name    = each.value.local ? "${each.value.name}-vm.local" : each.value.name
   type    = "A"
   content = each.value.ip
   ttl     = 1

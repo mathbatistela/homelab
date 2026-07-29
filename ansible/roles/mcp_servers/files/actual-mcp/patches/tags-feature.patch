@@ -1,0 +1,210 @@
+diff --git a/src/actual-api.ts b/src/actual-api.ts
+index 8c32e0b..7e7eabc 100644
+--- a/src/actual-api.ts
++++ b/src/actual-api.ts
+@@ -286,3 +286,39 @@ export async function runBankSync(accountId?: string): Promise<void> {
+   // API expects { accountId } object or undefined for all accounts
+   return api.runBankSync(accountId ? { accountId } : undefined);
+ }
++
++// ----------------------------
++// TAGS
++// ----------------------------
++
++/**
++ * Get all tags (ensures API is initialized)
++ */
++export async function getTags(): Promise<import("@actual-app/core/server/api-models").APITagEntity[]> {
++  await initActualApi();
++  return api.getTags();
++}
++
++/**
++ * Create a new tag (ensures API is initialized)
++ */
++export async function createTag(args: { tag: string; color?: string | null; description?: string | null }): Promise<string> {
++  await initActualApi();
++  return api.createTag({ tag: args.tag, color: args.color ?? null, description: args.description ?? null });
++}
++
++/**
++ * Update a tag (ensures API is initialized)
++ */
++export async function updateTag(id: string, fields: Record<string, unknown>): Promise<void> {
++  await initActualApi();
++  return api.updateTag(id, fields);
++}
++
++/**
++ * Delete a tag (ensures API is initialized)
++ */
++export async function deleteTag(id: string): Promise<void> {
++  await initActualApi();
++  return api.deleteTag(id);
++}
+diff --git a/src/tools/index.ts b/src/tools/index.ts
+index 0ab6aad..47b16b5 100644
+--- a/src/tools/index.ts
++++ b/src/tools/index.ts
+@@ -31,6 +31,10 @@ import * as deleteTransaction from './delete-transaction/index.js';
+ import * as updateTransaction from './update-transaction/index.js';
+ import * as createTransaction from './create-transaction/index.js';
+ import * as importTransactions from './import-transactions/index.js';
++import * as getTags from "./tags/get-tags/index.js";
++import * as createTag from "./tags/create-tag/index.js";
++import * as updateTag from "./tags/update-tag/index.js";
++import * as deleteTag from "./tags/delete-tag/index.js";
+ import * as runBankSync from './run-bank-sync/index.js';
+ 
+ const readTools = [
+@@ -42,6 +46,7 @@ const readTools = [
+   getGroupedCategories,
+   getPayees,
+   getRules,
++  getTags,
+ ];
+ 
+ const writeTools = [
+@@ -57,6 +62,9 @@ const writeTools = [
+   createRule,
+   updateRule,
+   deleteRule,
++  createTag,
++  updateTag,
++  deleteTag,
+   updateTransaction,
+   deleteTransaction,
+   createTransaction,
+diff --git a/src/tools/tags/create-tag/index.ts b/src/tools/tags/create-tag/index.ts
+new file mode 100644
+index 0000000..bc601c9
+--- /dev/null
++++ b/src/tools/tags/create-tag/index.ts
+@@ -0,0 +1,26 @@
++import { successWithJson, errorFromCatch } from '../../../utils/response.js';
++import { createTag } from '../../../actual-api.js';
++
++export const schema = {
++  name: 'create-tag',
++  description: 'Create a new tag',
++  inputSchema: {
++    type: 'object',
++    properties: {
++      name: { type: 'string', description: 'Name of the tag' },
++      color: { type: 'string', description: 'Optional hex color (e.g. "#ff0000")' },
++      description: { type: 'string', description: 'Optional description' },
++    },
++    required: ['name'],
++    additionalProperties: false,
++  },
++};
++
++export async function handler(args: { name: string; color?: string; description?: string }): Promise<ReturnType<typeof successWithJson> | ReturnType<typeof errorFromCatch>> {
++  try {
++    const id = await createTag({ tag: args.name, color: args.color || null, description: args.description || null });
++    return successWithJson({ id, name: args.name });
++  } catch (err) {
++    return errorFromCatch(err);
++  }
++}
+diff --git a/src/tools/tags/delete-tag/index.ts b/src/tools/tags/delete-tag/index.ts
+new file mode 100644
+index 0000000..ee11fb4
+--- /dev/null
++++ b/src/tools/tags/delete-tag/index.ts
+@@ -0,0 +1,24 @@
++import { successWithJson, errorFromCatch } from '../../../utils/response.js';
++import { deleteTag } from '../../../actual-api.js';
++
++export const schema = {
++  name: 'delete-tag',
++  description: 'Delete a tag',
++  inputSchema: {
++    type: 'object',
++    properties: {
++      id: { type: 'string', description: 'ID of the tag to delete' },
++    },
++    required: ['id'],
++    additionalProperties: false,
++  },
++};
++
++export async function handler(args: { id: string }): Promise<ReturnType<typeof successWithJson> | ReturnType<typeof errorFromCatch>> {
++  try {
++    await deleteTag(args.id);
++    return successWithJson({ deleted: true, id: args.id });
++  } catch (err) {
++    return errorFromCatch(err);
++  }
++}
+diff --git a/src/tools/tags/get-tags/index.ts b/src/tools/tags/get-tags/index.ts
+new file mode 100644
+index 0000000..6cc263c
+--- /dev/null
++++ b/src/tools/tags/get-tags/index.ts
+@@ -0,0 +1,28 @@
++import { successWithJson, errorFromCatch } from '../../../utils/response.js';
++import { getTags } from '../../../actual-api.js';
++
++export const schema = {
++  name: 'get-tags',
++  description: 'Retrieve a list of all tags with their id, name, color, and description.',
++  inputSchema: {
++    type: 'object',
++    description: 'This tool does not accept any arguments.',
++    properties: {},
++    additionalProperties: false,
++  },
++};
++
++export async function handler(): Promise<ReturnType<typeof successWithJson> | ReturnType<typeof errorFromCatch>> {
++  try {
++    const tags = await getTags();
++    const structured = tags.map((t) => ({
++      id: t.id,
++      name: t.tag,
++      color: t.color,
++      description: t.description || '',
++    }));
++    return successWithJson(structured);
++  } catch (err) {
++    return errorFromCatch(err);
++  }
++}
+diff --git a/src/tools/tags/update-tag/index.ts b/src/tools/tags/update-tag/index.ts
+new file mode 100644
+index 0000000..7d8a88a
+--- /dev/null
++++ b/src/tools/tags/update-tag/index.ts
+@@ -0,0 +1,31 @@
++import { successWithJson, errorFromCatch } from '../../../utils/response.js';
++import { updateTag } from '../../../actual-api.js';
++
++export const schema = {
++  name: 'update-tag',
++  description: 'Update an existing tag',
++  inputSchema: {
++    type: 'object',
++    properties: {
++      id: { type: 'string', description: 'ID of the tag to update' },
++      name: { type: 'string', description: 'New name for the tag' },
++      color: { type: 'string', description: 'New color (e.g. "#ff0000")' },
++      description: { type: 'string', description: 'New description' },
++    },
++    required: ['id'],
++    additionalProperties: false,
++  },
++};
++
++export async function handler(args: { id: string; name?: string; color?: string; description?: string }): Promise<ReturnType<typeof successWithJson> | ReturnType<typeof errorFromCatch>> {
++  try {
++    const updateArgs: Record<string, unknown> = {};
++    if (args.name !== undefined) updateArgs.name = args.name;
++    if (args.color !== undefined) updateArgs.color = args.color;
++    if (args.description !== undefined) updateArgs.description = args.description;
++    await updateTag(args.id, updateArgs);
++    return successWithJson({ updated: true, id: args.id });
++  } catch (err) {
++    return errorFromCatch(err);
++  }
++}

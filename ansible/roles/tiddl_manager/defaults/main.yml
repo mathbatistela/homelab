@@ -1,0 +1,13 @@
+---
+# tiddl-manager — Tidal playlist subscription syncer
+# Runs as a Docker container triggered by systemd timer
+
+tiddl_manager_compose_dir: "/opt/tiddl-manager"
+tiddl_manager_src_dir: "{{ tiddl_manager_compose_dir }}/src"
+tiddl_manager_state_dir: "{{ tiddl_manager_compose_dir }}/state"
+tiddl_manager_tiddl_config_dir: "/root/.tiddl"
+tiddl_manager_music_dir: "/mnt/homeshare/data/media/music"
+tiddl_manager_tz: "America/Sao_Paulo"
+
+# systemd timer schedule (systemd OnCalendar format)
+tiddl_manager_sync_oncalendar: "*-*-* 04:00:00"

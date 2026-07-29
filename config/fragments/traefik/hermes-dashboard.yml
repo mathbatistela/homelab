@@ -1,0 +1,17 @@
+traefik_fragment_services:
+  - filename: hermes-dashboard.yml
+    content: |
+      http:
+        routers:
+          hermes-dashboard:
+            rule: "Host(`hermes-dash.{{ traefik_local_domain }}`)"
+            entryPoints:
+              - https
+            service: hermes-dashboard-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+        services:
+          hermes-dashboard-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['hermes'].ansible_host }}:9119"

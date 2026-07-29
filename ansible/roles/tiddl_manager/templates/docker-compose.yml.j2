@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  tiddl-manager:
+    build:
+      context: "{{ tiddl_manager_src_dir }}"
+      dockerfile: Dockerfile
+    image: tiddl-manager:local
+    container_name: tiddl-manager
+    volumes:
+      - "{{ tiddl_manager_tiddl_config_dir }}:/root/.tiddl:ro"
+      - "{{ tiddl_manager_state_dir }}:/root/.tiddl-manager"
+      - "{{ tiddl_manager_music_dir }}:/downloads"
+    environment:
+      TZ: "{{ tiddl_manager_tz }}"
+    # Not a long-running service — invoked via `docker compose run`
+    profiles:
+      - manual

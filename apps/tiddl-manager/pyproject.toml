@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tiddl-manager"
+version = "0.1.0"
+description = "CLI to manage Tidal playlist subscriptions and sync to Navidrome"
+requires-python = ">=3.13"
+dependencies = [
+    "typer>=0.20.0",
+    "requests>=2.32.5",
+]
+
+[project.scripts]
+tiddl-manager = "tiddl_manager.cli:app"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]

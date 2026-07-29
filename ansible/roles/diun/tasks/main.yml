@@ -1,0 +1,25 @@
+---
+- name: Create Diun data directory
+  ansible.builtin.file:
+    path: /opt/diun
+    state: directory
+    mode: "0755"
+
+- name: Deploy Diun container
+  community.docker.docker_container:
+    name: "{{ diun_container_name }}"
+    image: "{{ diun_image }}:{{ diun_version }}"
+    state: started
+    restart_policy: unless-stopped
+    volumes:
+      - /opt/diun:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    env:
+      TZ: "America/Sao_Paulo"
+      LOG_LEVEL: "info"
+      LOG_JSON: "false"
+      DIUN_WATCH_SCHEDULE: "{{ diun_schedule }}"
+      DIUN_PROVIDERS_DOCKER: "true"
+      DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT: "{{ diun_watch_by_default | lower }}"
+      DIUN_NOTIF_DISCORD_WEBHOOKURL: "{{ vault.diun.webhook_url }}"
+      DIUN_NOTIF_DISCORD_RENDERFIELDS: "true"

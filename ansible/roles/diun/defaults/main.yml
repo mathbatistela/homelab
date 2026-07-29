@@ -1,0 +1,7 @@
+---
+diun_container_name: "diun"
+diun_image: "crazymax/diun"
+diun_version: "latest"
+diun_schedule: "0 */4 * * *"
+diun_watch_by_default: true
+diun_db_path: "/data/diun.db"

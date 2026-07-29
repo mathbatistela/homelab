@@ -1,0 +1,18 @@
+---
+- name: "Install Docker on container hosts"
+  hosts: watchtower_hosts
+  become: true
+  gather_facts: true
+  roles:
+    - geerlingguy.docker
+  tags:
+    - docker
+
+- name: "Deploy Diun on all Docker hosts"
+  hosts: watchtower_hosts
+  become: true
+  gather_facts: true
+  roles:
+    - diun
+  tags:
+    - diun

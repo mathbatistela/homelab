@@ -46,9 +46,10 @@ CREATE INDEX IF NOT EXISTS idx_subs_user ON subscriptions(user);
 def get_db() -> sqlite3.Connection:
     """Return connection with WAL mode and foreign keys enabled."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), timeout=10)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA busy_timeout=5000")
     conn.row_factory = sqlite3.Row
     return conn
 

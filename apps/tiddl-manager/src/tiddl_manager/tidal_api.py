@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
-from requests_cache import CachedSession
+from requests_cache import CachedSession, DO_NOT_CACHE
 
 log = logging.getLogger(__name__)
 
@@ -106,11 +106,22 @@ class TidalClient:
     def get_playlist_tracks(
         self, playlist_id: str, limit: int = 100, offset: int = 0
     ) -> dict:
-        """Get playlist items (tracks)."""
-        return self._get(
-            f"playlists/{playlist_id}/items",
-            {"limit": min(limit, 100), "offset": offset},
+        """Get playlist items (tracks). Not cached — always fresh."""
+        params = {"limit": min(limit, 100), "offset": offset, "countryCode": COUNTRY_CODE}
+        resp = self.session.get(
+            f"{API_URL}/playlists/{playlist_id}/items",
+            params=params,
+            expire_after=DO_NOT_CACHE,
         )
+        if resp.status_code == 401 and self.refresh_token:
+            if self._refresh_token():
+                resp = self.session.get(
+                    f"{API_URL}/playlists/{playlist_id}/items",
+                    params=params,
+                    expire_after=DO_NOT_CACHE,
+                )
+        resp.raise_for_status()
+        return resp.json()
 
     def get_all_playlist_tracks(self, playlist_id: str) -> list[dict]:
         """Fetch all tracks from a playlist, handling pagination."""

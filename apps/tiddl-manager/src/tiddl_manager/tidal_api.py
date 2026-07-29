@@ -36,15 +36,66 @@ class TidalClient:
         data = json.loads(AUTH_PATH.read_text())
         self.token = data["token"]
         self.user_id = data.get("user_id", "")
+        self.refresh_token = data.get("refresh_token", "")
+        self._client_id, self._client_secret = self._get_credentials()
+
+    def _get_credentials(self) -> tuple[str, str]:
+        """Extract client credentials from tiddl or env."""
+        import base64, os
+        # Same base64 encoded creds as tiddl's auth client
+        default = base64.b64decode(
+            "NE4zbjZRMXg5NUxMNUs3cDtvS09YZkpXMzcxY1g2eGFaMFB5aGdHTkJkTkxsQlpkNEFLS1lvdWdNamlrPQ=="
+        ).decode()
+        env_val = os.environ.get("TIDDL_AUTH", "")
+        if env_val:
+            cid, csec = env_val.split(";")
+        else:
+            cid, csec = default.split(";")
+        return cid, csec
+
+    def _refresh_token(self) -> bool:
+        """Refresh the access token. Returns True on success."""
+        try:
+            resp = requests.post(
+                "https://auth.tidal.com/v1/oauth2/token",
+                data={
+                    "client_id": self._client_id,
+                    "refresh_token": self.refresh_token,
+                    "grant_type": "refresh_token",
+                    "scope": "r_usr+w_usr+w_sub",
+                },
+                auth=(self._client_id, self._client_secret),
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            self.token = data["access_token"]
+            self.refresh_token = data.get("refresh_token", self.refresh_token)
+            self.session.headers["Authorization"] = f"Bearer {self.token}"
+            # Update auth.json
+            auth = json.loads(AUTH_PATH.read_text())
+            auth["token"] = self.token
+            auth["refresh_token"] = self.refresh_token
+            AUTH_PATH.write_text(json.dumps(auth))
+            return True
+        except Exception as e:
+            log.error("Token refresh failed: %s", e)
+            return False
 
     def _get(self, endpoint: str, params: dict = None) -> dict:
-        """Make authenticated GET request."""
+        """Make authenticated GET request with auto-refresh."""
         params = params or {}
         params.setdefault("countryCode", COUNTRY_CODE)
 
         resp = self.session.get(
             f"{API_URL}/{endpoint}", params=params
         )
+
+        if resp.status_code == 401 and self.refresh_token:
+            if self._refresh_token():
+                resp = self.session.get(
+                    f"{API_URL}/{endpoint}", params=params
+                )
+
         resp.raise_for_status()
         return resp.json()
 

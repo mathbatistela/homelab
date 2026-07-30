@@ -7,5 +7,6 @@
     - geerlingguy.docker
     - actual_budget
     - portainer
+    - evolution_api
     - role: databasus
       tags: databasus_install

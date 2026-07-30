@@ -16,6 +16,8 @@ postgresql_users:
     password: "{{ vault.database.openwebui_user_pw }}"
   - name: mailbot_user
     password: "{{ vault.database.mailbot_user_pw }}"
+  - name: evolution_user
+    password: "{{ vault.database.evolution_user_pw }}"
 
 postgresql_databases:
   - name: fresh_rss_database
@@ -28,6 +30,8 @@ postgresql_databases:
     owner: openwebui_user
   - name: mailbot_database
     owner: mailbot_user
+  - name: evolution_api
+    owner: evolution_user
 
 influxdb_databases:
   - name: homeassistant

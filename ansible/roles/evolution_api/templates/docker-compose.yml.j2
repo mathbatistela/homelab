@@ -1,0 +1,60 @@
+services:
+  api:
+    container_name: evolution_api
+    image: evoapicloud/evolution-api:{{ evolution_api_version }}
+    restart: unless-stopped
+    ports:
+      - "{{ evolution_api_port }}:8080"
+    volumes:
+      - {{ evolution_api_data_dir }}/instances:/evolution/instances
+    environment:
+      - SERVER_NAME=evolution
+      - SERVER_TYPE=http
+      - SERVER_PORT=8080
+      - SERVER_URL=http://localhost:8080
+      - CORS_ORIGIN=*
+      - CORS_METHODS=POST,GET,PUT,DELETE
+      - CORS_CREDENTIALS=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://{{ evolution_postgres_user }}:{{ evolution_postgres_password }}@{{ evolution_db_host }}:5432/{{ evolution_postgres_db }}
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_MESSAGE_UPDATE=true
+      - DATABASE_SAVE_DATA_CONTACTS=true
+      - DATABASE_SAVE_DATA_CHATS=true
+      - CACHE_REDIS_ENABLED=false
+      - CACHE_LOCAL_ENABLED=true
+      - CACHE_LOCAL_TTL=86400
+      - AUTHENTICATION_API_KEY={{ evolution_api_apikey }}
+      - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false
+      - LANGUAGE=pt-BR
+      - QRCODE_LIMIT=60
+      - QRCODE_COLOR=#198754
+      - DEL_INSTANCE=false
+      - DEL_TEMP_INSTANCES=true
+      - CONFIG_SESSION_PHONE_CLIENT=Evolution API
+      - CONFIG_SESSION_PHONE_NAME=Chrome
+      - LOG_LEVEL=ERROR,WARN,DEBUG,INFO,LOG,VERBOSE,DARK,WEBHOOKS,WEBSOCKET
+      - LOG_COLOR=true
+      - LOG_BAILEYS=error
+      - WEBSOCKET_ENABLED=false
+      - WEBHOOK_GLOBAL_ENABLED=false
+      - RABBITMQ_ENABLED=false
+      - NATS_ENABLED=false
+      - SQS_ENABLED=false
+      - TYPEBOT_ENABLED=false
+      - CHATWOOT_ENABLED=false
+      - OPENAI_ENABLED=false
+      - DIFY_ENABLED=false
+      - S3_ENABLED=false
+      - TELEMETRY_ENABLED=false
+
+  manager:
+    container_name: evolution_manager
+    image: evoapicloud/evolution-manager:{{ evolution_api_version }}
+    restart: unless-stopped
+    ports:
+      - "{{ evolution_api_manager_port }}:80"
+    volumes:
+      - {{ evolution_api_compose_dir }}/nginx.conf:/etc/nginx/conf.d/nginx.conf:ro

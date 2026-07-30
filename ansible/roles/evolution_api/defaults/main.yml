@@ -1,0 +1,16 @@
+---
+# Evolution API WhatsApp Gateway
+evolution_api_version: "latest"
+evolution_api_compose_dir: /root/docker-compose-apps/evolution-api
+evolution_api_data_dir: /mnt/homeshare/docker/evolution-api
+
+# API config
+evolution_api_port: 8080
+evolution_api_manager_port: 3001
+evolution_api_apikey: "evo_hermes_key_2024"
+
+# Shared infrastructure (database VM: 192.168.1.103)
+evolution_db_host: "192.168.1.103"
+evolution_postgres_db: evolution_api
+evolution_postgres_user: evolution_user
+evolution_postgres_password: "{{ vault.database.evolution_user_pw }}"

@@ -1,0 +1,20 @@
+service_manifest:
+  name: evolution-api-backend
+  display_name: Evolution API Backend
+  host: tools
+  service:
+    port: 8080
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: generated
+      template: simple-http
+      subdomain: evolution-api
+    public:
+      enabled: false
+  auth:
+    sso: false
+  deployment:
+    owner: role
+    role: evolution_api

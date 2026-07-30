@@ -1,0 +1,20 @@
+service_manifest:
+  name: evolution-api
+  display_name: Evolution API (WhatsApp)
+  host: tools
+  service:
+    port: 3001
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: generated
+      template: simple-http
+      subdomain: evolution
+    public:
+      enabled: false
+  auth:
+    sso: false
+  deployment:
+    owner: role
+    role: evolution_api

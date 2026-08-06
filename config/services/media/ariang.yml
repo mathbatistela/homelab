@@ -1,0 +1,20 @@
+service_manifest:
+  name: ariang
+  display_name: AriaNg
+  host: media
+  service:
+    port: 6880
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: generated
+      template: simple-http
+      subdomain: downloads
+    public:
+      enabled: false
+  auth:
+    sso: false
+  deployment:
+    owner: role
+    role: aria2

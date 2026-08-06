@@ -1,0 +1,20 @@
+service_manifest:
+  name: jdownloader
+  display_name: JDownloader
+  host: media
+  service:
+    port: 5800
+    protocol: http
+  exposure:
+    local:
+      enabled: true
+      mode: generated
+      template: simple-http
+      subdomain: jdownloader
+    public:
+      enabled: false
+  auth:
+    sso: false
+  deployment:
+    owner: role
+    role: jdownloader

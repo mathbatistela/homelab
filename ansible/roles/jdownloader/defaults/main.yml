@@ -1,0 +1,8 @@
+---
+jdownloader_compose_dir: "/opt/jdownloader"
+jdownloader_config_path: "/mnt/homeshare/docker/jdownloader/config"
+jdownloader_download_path: "/mnt/homeshare/data/downloads/jdownloader"
+jdownloader_webui_port: "5800"
+jdownloader_myjd_port: "3129"
+jdownloader_puid: "0"
+jdownloader_pgid: "0"

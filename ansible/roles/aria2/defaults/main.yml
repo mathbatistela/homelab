@@ -1,0 +1,8 @@
+---
+aria2_compose_dir: "/opt/aria2"
+aria2_config_path: "/mnt/homeshare/docker/aria2/config"
+aria2_download_path: "/mnt/homeshare/data/downloads/aria2"
+aria2_rpc_port: "6800"
+aria2_webui_port: "6880"
+aria2_puid: "0"
+aria2_pgid: "0"

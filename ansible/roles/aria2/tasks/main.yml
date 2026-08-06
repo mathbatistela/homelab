@@ -1,0 +1,43 @@
+---
+- name: "Ensure aria2 config directory exists"
+  ansible.builtin.file:
+    path: "{{ aria2_config_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: "Ensure aria2 download directory exists"
+  ansible.builtin.file:
+    path: "{{ aria2_download_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: "Ensure aria2 compose directory exists"
+  ansible.builtin.file:
+    path: "{{ aria2_compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: "Copy aria2 docker-compose.yml"
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ aria2_compose_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: "Pull and start aria2 services with Docker Compose v2"
+  community.docker.docker_compose_v2:
+    project_src: "{{ aria2_compose_dir }}"
+    pull: "always"
+    state: present
+  become: true

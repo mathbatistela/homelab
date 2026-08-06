@@ -26,3 +26,17 @@
   become: true
   roles:
     - tiddl_manager
+
+- name: "Deploy Aria2 download manager"
+  hosts: media
+  gather_facts: true
+  become: true
+  roles:
+    - aria2
+
+- name: "Deploy JDownloader 2"
+  hosts: media
+  gather_facts: true
+  become: true
+  roles:
+    - jdownloader

@@ -1,0 +1,12 @@
+pangolin_fragment_resources:
+  wedding-rsvp:
+    name: Wedding RSVP (Staging)
+    protocol: http
+    full-domain: "casamento-gi-jorge.staging.{{ pangolin_base_domain }}"
+    auth:
+      pincode: 212026
+    targets:
+      - site: "{{ pangolin_site_nice_id }}"
+        hostname: "{{ hostvars['tools'].ansible_host }}"
+        port: 3000
+        method: http

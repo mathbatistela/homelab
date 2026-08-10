@@ -1,0 +1,10 @@
+pangolin_fragment_resources:
+  deploy-webhook:
+    name: Deploy Webhook Receiver
+    protocol: http
+    full-domain: "deploy.staging.{{ pangolin_base_domain }}"
+    targets:
+      - site: "{{ pangolin_site_nice_id }}"
+        hostname: "{{ hostvars['tools'].ansible_host }}"
+        port: 9999
+        method: http

@@ -1,0 +1,69 @@
+---
+- name: Install Python dependencies
+  ansible.builtin.apt:
+    name: python3-yaml
+    state: present
+
+- name: Ensure deploy base directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_webhook_base_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ deploy_webhook_user }}"
+    group: "{{ deploy_webhook_group }}"
+
+- name: Deploy webhook receiver script
+  ansible.builtin.copy:
+    src: webhook.py
+    dest: "{{ deploy_webhook_base_dir }}/webhook.py"
+    mode: "0755"
+    owner: "{{ deploy_webhook_user }}"
+    group: "{{ deploy_webhook_group }}"
+  notify: Restart deploy webhook
+
+- name: Deploy webhook config
+  ansible.builtin.template:
+    src: config.yml.j2
+    dest: "{{ deploy_webhook_base_dir }}/config.yml"
+    mode: "0600"
+    owner: "{{ deploy_webhook_user }}"
+    group: "{{ deploy_webhook_group }}"
+  notify: Restart deploy webhook
+
+- name: Deploy GHCR token file
+  ansible.builtin.copy:
+    content: "{{ deploy_webhook_ghcr_token }}"
+    dest: "{{ deploy_webhook_base_dir }}/.ghcr_token"
+    mode: "0600"
+    owner: "{{ deploy_webhook_user }}"
+    group: "{{ deploy_webhook_group }}"
+  when: deploy_webhook_ghcr_token | length > 0
+  no_log: true
+  notify: Restart deploy webhook
+
+- name: Install systemd service unit
+  ansible.builtin.template:
+    src: deploy-webhook.service.j2
+    dest: /etc/systemd/system/deploy-webhook.service
+    mode: "0644"
+  notify: Restart deploy webhook
+
+- name: Enable and start deploy-webhook service
+  ansible.builtin.systemd:
+    name: deploy-webhook
+    daemon_reload: true
+    enabled: true
+    state: started
+
+- name: Create per-app compose directories
+  ansible.builtin.file:
+    path: "{{ app.compose_dir | default(deploy_webhook_base_dir + '/' + app.name) }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ deploy_webhook_user }}"
+    group: "{{ deploy_webhook_group }}"
+  loop: "{{ deploy_webhook_apps }}"
+  loop_control:
+    loop_var: app
+    label: "{{ app.name }}"
+  when: deploy_webhook_apps | length > 0

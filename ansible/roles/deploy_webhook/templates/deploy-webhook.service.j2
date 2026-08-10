@@ -1,0 +1,16 @@
+[Unit]
+Description=Deploy Webhook Receiver (multi-app)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 {{ deploy_webhook_base_dir }}/webhook.py
+Environment=DEPLOY_CONFIG={{ deploy_webhook_base_dir }}/config.yml
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

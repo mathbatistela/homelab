@@ -1,0 +1,24 @@
+---
+# deploy_webhook — Generic multi-app deploy webhook receiver
+
+deploy_webhook_port: 9999
+deploy_webhook_base_dir: /opt/deploy
+deploy_webhook_user: root
+deploy_webhook_group: root
+
+# Shared GHCR credentials (one token works for all repos the user has access to)
+deploy_webhook_ghcr_user: mathbatistela
+# deploy_webhook_ghcr_token should be set in vault or host_vars
+deploy_webhook_ghcr_token: ""
+
+# Webhook HMAC secret — shared across all apps on this receiver
+# deploy_webhook_secret should be set in vault
+deploy_webhook_secret: ""
+
+# Apps to deploy — override in host_vars/tools/deploy_apps.yml
+# Each entry:
+#   name:          app identifier (used in URL: /webhook/<name>)
+#   compose_dir:   path to docker-compose directory (defaults to /opt/deploy/<name>)
+#   ghcr_user:     GitHub user for GHCR login (defaults to deploy_webhook_ghcr_user)
+#   ghcr_token_file: path to GHCR token file (defaults to /opt/deploy/.ghcr_token)
+deploy_webhook_apps: []

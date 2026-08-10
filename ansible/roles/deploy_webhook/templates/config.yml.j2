@@ -1,0 +1,14 @@
+# Deploy webhook config — managed by Ansible (role: deploy_webhook)
+# DO NOT EDIT MANUALLY
+
+webhook:
+  port: {{ deploy_webhook_port }}
+  secret: "{{ deploy_webhook_secret }}"
+
+apps:
+{% for app in deploy_webhook_apps %}
+  {{ app.name }}:
+    compose_dir: "{{ app.compose_dir | default(deploy_webhook_base_dir + '/' + app.name) }}"
+    ghcr_user: "{{ app.ghcr_user | default(deploy_webhook_ghcr_user) }}"
+    ghcr_token_file: "{{ app.ghcr_token_file | default(deploy_webhook_base_dir + '/.ghcr_token') }}"
+{% endfor %}

@@ -1,0 +1,6 @@
+---
+- name: Restart deploy webhook
+  ansible.builtin.systemd:
+    name: deploy-webhook
+    state: restarted
+    daemon_reload: true

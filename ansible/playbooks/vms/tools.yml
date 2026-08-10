@@ -10,3 +10,5 @@
     - evolution_api
     - role: databasus
       tags: databasus_install
+    - role: deploy_webhook
+      tags: deploy_webhook

@@ -1,0 +1,9 @@
+---
+prometheus_scrape_configs_extra:
+  - job_name: deploy-webhook
+    static_configs:
+      - targets:
+          - "tools-vm.local.batistela.tech:9999"
+    metrics_path: /metrics
+    scrape_interval: 60s
+    scrape_timeout: 10s

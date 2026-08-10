@@ -1,0 +1,22 @@
+---
+# Apps managed by deploy_webhook on tools VM
+# Each app needs:
+#   name:          used in webhook URL path: /webhook/<name>
+#   compose_dir:   path containing docker-compose.yml (defaults to /opt/deploy/<name>)
+#   ghcr_image:    full image reference for documentation (not used by receiver itself)
+#
+# To add a new app:
+# 1. Add entry below
+# 2. Create docker-compose.yml at compose_dir
+# 3. Create service manifest in config/services/<host>/<name>.yml
+# 4. Create Traefik/Pangolin fragments as needed
+# 5. Secrets are in vault.tools.deploy_webhook_* (already set)
+# 6. Add GitHub Actions workflow in target repo (see docs/deploy-pipeline.md)
+
+deploy_webhook_secret: "{{ vault.tools.deploy_webhook_secret }}"
+deploy_webhook_ghcr_token: "{{ vault.tools.deploy_webhook_ghcr_token }}"
+
+deploy_webhook_apps:
+  - name: wedding-rsvp
+    compose_dir: /opt/deploy/wedding-rsvp
+    ghcr_image: ghcr.io/pamlissa/wedding-rsvp:staging

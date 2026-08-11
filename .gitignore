@@ -49,3 +49,6 @@ terraform/home/.omc/
 .sisyphus/
 logs/
 apps/hermes-tools/frontend/node_modules/
+ansible/roles/hermes_miniapp/
+config/fragments/pangolin/hermes-miniapp.yml
+config/fragments/traefik/hermes-miniapp.yml

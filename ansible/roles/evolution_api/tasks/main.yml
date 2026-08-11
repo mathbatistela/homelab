@@ -31,6 +31,14 @@
     group: root
     mode: "0644"
 
+- name: Copy anti-ban wrapper script
+  ansible.builtin.template:
+    src: wrapper.mjs.j2
+    dest: "{{ evolution_api_compose_dir }}/wrapper.mjs"
+    owner: root
+    group: root
+    mode: "0644"
+
 - name: Deploy Evolution API using docker-compose
   community.docker.docker_compose_v2:
     project_src: "{{ evolution_api_compose_dir }}"

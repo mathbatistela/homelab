@@ -66,7 +66,7 @@ mcp_servers:
       - "--sessionTimeout"
       - "300000"
     env:
-      EVOLUTION_API_URL: "http://{{ hostvars['tools'].ansible_host }}:8184"
+      EVOLUTION_API_URL: "http://{{ hostvars['tools'].ansible_host }}:8080"
       EVOLUTION_API_KEY: "{{ vault.tools.mcp_evolution_api_key }}"
       EVOLUTION_INSTANCE: "{{ vault.tools.mcp_evolution_instance }}"
       NODE_ENV: production

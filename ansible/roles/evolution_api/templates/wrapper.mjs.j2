@@ -1,0 +1,7 @@
+// Anti-ban wrapper for Evolution API (ESM)
+// baileys-antiban-evolution is ESM-only, so we import it first,
+// then use createRequire to load Evolution's CJS main
+import 'baileys-antiban-evolution';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+require('./dist/main.js');

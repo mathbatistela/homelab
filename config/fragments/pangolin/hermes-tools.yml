@@ -1,0 +1,19 @@
+pangolin_fragment_resources:
+  hermes-tools:
+    name: hermes-tools
+    protocol: http
+    full-domain: "hermes-tools.{{ pangolin_base_domain }}"
+    auth:
+      sso-enabled: false
+    targets:
+      - site: "{{ pangolin_site_nice_id }}"
+        hostname: "{{ hostvars['tools'].ansible_host }}"
+        port: 8092
+        method: http
+        healthcheck:
+          hostname: "{{ hostvars['tools'].ansible_host }}"
+          port: 8092
+          enabled: true
+          path: /api/health
+          scheme: http
+          interval: 5

@@ -1,0 +1,17 @@
+traefik_fragment_services:
+  - filename: hermes-tools.yml
+    content: |
+      http:
+        routers:
+          hermes-tools:
+            rule: "Host(`hermes-tools.{{ traefik_local_domain }}`)"
+            entryPoints:
+              - https
+            service: hermes-tools-service
+            tls:
+              certResolver: {{ traefik_cert_resolver_name }}
+        services:
+          hermes-tools-service:
+            loadBalancer:
+              servers:
+                - url: "http://{{ hostvars['tools'].ansible_host }}:8092"

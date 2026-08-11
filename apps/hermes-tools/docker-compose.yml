@@ -1,0 +1,23 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8092:8092"
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - ALLOWED_USER_IDS=${ALLOWED_USER_IDS:-}
+      - HF_TOKEN=${HF_TOKEN:-}
+      - MCP_API_KEY=${MCP_API_KEY:-dev-local-key}
+      - SAM_MODEL_PATH=/app/models/sam_vit_b_01ec64.pth
+      - SAM_MODEL_TYPE=vit_b
+      - SAM_DEVICE=cpu
+      - UPLOAD_DIR=/app/uploads
+      - MINI_APP_URL=http://localhost:8092/
+    volumes:
+      - uploads_data:/app/uploads
+      - hf_cache:/app/hf-cache
+    restart: unless-stopped
+
+volumes:
+  uploads_data:
+  hf_cache:

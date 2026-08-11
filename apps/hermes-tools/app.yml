@@ -1,0 +1,31 @@
+app:
+  name: hermes-tools
+  description: Plataforma de ferramentas de IA (remoção de fundo, etc.) com API REST, servidor MCP e Mini App Telegram
+  version: 0.1.0
+
+  services:
+    app:
+      type: backend
+      port: 8092
+      image:
+        name: hermes-tools
+        tag: latest
+      healthcheck:
+        path: /api/health
+        interval: 30s
+
+  homelab:
+    host: tools
+    category: productivity
+
+    exposure:
+      local:
+        enabled: true
+        subdomain: hermes-tools
+      public:
+        enabled: true
+        subdomain: hermes-tools
+
+    resources:
+      memory: 4G
+      cpus: 2.0

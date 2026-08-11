@@ -48,3 +48,4 @@ ansible/.omc/
 terraform/home/.omc/
 .sisyphus/
 logs/
+apps/hermes-tools/frontend/node_modules/

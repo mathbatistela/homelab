@@ -8,6 +8,16 @@
     - actual_budget
     - portainer
     - evolution_api
+    - role: hermes_miniapp
+      vars:
+        telegram_bot_token: "{{ vault.tools.telegram_bot_token }}"
+        allowed_user_ids: "{{ vault.tools.miniapp_allowed_user_ids }}"
+    - role: hermes_tools
+      vars:
+        hermes_tools_telegram_bot_token: "{{ vault.tools.telegram_bot_token }}"
+        hermes_tools_allowed_user_ids: "{{ vault.tools.miniapp_allowed_user_ids }}"
+        hermes_tools_hf_token: "{{ vault.tools.hermes_tools_hf_token }}"
+        hermes_tools_mcp_api_key: "{{ vault.tools.hermes_tools_mcp_api_key }}"
     - role: databasus
       tags: databasus_install
     - role: deploy_webhook

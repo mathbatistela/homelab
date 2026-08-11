@@ -1,0 +1,39 @@
+---
+- name: Ensure hermes-tools compose directory exists
+  ansible.builtin.file:
+    path: "{{ hermes_tools_compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# Reuses the GHCR credentials already set up for deploy_webhook (host_vars/tools/deploy_apps.yml,
+# sourced from vault.tools.deploy_webhook_ghcr_token) — no separate vault key needed for this role.
+- name: Log in to GHCR to pull the hermes-tools image
+  community.docker.docker_login:
+    registry_url: ghcr.io
+    username: "{{ hermes_tools_ghcr_user }}"
+    password: "{{ deploy_webhook_ghcr_token }}"
+  no_log: true
+
+- name: Copy docker-compose file for hermes-tools
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ hermes_tools_compose_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Copy .env file for hermes-tools
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ hermes_tools_compose_dir }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Deploy hermes-tools using docker-compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ hermes_tools_compose_dir }}"
+    state: present
+    pull: policy

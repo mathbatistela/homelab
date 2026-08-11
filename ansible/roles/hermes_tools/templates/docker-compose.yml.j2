@@ -1,0 +1,26 @@
+version: "3.8"
+services:
+  hermes-tools:
+    image: {{ hermes_tools_image }}
+    container_name: hermes-tools
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN={{ hermes_tools_telegram_bot_token }}
+      - ALLOWED_USER_IDS={{ hermes_tools_allowed_user_ids | join(',') }}
+      - HF_TOKEN={{ hermes_tools_hf_token }}
+      - MCP_API_KEY={{ hermes_tools_mcp_api_key }}
+      - MCP_ALLOWED_HOSTS={{ hermes_tools_mcp_allowed_hosts }}
+      - SAM_MODEL_PATH=/app/models/sam_vit_b_01ec64.pth
+      - SAM_MODEL_TYPE=vit_b
+      - SAM_DEVICE=cpu
+      - UPLOAD_DIR=/app/uploads
+      - MINI_APP_URL={{ hermes_tools_mini_app_url }}
+    ports:
+      - "{{ hermes_tools_port }}:8092"
+    volumes:
+      - uploads_data:/app/uploads
+      - hf_cache:/app/hf-cache
+
+volumes:
+  uploads_data:
+  hf_cache:

@@ -1,0 +1,12 @@
+---
+hermes_tools_compose_dir: /opt/hermes-tools
+hermes_tools_port: 8092
+hermes_tools_image: "ghcr.io/mathbatistela/homelab/hermes-tools:latest"
+hermes_tools_ghcr_user: mathbatistela
+
+hermes_tools_telegram_bot_token: ""
+hermes_tools_allowed_user_ids: []
+hermes_tools_hf_token: ""
+hermes_tools_mcp_api_key: ""
+hermes_tools_mcp_allowed_hosts: "hermes-tools.{{ local_domain }},hermes-tools.{{ base_domain }},localhost,127.0.0.1"
+hermes_tools_mini_app_url: "https://hermes-tools.{{ base_domain }}/"

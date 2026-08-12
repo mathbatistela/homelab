@@ -13,12 +13,14 @@ try:
 except ImportError:
     _YAML_AVAILABLE = False
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from lib import app_manifest  # noqa: E402
+from lib.app_manifest import REQUIRED_FIELDS, VALID_SERVICE_TYPES  # noqa: E402,F401
+
 ROOT = Path(__file__).resolve().parent.parent
 APPS_DIR = ROOT / "apps"
 TEMPLATE_DIR = APPS_DIR / ".template"
 
-REQUIRED_FIELDS = ["name", "description", "version", "services", "homelab"]
-VALID_SERVICE_TYPES = {"frontend", "backend", "worker", "proxy"}
 VALID_HOSTS = None
 
 
@@ -57,66 +59,58 @@ def _load_app_config(app_dir: Path) -> dict:
     return data.get("app", {})
 
 
+def _format_finding(app_dir: Path, finding: app_manifest.Finding) -> str:
+    """Render a shared Finding in this CLI's wording."""
+    app = app_dir.name
+    code = finding.code
+
+    if code == app_manifest.MISSING_FIELD:
+        return f"{app}/app.yml: missing required field 'app.{finding['field']}'"
+    if code == app_manifest.SERVICES_NOT_MAPPING:
+        return f"{app}/app.yml: 'app.services' must be a non-empty mapping"
+    if code == app_manifest.SERVICE_NOT_MAPPING:
+        return f"{app}/app.yml: service '{finding['service']}' must be a mapping"
+    if code == app_manifest.SERVICE_MISSING_PORT:
+        return f"{app}/app.yml: service '{finding['service']}' missing 'port'"
+    if code == app_manifest.SERVICE_UNKNOWN_TYPE:
+        return (
+            f"{app}/app.yml: service '{finding['service']}' has unknown type "
+            f"'{finding['type']}'"
+            f" (expected one of: {', '.join(sorted(VALID_SERVICE_TYPES))})"
+        )
+    if code == app_manifest.HOST_NOT_IN_NETWORK:
+        return (
+            f"{app}/app.yml: 'homelab.host' is '{finding['host']}' "
+            f"but that host is not in config/network.json"
+        )
+    if code == app_manifest.SERVICE_DIR_MISSING:
+        return f"{app}: services/{finding['service']}/ directory not found"
+    if code == app_manifest.SERVICE_DOCKERFILE_MISSING:
+        return f"{app}: services/{finding['service']}/Dockerfile not found"
+    if code == app_manifest.NO_DOCKERFILE:
+        return f"{app}: no Dockerfile found (expected at root or under services/)"
+    return f"{app}/app.yml: {code} {finding.data}"
+
+
 def _validate_app(app_dir: Path, strict: bool = False) -> list[str]:
-    issues: list[str] = []
     app_yml = app_dir / "app.yml"
 
     if not app_yml.exists():
-        issues.append(f"{app_dir.name}: missing app.yml")
-        return issues
+        return [f"{app_dir.name}: missing app.yml"]
 
     data = _load_yaml(app_yml)
     if "app" not in data:
-        issues.append(f"{app_dir.name}/app.yml: missing top-level 'app' key")
-        return issues
+        return [f"{app_dir.name}/app.yml: missing top-level 'app' key"]
 
     cfg = data["app"]
 
-    for field in REQUIRED_FIELDS:
-        if field not in cfg:
-            issues.append(f"{app_dir.name}/app.yml: missing required field 'app.{field}'")
-
-    services = cfg.get("services", {})
-    if not isinstance(services, dict) or not services:
-        issues.append(f"{app_dir.name}/app.yml: 'app.services' must be a non-empty mapping")
-    else:
-        for svc_name, svc in services.items():
-            if not isinstance(svc, dict):
-                issues.append(f"{app_dir.name}/app.yml: service '{svc_name}' must be a mapping")
-                continue
-            if "port" not in svc:
-                issues.append(f"{app_dir.name}/app.yml: service '{svc_name}' missing 'port'")
-            if "type" in svc and svc["type"] not in VALID_SERVICE_TYPES:
-                issues.append(
-                    f"{app_dir.name}/app.yml: service '{svc_name}' has unknown type '{svc['type']}'"
-                    f" (expected one of: {', '.join(sorted(VALID_SERVICE_TYPES))})"
-                )
-
-    homelab = cfg.get("homelab", {})
-    if isinstance(homelab, dict):
-        host = homelab.get("host")
-        if host:
-            valid_hosts = _load_network_hosts()
-            if valid_hosts and host not in valid_hosts:
-                issues.append(
-                    f"{app_dir.name}/app.yml: 'homelab.host' is '{host}' "
-                    f"but that host is not in config/network.json"
-                )
-
+    findings = app_manifest.check_app_config(cfg, valid_hosts=_load_network_hosts())
     if strict:
-        services_subdir = app_dir / "services"
-        single_dockerfile = app_dir / "Dockerfile"
-        if services_subdir.is_dir():
-            for svc_name in (cfg.get("services") or {}):
-                svc_dir = services_subdir / svc_name
-                if not svc_dir.is_dir():
-                    issues.append(f"{app_dir.name}: services/{svc_name}/ directory not found")
-                elif not (svc_dir / "Dockerfile").exists():
-                    issues.append(f"{app_dir.name}: services/{svc_name}/Dockerfile not found")
-        elif not single_dockerfile.exists():
-            issues.append(f"{app_dir.name}: no Dockerfile found (expected at root or under services/)")
+        # Dockerfile presence is checked only here; validate_sources.py has
+        # never done it. See lib/app_manifest.check_app_layout.
+        findings.extend(app_manifest.check_app_layout(app_dir, cfg))
 
-    return issues
+    return [_format_finding(app_dir, f) for f in findings]
 
 
 def cmd_list(args: argparse.Namespace) -> int:
@@ -195,6 +189,12 @@ def cmd_create(args: argparse.Namespace) -> int:
         (dest / "services" / "api" / "Dockerfile").write_text(
             (TEMPLATE_DIR / "Dockerfile").read_text()
         )
+        # The template compose builds a single service from the root Dockerfile
+        # we just deleted — replace it with one service per services/ dir.
+        (dest / "docker-compose.yml").write_text(MULTI_COMPOSE)
+        # Keep app.yml in step with the layout, otherwise `validate --strict`
+        # fails on the app we just scaffolded (it looks for services/<name>/).
+        app_yml_path.write_text(_multi_service_app_yml(app_yml_path.read_text(), name))
         print(f"✓  Created multi-service app at apps/{name}/")
         print(f"   Edit apps/{name}/app.yml, then add your services under apps/{name}/services/")
     else:
@@ -204,6 +204,111 @@ def cmd_create(args: argparse.Namespace) -> int:
         print(f"   Edit apps/{name}/app.yml and apps/{name}/Dockerfile")
 
     return 0
+
+
+# Mirrors apps/adhd-board/docker-compose.yml — the working multi-service app in
+# this repo. Each service builds from its own services/<name>/Dockerfile.
+MULTI_COMPOSE = """services:
+  frontend:
+    build:
+      context: services/frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:5000
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  api:
+    build:
+      context: services/api
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - FRONTEND_URL=http://localhost:3000
+    restart: unless-stopped
+"""
+
+# Replaces the template's single `app:` service. Ports match MULTI_COMPOSE.
+_MULTI_SERVICES_BLOCK = """  services:
+    frontend:
+      # "frontend" | "backend" | "worker" | "proxy"
+      type: frontend
+      port: 3000
+      image:
+        # Final image name: ghcr.io/<owner>/<name>-<service>
+        name: {name}-frontend
+        tag: latest
+      healthcheck:
+        path: /
+        interval: 30s
+
+    api:
+      type: backend
+      port: 5000
+      image:
+        name: {name}-api
+        tag: latest
+      healthcheck:
+        path: /health
+        interval: 30s
+"""
+
+
+def _multi_service_app_yml(content: str, name: str) -> str:
+    """Swap app.yml's single-service block for a frontend+api pair.
+
+    Bounds come from the parsed YAML (key nodes carry source line numbers), not
+    from pattern-matching the template text, and stop short of the comment block
+    introducing the next key — so every surrounding comment survives.
+    """
+    if not _YAML_AVAILABLE:
+        return content
+
+    try:
+        root = yaml.compose(content)
+    except yaml.YAMLError:
+        return content
+
+    def _mapping_items(node):
+        return node.value if isinstance(node, yaml.MappingNode) else []
+
+    app_node = next(
+        (v for k, v in _mapping_items(root)
+         if isinstance(k, yaml.ScalarNode) and k.value == "app"),
+        None,
+    )
+    if app_node is None:
+        return content
+
+    items = _mapping_items(app_node)
+    index = next(
+        (i for i, (k, _) in enumerate(items)
+         if isinstance(k, yaml.ScalarNode) and k.value == "services"),
+        None,
+    )
+    if index is None:
+        return content
+
+    lines = content.splitlines(keepends=True)
+    start_line = items[index][0].start_mark.line
+
+    if index + 1 < len(items):
+        end_line = items[index + 1][0].start_mark.line
+        # Leave any comment/blank lines that introduce the following key.
+        while end_line - 1 > start_line:
+            stripped = lines[end_line - 1].strip()
+            if stripped and not stripped.startswith("#"):
+                break
+            end_line -= 1
+    else:
+        end_line = len(lines)
+
+    block = _MULTI_SERVICES_BLOCK.format(name=name)
+    return "".join(lines[:start_line]) + block + "".join(lines[end_line:])
 
 
 def _prompt_bool(question: str, default: bool) -> bool:

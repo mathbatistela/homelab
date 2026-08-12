@@ -14,12 +14,75 @@ This will:
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SERVICES_DIR = ROOT / "config" / "services"
 SCHEMA_PATH = ROOT / "config" / "services" / "schema.json"
+
+# --name/--group become path components, so they must be single safe segments.
+SLUG_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._-]*$")
+
+
+def _check_slug(label: str, value: str) -> str:
+    """Reject values that could escape config/services/ or break the filename."""
+    if not SLUG_RE.match(value):
+        print(
+            f"error: {label} must match {SLUG_RE.pattern} (got {value!r})",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return value
+
+
+def build_manifest(args, group: str, subdomain: str, role: str) -> dict:
+    """Build the manifest document. Values go through yaml.safe_dump, never
+    string interpolation, so a name/display_name containing ':' or a newline
+    cannot inject extra keys."""
+    if args.public:
+        public = {
+            "enabled": True,
+            "mode": "generated",
+            "subdomain": subdomain,
+            "protocol": args.protocol,
+        }
+    else:
+        public = {"enabled": False, "mode": "generated"}
+
+    return {
+        "service_manifest": {
+            "name": args.name,
+            "display_name": args.display_name,
+            "host": args.host,
+            "service": {"port": args.port, "protocol": args.protocol},
+            "exposure": {
+                "local": {
+                    "enabled": True,
+                    "mode": "generated",
+                    "template": "simple-http",
+                    "subdomain": subdomain,
+                },
+                "public": public,
+            },
+            "auth": {"sso": args.sso},
+            "deployment": {"owner": "role", "role": role},
+        }
+    }
+
+
+def dump_manifest(manifest: dict) -> str:
+    import yaml
+
+    return yaml.safe_dump(
+        manifest,
+        sort_keys=False,
+        default_flow_style=False,
+        allow_unicode=True,
+        indent=2,
+        width=4096,
+    )
 
 
 def validate_manifest(path: Path) -> bool:
@@ -62,7 +125,8 @@ def main() -> int:
     parser.add_argument("--role", default=None, help="Ansible role name (default: --name)")
     args = parser.parse_args()
 
-    group = args.group or args.host
+    _check_slug("--name", args.name)
+    group = _check_slug("--group", args.group or args.host)
     subdomain = args.subdomain or args.name
     role = args.role or args.name.replace("-", "_")
     services_group_dir = SERVICES_DIR / group
@@ -73,42 +137,11 @@ def main() -> int:
         print(f"Service manifest already exists: {path.relative_to(ROOT)}")
         return 1
 
-    local_block = f"""    local:
-      enabled: true
-      mode: generated
-      template: simple-http
-      subdomain: {subdomain}"""
-
-    public_block = ""
-    if args.public:
-        public_block = f"""
-    public:
-      enabled: true
-      mode: generated
-      subdomain: {subdomain}
-      protocol: {args.protocol}"""
-    else:
-        public_block = f"""
-    public:
-      enabled: false
-      mode: generated"""
-
-    content = f"""service_manifest:
-  name: {args.name}
-  display_name: {args.display_name}
-  host: {args.host}
-  service:
-    port: {args.port}
-    protocol: {args.protocol}
-  exposure:
-{local_block}
-{public_block}
-  auth:
-    sso: {str(args.sso).lower()}
-  deployment:
-    owner: role
-    role: {role}
-"""
+    try:
+        content = dump_manifest(build_manifest(args, group, subdomain, role))
+    except ImportError as exc:
+        print(f"Missing dependency: {exc}", file=sys.stderr)
+        return 1
 
     path.write_text(content)
     print(f"Created {path.relative_to(ROOT)}")

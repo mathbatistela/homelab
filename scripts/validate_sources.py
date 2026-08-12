@@ -30,6 +30,9 @@ try:
 except ImportError:
     yaml = None  # type: ignore
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from lib import app_manifest  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 
 errors: list[str] = []
@@ -144,40 +147,41 @@ def parse_app_configs() -> list[dict]:
 
 
 def check_app_configs(app_configs: list[dict], all_network_hosts: set[str]):
-    """Validate app.yml configs for schema and host references."""
-    required_fields = ["name", "description", "version", "services", "homelab"]
-    valid_service_types = {"frontend", "backend", "worker", "proxy"}
+    """Validate app.yml configs for schema and host references.
 
+    The rules live in scripts/lib/app_manifest.py, shared with
+    `scripts/homelab-apps validate`. This function only decides the wording and
+    the severity (unknown service type stays a warning here, as it always has;
+    the CLI treats it as an issue). Dockerfile presence is deliberately not
+    checked here — that has only ever been a `homelab-apps --strict` check.
+    """
     for cfg in app_configs:
         path = cfg["path"]
         name = cfg.get("name", path)
 
-        for field in required_fields:
-            if field not in cfg:
-                errors.append(f"{path}: app '{name}' missing required field '{field}'")
-
-        services = cfg.get("services", {})
-        if not isinstance(services, dict) or not services:
-            errors.append(f"{path}: app '{name}' services must be a non-empty mapping")
-        else:
-            for svc_name, svc in services.items():
-                if not isinstance(svc, dict):
-                    errors.append(f"{path}: service '{svc_name}' must be a mapping")
-                    continue
-                if "port" not in svc:
-                    errors.append(f"{path}: service '{svc_name}' missing 'port'")
-                svc_type = svc.get("type")
-                if svc_type and svc_type not in valid_service_types:
-                    warnings.append(
-                        f"{path}: service '{svc_name}' has unknown type '{svc_type}'"
-                    )
-
-        homelab = cfg.get("homelab", {})
-        if isinstance(homelab, dict):
-            host = homelab.get("host")
-            if host and all_network_hosts and host not in all_network_hosts:
+        for finding in app_manifest.check_app_config(cfg, valid_hosts=all_network_hosts):
+            code = finding.code
+            if code == app_manifest.MISSING_FIELD:
                 errors.append(
-                    f"{path}: app '{name}' references host '{host}' "
+                    f"{path}: app '{name}' missing required field '{finding['field']}'"
+                )
+            elif code == app_manifest.SERVICES_NOT_MAPPING:
+                errors.append(f"{path}: app '{name}' services must be a non-empty mapping")
+            elif code == app_manifest.SERVICE_NOT_MAPPING:
+                errors.append(f"{path}: service '{finding['service']}' must be a mapping")
+            elif code == app_manifest.SERVICE_MISSING_PORT:
+                errors.append(f"{path}: service '{finding['service']}' missing 'port'")
+            elif code == app_manifest.SERVICE_UNKNOWN_TYPE:
+                # A falsy type (`type:` with no value) has never been reported
+                # here, unlike in homelab-apps. Kept as-is, not unified.
+                if finding["type"]:
+                    warnings.append(
+                        f"{path}: service '{finding['service']}' has unknown type "
+                        f"'{finding['type']}'"
+                    )
+            elif code == app_manifest.HOST_NOT_IN_NETWORK:
+                errors.append(
+                    f"{path}: app '{name}' references host '{finding['host']}' "
                     f"not found in config/network.json"
                 )
 

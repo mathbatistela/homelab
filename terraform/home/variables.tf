@@ -17,7 +17,7 @@ variable "pm_password" {
 variable "pm_tls_insecure" {
   description = "Set to true to skip TLS verification (only use in lab/test)."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "vm_storage" {
@@ -36,6 +36,11 @@ variable "lxc_root_password" {
   description = "Root password for the LXC containers (must be at least 8 characters long)."
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.lxc_root_password) >= 8
+    error_message = "lxc_root_password must be at least 8 characters long."
+  }
 }
 
 variable "ssh_pub_key_path" {

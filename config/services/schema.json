@@ -76,7 +76,27 @@
               "type": "string",
               "description": "App directory name (when owner=app)"
             }
-          }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "owner": {
+                    "const": "role"
+                  }
+                },
+                "required": ["owner"]
+              },
+              "then": {
+                "required": ["role"],
+                "properties": {
+                  "role": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
         }
       }
     }

@@ -4,21 +4,21 @@ traefik_fragment_services:
       http:
         routers:
           mcp-actual-budget-direct:
-            rule: "Host(`mcp.local.batistela.tech`) && PathPrefix(`/actual-budget`)"
+            rule: "Host(`mcp.{{ traefik_local_domain }}`) && PathPrefix(`/actual-budget`)"
             entryPoints:
               - https
             service: mcp-actual-budget-service
             tls:
-              certResolver: cloudflareLocal
+              certResolver: {{ traefik_cert_resolver_name }}
             middlewares:
               - strip-mcp-actual-budget
           mcp-evolution-direct:
-            rule: "Host(`mcp.local.batistela.tech`) && PathPrefix(`/evolution`)"
+            rule: "Host(`mcp.{{ traefik_local_domain }}`) && PathPrefix(`/evolution`)"
             entryPoints:
               - https
             service: mcp-evolution-service
             tls:
-              certResolver: cloudflareLocal
+              certResolver: {{ traefik_cert_resolver_name }}
         middlewares:
           strip-mcp-actual-budget:
             stripPrefix:
@@ -28,8 +28,8 @@ traefik_fragment_services:
           mcp-actual-budget-service:
             loadBalancer:
               servers:
-                - url: "http://192.168.1.112:3010"
+                - url: "http://{{ hostvars['ai-tools'].ansible_host }}:3010"
           mcp-evolution-service:
             loadBalancer:
               servers:
-                - url: "http://192.168.1.112:3020"
+                - url: "http://{{ hostvars['ai-tools'].ansible_host }}:3020"

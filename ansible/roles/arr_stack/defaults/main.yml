@@ -6,3 +6,16 @@ arr_stack_compose_dir: "/opt/media_server"
 arr_stack_lazydocker_install_dir: "/usr/local/bin"
 arr_stack_puid: 0
 arr_stack_pgid: 0
+
+# Image versions - pinned to the releases `:latest` resolved to at pin time.
+# Bump deliberately; Diun watches these containers for upstream releases.
+arr_stack_prowlarr_version: "2.5.2"
+arr_stack_sonarr_version: "4.0.19"
+arr_stack_radarr_version: "6.3.0"
+arr_stack_bazarr_version: "1.6.0"
+# recyclarr publishes no `latest` tag on GHCR — only version tags and `edge`.
+arr_stack_recyclarr_version: "8.7.1"
+arr_stack_jellyfin_version: "10.11.11"
+arr_stack_qbittorrent_version: "5.2.3"
+arr_stack_flaresolverr_version: "v3.5.0"
+arr_stack_kavita_version: "0.9.0"

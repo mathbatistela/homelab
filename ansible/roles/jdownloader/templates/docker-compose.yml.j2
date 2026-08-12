@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   jdownloader:
-    image: jlesage/jdownloader-2:latest
+    image: jlesage/jdownloader-2:{{ jdownloader_version }}
     container_name: jdownloader
     restart: unless-stopped
     ports:

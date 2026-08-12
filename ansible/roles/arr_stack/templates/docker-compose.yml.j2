@@ -3,7 +3,7 @@ version: "3.8"
 services:
 
   prowlarr:
-    image: linuxserver/prowlarr:latest
+    image: linuxserver/prowlarr:{{ arr_stack_prowlarr_version }}
     container_name: prowlarr
     hostname: prowlarr
     volumes:
@@ -17,7 +17,7 @@ services:
       - .env
 
   sonarr:
-    image: linuxserver/sonarr:latest
+    image: linuxserver/sonarr:{{ arr_stack_sonarr_version }}
     container_name: sonarr
     hostname: sonarr
     volumes:
@@ -31,7 +31,7 @@ services:
       - .env
 
   radarr:
-    image: linuxserver/radarr:latest
+    image: linuxserver/radarr:{{ arr_stack_radarr_version }}
     container_name: radarr
     hostname: radarr
     volumes:
@@ -45,7 +45,7 @@ services:
       - .env
 
   bazarr:
-    image: linuxserver/bazarr:latest
+    image: linuxserver/bazarr:{{ arr_stack_bazarr_version }}
     container_name: bazarr
     hostname: bazarr
     volumes:
@@ -59,7 +59,7 @@ services:
       - .env
 
   recyclarr:
-    image: ghcr.io/recyclarr/recyclarr:latest
+    image: ghcr.io/recyclarr/recyclarr:{{ arr_stack_recyclarr_version }}
     container_name: recyclarr
     hostname: recyclarr
     user: 0:0
@@ -68,7 +68,7 @@ services:
     restart: unless-stopped
 
   jellyfin:
-    image: linuxserver/jellyfin:latest
+    image: linuxserver/jellyfin:{{ arr_stack_jellyfin_version }}
     container_name: jellyfin
     hostname: jellyfin
     ports:
@@ -81,7 +81,7 @@ services:
       - .env
 
   qbittorrent:
-    image: linuxserver/qbittorrent:latest
+    image: linuxserver/qbittorrent:{{ arr_stack_qbittorrent_version }}
     container_name: qbittorrent
     hostname: qbittorrent
     restart: unless-stopped
@@ -103,7 +103,7 @@ services:
       - .env
 
   flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:latest
+    image: ghcr.io/flaresolverr/flaresolverr:{{ arr_stack_flaresolverr_version }}
     container_name: flaresolverr
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-info}
@@ -117,7 +117,7 @@ services:
       - .env
 
   kavita:
-    image: linuxserver/kavita:latest
+    image: linuxserver/kavita:{{ arr_stack_kavita_version }}
     container_name: kavita
     hostname: kavita
     volumes:

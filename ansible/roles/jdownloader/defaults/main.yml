@@ -6,3 +6,6 @@ jdownloader_webui_port: "5800"
 jdownloader_myjd_port: "3129"
 jdownloader_puid: "0"
 jdownloader_pgid: "0"
+
+# Image version - pinned to the release `:latest` resolved to at pin time.
+jdownloader_version: "v26.08.1"

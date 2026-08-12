@@ -6,3 +6,9 @@ aria2_rpc_port: "6800"
 aria2_webui_port: "6880"
 aria2_puid: "0"
 aria2_pgid: "0"
+
+# Image versions - pinned to the releases `:latest` resolved to at pin time.
+aria2_version: "202209060423"
+# p3terx/ariang publishes no versioned tags (only `latest` and `test`), so this
+# stays floating until upstream starts tagging releases.
+aria2_ariang_version: "latest"

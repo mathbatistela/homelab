@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   aria2:
-    image: p3terx/aria2-pro:latest
+    image: p3terx/aria2-pro:{{ aria2_version }}
     container_name: aria2
     restart: unless-stopped
     ports:
@@ -27,7 +27,7 @@ services:
         max-file: "3"
 
   ariang:
-    image: p3terx/ariang:latest
+    image: p3terx/ariang:{{ aria2_ariang_version }}
     container_name: ariang
     restart: unless-stopped
     ports:

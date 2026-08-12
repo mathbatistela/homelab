@@ -27,6 +27,11 @@ class Settings(BaseSettings):
 
     mini_app_url: str = "https://hermes-tools.batistela.tech/"
 
+    # Extra hosts (comma-separated) accepted as image_url sources on top of the
+    # built-in allowlist (Telegram + this app's own MINI_APP_URL host). A leading
+    # dot matches subdomains, e.g. ".example.com".
+    image_url_extra_hosts: str = ""
+
     @property
     def allowed_user_id_set(self) -> set[int]:
         result: set[int] = set()
@@ -42,6 +47,10 @@ class Settings(BaseSettings):
     @property
     def mcp_allowed_hosts_list(self) -> list[str]:
         return [h.strip() for h in self.mcp_allowed_hosts.split(",") if h.strip()]
+
+    @property
+    def image_url_extra_hosts_list(self) -> list[str]:
+        return [h.strip().lower() for h in self.image_url_extra_hosts.split(",") if h.strip()]
 
 
 @lru_cache

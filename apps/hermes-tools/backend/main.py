@@ -15,7 +15,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import mcp_server
-from auth import require_telegram_user
+from auth import (
+    require_api_key_or_telegram_user,
+    require_telegram_user,
+    warn_if_auth_misconfigured,
+)
 from config import get_settings
 from tools import get_tool, list_sets, list_tools
 from tools.design.remove_bg_rmbg import remove_background as rmbg_remove_background
@@ -31,6 +35,7 @@ settings = get_settings()
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
+    warn_if_auth_misconfigured()
     async with mcp_server.mcp.session_manager.run():
         yield
 
@@ -129,8 +134,16 @@ async def process_tool(
 
 
 @app.post("/api/remove-bg/upload")
-async def remove_bg_upload(file: UploadFile = File(...)):
-    """Bot-only: upload an image file, get an RGBA PNG back. No auth required."""
+async def remove_bg_upload(
+    file: UploadFile = File(...),
+    _auth: dict = Depends(require_api_key_or_telegram_user),
+):
+    """Upload an image file, get an RGBA PNG back.
+
+    Runs GPU/CPU-heavy inference, so it requires a credential: the MCP API key
+    (X-API-Key / Bearer — how the bot calls in) or Telegram initData in the
+    X-Telegram-Init-Data header (how the Mini App calls in).
+    """
     job_id = uuid.uuid4().hex[:12]
     ext = (file.filename or "img.jpg").rsplit(".", 1)[-1] or "jpg"
     local_path = settings.upload_dir / f"{job_id}.{ext}"

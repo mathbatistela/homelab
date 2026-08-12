@@ -7,7 +7,11 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - ALLOWED_USER_IDS=${ALLOWED_USER_IDS:-}
       - HF_TOKEN=${HF_TOKEN:-}
-      - MCP_API_KEY=${MCP_API_KEY:-dev-local-key}
+      # Required — no default on purpose. An empty/absent MCP_API_KEY makes
+      # check_mcp_api_key() reject every /mcp request, so a silent fallback
+      # would be a checked-in credential that actually works. `:?` makes
+      # `docker compose up` fail fast instead.
+      - MCP_API_KEY=${MCP_API_KEY:?MCP_API_KEY must be set (export it or put it in a local .env)}
       - SAM_MODEL_PATH=/app/models/sam_vit_b_01ec64.pth
       - SAM_MODEL_TYPE=vit_b
       - SAM_DEVICE=cpu

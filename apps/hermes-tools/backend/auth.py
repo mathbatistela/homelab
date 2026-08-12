@@ -67,6 +67,16 @@ def validate_init_data(init_data: str) -> dict:
         )
         if settings.telegram_auth_enforce:
             raise HTTPException(status_code=401, detail="Hash inválido")
+        # Fail-open path: TELEGRAM_AUTH_ENFORCE=false accepts initData whose
+        # HMAC does not match, so the caller-supplied user_id (and therefore
+        # ALLOWED_USER_IDS) is forgeable. Never silently — shout on every
+        # request that takes this branch.
+        logger.error(
+            "SECURITY: accepting UNVERIFIED Telegram initData because "
+            "TELEGRAM_AUTH_ENFORCE=false. The user id in this request is "
+            "forgeable and ALLOWED_USER_IDS provides no protection. "
+            "Set TELEGRAM_AUTH_ENFORCE=true."
+        )
 
     if auth_date_raw and abs(time.time() - auth_date_raw) > 86400:
         raise HTTPException(status_code=401, detail="initData expirado")
@@ -108,3 +118,60 @@ def check_mcp_api_key(provided: str) -> bool:
     if not settings.mcp_api_key:
         return False
     return hmac.compare_digest(provided or "", settings.mcp_api_key)
+
+
+def extract_api_key(request: Request) -> str:
+    """Read the MCP API key from X-API-Key or an Authorization: Bearer header."""
+    provided = request.headers.get("x-api-key", "")
+    if not provided:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.lower().startswith("bearer "):
+            provided = auth_header[7:]
+    return provided
+
+
+async def require_api_key_or_telegram_user(request: Request) -> dict:
+    """Auth for endpoints reachable by both the bot and the Mini App.
+
+    Accepts either of the two credentials this backend already uses:
+      * the MCP API key (X-API-Key / Authorization: Bearer) — how the bot calls in
+      * Telegram initData (X-Telegram-Init-Data header) — how the Mini App calls in
+    """
+    provided = extract_api_key(request)
+    if provided and check_mcp_api_key(provided):
+        return {"auth": "api_key"}
+
+    init_data = (
+        request.headers.get("X-Telegram-Init-Data")
+        or request.headers.get("tg-init-data")
+    )
+    if not init_data:
+        raise HTTPException(
+            status_code=401,
+            detail="Credencial ausente (X-API-Key ou X-Telegram-Init-Data)",
+        )
+
+    data = validate_init_data(init_data)
+    user_id = data.get("user", {}).get("id")
+
+    settings = get_settings()
+    allowed = settings.allowed_user_id_set
+    if allowed and user_id not in allowed:
+        raise HTTPException(status_code=403, detail="Usuário não autorizado")
+
+    return data
+
+
+def warn_if_auth_misconfigured() -> None:
+    """Emit a startup warning for fail-open / missing-credential configurations."""
+    settings = get_settings()
+    if not settings.telegram_auth_enforce:
+        logger.error(
+            "SECURITY: TELEGRAM_AUTH_ENFORCE=false — Telegram initData hashes are "
+            "checked but NOT enforced. Forged initData (including an arbitrary "
+            "user_id) will be accepted. Only use this for local development."
+        )
+    if not settings.mcp_api_key:
+        logger.warning(
+            "MCP_API_KEY is empty — /mcp and API-key auth will reject every request."
+        )

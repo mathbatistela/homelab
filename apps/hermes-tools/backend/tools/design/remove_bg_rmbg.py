@@ -8,7 +8,6 @@ import logging
 import uuid
 from pathlib import Path
 
-import httpx
 import torch
 from PIL import Image
 from pydantic import BaseModel, Field
@@ -16,6 +15,7 @@ from torchvision import transforms
 from transformers import AutoModelForImageSegmentation
 
 from config import get_settings
+from url_guard import UrlNotAllowed, fetch_allowed_url
 from .base import BaseTool, ToolResult
 
 logger = logging.getLogger("tool.remove_bg_rmbg")
@@ -95,10 +95,13 @@ class RemoveBgRmbgTool(BaseTool):
         local_path = settings.upload_dir / f"{job_id}.jpg"
 
         try:
-            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-                resp = await client.get(parsed.image_url)
-                resp.raise_for_status()
-                local_path.write_bytes(resp.content)
+            # image_url is fully caller-controlled — fetch_allowed_url enforces
+            # the host allowlist and blocks internal addresses (SSRF guard).
+            resp = await fetch_allowed_url(parsed.image_url, timeout=30.0)
+            local_path.write_bytes(resp.content)
+        except UrlNotAllowed as e:
+            logger.warning("Blocked image_url %r: %s", parsed.image_url, e)
+            return ToolResult(success=False, error=f"URL de imagem não permitida: {e}")
         except Exception as e:
             return ToolResult(success=False, error=f"Falha ao baixar imagem: {e}")
 

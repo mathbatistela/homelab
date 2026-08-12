@@ -35,11 +35,23 @@ export async function processTool(
   })
 }
 
-/** Calls the no-auth upload endpoint — RMBG-2.0, used by both the web UI and the bot. */
-export async function uploadRemoveBg(file: File): Promise<Blob> {
+/** Calls the upload endpoint — RMBG-2.0, used by both the Mini App and the bot.
+ *
+ * The endpoint is authenticated: the Mini App presents Telegram initData, the
+ * bot presents the MCP API key. Outside Telegram there is no credential to
+ * send, so the request is rejected with 401 by design.
+ */
+export async function uploadRemoveBg(file: File, initData?: string): Promise<Blob> {
   const form = new FormData()
   form.append("file", file)
-  const res = await fetch("/api/remove-bg/upload", { method: "POST", body: form })
+  const tgInitData = initData ?? window.Telegram?.WebApp?.initData ?? ""
+  const headers: Record<string, string> = {}
+  if (tgInitData) headers["X-Telegram-Init-Data"] = tgInitData
+  const res = await fetch("/api/remove-bg/upload", {
+    method: "POST",
+    headers,
+    body: form,
+  })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Erro ao processar imagem" }))
     throw new Error(err.detail || `Erro ${res.status}`)

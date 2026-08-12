@@ -129,10 +129,14 @@ play-proxmox: $(VENV)/bin/python3
 
 play-diun: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/diun.yml
-	@$(PYTHON) scripts/log_agent_run.py $$@ done
+	@$(PYTHON) scripts/log_agent_run.py $@ done
 
 play-mailbot: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/mailbot.yml
+	@$(PYTHON) scripts/log_agent_run.py $@ done
+
+play-ai-tools: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/ai-tools.yml
 	@$(PYTHON) scripts/log_agent_run.py $@ done
 
 # ── Ansible dry-run (check mode) ─────────────────────────────────────────────
@@ -175,6 +179,9 @@ dry-run-diun: $(VENV)/bin/python3
 
 dry-run-mailbot: $(VENV)/bin/python3
 	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/mailbot.yml --check --diff
+
+dry-run-ai-tools: $(VENV)/bin/python3
+	cd ansible && ../$(ANSIBLE_PLAYBOOK) -i inventories/local playbooks/vms/ai-tools.yml --check --diff
 
 # ── Terraform ─────────────────────────────────────────────────────────────────
 

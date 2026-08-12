@@ -295,6 +295,7 @@ The vault password file (`vault.auth`) is git-ignored and must exist for Ansible
 | openwebui | 192.168.1.110 | — | Open WebUI (Ollama frontend) — unmanaged, no Terraform resource |
 | hermes | 192.168.1.111 | 111 | Hermes agent + WebUI |
 | ai-tools | 192.168.1.112 | 112 | AI tooling host (Camofox, SearXNG, MCP servers, crw) |
+| mailbot | 192.168.1.113 | 113 | Mailbot agent (no Docker; journald → Loki) |
 | minecraft-be | 192.168.1.115 | 115 | Minecraft Bedrock server |
 | racknerd | 204.152.223.118 | — | Remote VPS (Pangolin tunnel) |
 

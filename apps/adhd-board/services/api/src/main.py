@@ -3,10 +3,14 @@ import uuid
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
+import store
+
 app = Flask(__name__)
 CORS(app, origins=os.environ.get("FRONTEND_URL", "*"))
 
-_tasks: dict[str, dict] = {}
+# Tasks live in SQLite (see store.py) instead of a process-local dict, so they
+# survive restarts and redeploys. DB_PATH must point at a mounted volume.
+store.migrate()
 
 
 @app.get("/health")
@@ -16,7 +20,7 @@ def health():
 
 @app.get("/api/tasks")
 def list_tasks():
-    return jsonify({"tasks": list(_tasks.values())})
+    return jsonify({"tasks": store.all_tasks()})
 
 
 @app.post("/api/tasks")
@@ -25,29 +29,33 @@ def create_task():
     title = (body.get("title") or "").strip()
     if not title:
         return jsonify({"error": "title is required"}), 400
-    task = {"id": str(uuid.uuid4()), "title": title, "done": False}
-    _tasks[task["id"]] = task
+    task = store.insert(str(uuid.uuid4()), title)
     return jsonify({"task": task}), 201
 
 
 @app.patch("/api/tasks/<task_id>")
 def update_task(task_id: str):
-    task = _tasks.get(task_id)
+    task = store.get(task_id)
     if task is None:
         return jsonify({"error": "not found"}), 404
     body = request.get_json(force=True)
-    if "done" in body:
-        task["done"] = bool(body["done"])
+
+    done = bool(body["done"]) if "done" in body else None
+    title = None
     if "title" in body:
-        task["title"] = str(body["title"]).strip() or task["title"]
-    return jsonify({"task": task})
+        # Same semantics as before: a blank title leaves the old one in place.
+        title = str(body["title"]).strip() or task["title"]
+
+    updated = store.update(task_id, title=title, done=done)
+    if updated is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"task": updated})
 
 
 @app.delete("/api/tasks/<task_id>")
 def delete_task(task_id: str):
-    if task_id not in _tasks:
+    if not store.delete(task_id):
         return jsonify({"error": "not found"}), 404
-    del _tasks[task_id]
     return "", 204
 
 

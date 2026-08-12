@@ -28,3 +28,26 @@ hermes_email_smtp_port: 587
 hermes_email_poll_interval: 15
 hermes_email_allowed_users: "{{ admin_email | default('matheus@batistela.tech') }}"
 hermes_email_home_address: "{{ admin_email | default('matheus@batistela.tech') }}"
+
+# Gateway/platform credentials, vault-managed (vault.hermes.*). Previously
+# these lived only in hand-placed .env entries on the hermes VM with no
+# source of truth in the repo; a rebuild would have lost them.
+hermes_telegram_bot_token: "{{ vault.hermes.telegram_bot_token | default('') }}"
+hermes_discord_bot_token: "{{ vault.hermes.discord_bot_token | default('') }}"
+hermes_claudio_discord_bot_token: "{{ vault.hermes.claudio_discord_bot_token | default('') }}"
+hermes_julius_discord_bot_token: "{{ vault.hermes.julius_discord_bot_token | default('') }}"
+hermes_elevenlabs_api_key: "{{ vault.hermes.elevenlabs_api_key | default('') }}"
+hermes_mcp_actual_budget_api_key: "{{ vault.hermes.mcp_actual_budget_api_key | default('') }}"
+hermes_deepseek_api_key: "{{ vault.hermes.deepseek_api_key | default('') }}"
+hermes_actual_budget_token: "{{ vault.hermes.actual_budget_token | default('') }}"
+hermes_discord_webhook_url: "{{ vault.hermes.discord_webhook_url | default('') }}"
+hermes_dashboard_basic_auth_username: "{{ vault.hermes.dashboard_basic_auth_username | default('') }}"
+hermes_dashboard_basic_auth_password: "{{ vault.hermes.dashboard_basic_auth_password | default('') }}"
+hermes_dashboard_basic_auth_secret: "{{ vault.hermes.dashboard_basic_auth_secret | default('') }}"
+
+# Remote-desktop dashboard (previously deployed by hand, not managed by this role)
+hermes_dashboard_host: "0.0.0.0"
+hermes_dashboard_port: 9119
+
+# CloakBrowser auto-launch CDP proxy (previously staged from /tmp by hand)
+cloakbrowser_proxy_enabled: true

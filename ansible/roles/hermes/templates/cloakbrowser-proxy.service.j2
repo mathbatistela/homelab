@@ -1,0 +1,16 @@
+[Unit]
+Description=CloakBrowser Auto-Launch CDP Proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/bin/cloakbrowser-autoproxy.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cloakbrowser-proxy
+
+[Install]
+WantedBy=multi-user.target

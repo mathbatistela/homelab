@@ -8,10 +8,6 @@
     - actual_budget
     - portainer
     - evolution_api
-    - role: hermes_miniapp
-      vars:
-        telegram_bot_token: "{{ vault.tools.telegram_bot_token }}"
-        allowed_user_ids: "{{ vault.tools.miniapp_allowed_user_ids }}"
     - role: hermes_tools
       vars:
         hermes_tools_telegram_bot_token: "{{ vault.tools.telegram_bot_token }}"

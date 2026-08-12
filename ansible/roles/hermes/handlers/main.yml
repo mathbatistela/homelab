@@ -11,6 +11,18 @@
   changed_when: true
   failed_when: false
 
+- name: Restart hermes-dashboard
+  ansible.builtin.systemd:
+    name: hermes-dashboard
+    state: restarted
+    daemon_reload: true
+
+- name: Restart cloakbrowser-proxy
+  ansible.builtin.systemd:
+    name: cloakbrowser-proxy
+    state: restarted
+    daemon_reload: true
+
 - name: Reload systemd
   ansible.builtin.systemd:
     daemon_reload: true

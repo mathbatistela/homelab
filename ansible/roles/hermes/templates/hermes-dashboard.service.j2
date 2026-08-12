@@ -1,0 +1,17 @@
+[Unit]
+Description=Hermes Agent Dashboard (remote desktop access)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile={{ hermes_home }}/.env
+Environment=HERMES_HOME={{ hermes_home }}
+ExecStart={{ hermes_agent_dir }}/venv/bin/python -m hermes_cli.main dashboard --host {{ hermes_dashboard_host }} --port {{ hermes_dashboard_port }} --no-open
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

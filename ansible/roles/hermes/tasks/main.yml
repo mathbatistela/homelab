@@ -65,11 +65,6 @@
     mode: "0600"
   changed_when: false
 
-- name: Back up Hermes environment file before modifying it
-  ansible.builtin.shell:
-    cmd: "cp -a {{ hermes_home }}/.env {{ hermes_home }}/.env.ansible-backup-$(date +%Y%m%d%H%M%S)"
-  changed_when: false
-
 - name: Remove stale system-level hermes-gateway unit if present
   ansible.builtin.file:
     path: /etc/systemd/system/hermes-gateway.service
@@ -82,6 +77,7 @@
     regexp: "^{{ item.key }}="
     line: "{{ item.key }}={{ item.value }}"
     state: present
+    backup: true
   loop:
     - { key: "EMAIL_ADDRESS", value: "{{ hermes_email_address }}" }
     - { key: "EMAIL_PASSWORD", value: "{{ hermes_email_password }}" }
@@ -95,4 +91,100 @@
   notify: Restart hermes-gateway user service
   when: hermes_email_enabled | bool
 
+- name: Configure Hermes gateway/platform credentials from vault
+  ansible.builtin.lineinfile:
+    path: "{{ hermes_home }}/.env"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    state: present
+    backup: true
+  loop:
+    - { key: "TELEGRAM_BOT_TOKEN", value: "{{ hermes_telegram_bot_token }}" }
+    - { key: "DISCORD_BOT_TOKEN", value: "{{ hermes_discord_bot_token }}" }
+    - { key: "CLAUDIO_DISCORD_BOT_TOKEN", value: "{{ hermes_claudio_discord_bot_token }}" }
+    - { key: "JULIUS_DISCORD_BOT_TOKEN", value: "{{ hermes_julius_discord_bot_token }}" }
+    - { key: "ELEVENLABS_API_KEY", value: "{{ hermes_elevenlabs_api_key }}" }
+    - { key: "MCP_ACTUAL_BUDGET_API_KEY", value: "{{ hermes_mcp_actual_budget_api_key }}" }
+    - { key: "DEEPSEEK_API_KEY", value: "{{ hermes_deepseek_api_key }}" }
+    - { key: "ACTUAL_BUDGET_TOKEN", value: "{{ hermes_actual_budget_token }}" }
+    - { key: "DISCORD_WEBHOOK_URL", value: "{{ hermes_discord_webhook_url }}" }
+    - { key: "HERMES_DASHBOARD_BASIC_AUTH_USERNAME", value: "{{ hermes_dashboard_basic_auth_username }}" }
+    - { key: "HERMES_DASHBOARD_BASIC_AUTH_PASSWORD", value: "{{ hermes_dashboard_basic_auth_password }}" }
+    - { key: "HERMES_DASHBOARD_BASIC_AUTH_SECRET", value: "{{ hermes_dashboard_basic_auth_secret }}" }
+  loop_control:
+    label: "{{ item.key }}"
+  no_log: true
+  notify: Restart hermes-gateway user service
+  # Guard against blanking a live credential if a vault key is ever missing —
+  # only write values we actually have.
+  when: item.value | length > 0
+
+# lineinfile's own `backup: true` above only writes a new .env.<timestamp>~
+# copy when a line actually changes (unlike the old unconditional
+# `cp .env .env.ansible-backup-$(date)` task this replaced, which ran, and
+# left a fresh plaintext-secrets copy, on every single play run). Still prune
+# old ones so they don't accumulate forever.
+- name: Prune old Hermes environment file backups
+  ansible.builtin.shell:
+    cmd: >-
+      find {{ hermes_home }} -maxdepth 1 -name '.env.*~' -printf '%T@ %p\n' |
+      sort -rn | tail -n +6 | cut -d' ' -f2- | xargs -r rm -f
+  changed_when: false
+
+# Previously deployed by hand (not managed by this role); captured here so a
+# rebuild doesn't lose it.
+- name: Install hermes-dashboard systemd unit
+  ansible.builtin.template:
+    src: hermes-dashboard.service.j2
+    dest: /etc/systemd/system/hermes-dashboard.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart hermes-dashboard
+
+- name: Enable and start hermes-dashboard
+  ansible.builtin.systemd:
+    name: hermes-dashboard
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# Previously staged into place from /tmp by hand; captured here so a rebuild
+# doesn't lose it. Uses system python3 (not the hermes venv) — matches how it
+# was actually running.
+- name: Ensure aiohttp is available for the CloakBrowser proxy
+  ansible.builtin.pip:
+    name: aiohttp
+    state: present
+  environment:
+    PIP_BREAK_SYSTEM_PACKAGES: "1"
+  when: cloakbrowser_proxy_enabled | bool
+
+- name: Install CloakBrowser auto-launch CDP proxy script
+  ansible.builtin.copy:
+    src: cloakbrowser-autoproxy.py
+    dest: /usr/local/bin/cloakbrowser-autoproxy.py
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart cloakbrowser-proxy
+  when: cloakbrowser_proxy_enabled | bool
+
+- name: Install cloakbrowser-proxy systemd unit
+  ansible.builtin.template:
+    src: cloakbrowser-proxy.service.j2
+    dest: /etc/systemd/system/cloakbrowser-proxy.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart cloakbrowser-proxy
+  when: cloakbrowser_proxy_enabled | bool
+
+- name: Enable and start cloakbrowser-proxy
+  ansible.builtin.systemd:
+    name: cloakbrowser-proxy
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: cloakbrowser_proxy_enabled | bool
 

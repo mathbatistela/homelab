@@ -12,18 +12,23 @@
     mode: "0644"
   register: home_assistant_promtail_config
 
+# NOTE: this role drives Docker through the CLI on purpose, instead of
+# community.docker.docker_container. The `ha` host is Home Assistant OS,
+# reached as the `hassio` user: it ships the docker CLI but has no Docker
+# SDK for Python (`import docker` -> ModuleNotFoundError), and the add-on
+# filesystem is not a place that dependency can be installed persistently.
+# community.docker modules fail on this host. Do not "modernize" these
+# tasks without first providing the SDK there.
 - name: Check if promtail container exists
   ansible.builtin.command:
     cmd: docker ps -a -q -f name={{ home_assistant_promtail_container_name }}
   register: home_assistant_promtail_container_check
   changed_when: false
-  failed_when: false
 
 - name: Stop and remove existing promtail container
   ansible.builtin.command:
     cmd: docker rm -f {{ home_assistant_promtail_container_name }}
   when: home_assistant_promtail_container_check.stdout | length > 0 and home_assistant_promtail_config is changed
-  failed_when: false
   changed_when: true
 
 - name: Deploy promtail container for Home Assistant log shipping

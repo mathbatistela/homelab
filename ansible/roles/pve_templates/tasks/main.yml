@@ -7,6 +7,7 @@
     storage: "{{ pve_iso_storage }}"
   register: pve_templates_iso_store
   delegate_to: localhost
+  no_log: true
 
 - name: Set ISO directory fact
   ansible.builtin.set_fact:
@@ -26,6 +27,7 @@
     storage: "{{ pve_snippets_storage }}"
   register: pve_templates_snippets_store
   delegate_to: localhost
+  no_log: true
 
 - name: Set snippets directory fact
   ansible.builtin.set_fact:
@@ -87,6 +89,7 @@
   loop_control:
     label: "{{ item.key }}"
   delegate_to: localhost
+  no_log: true
 
 - name: Import downloaded image into VM disk
   community.general.proxmox_disk:
@@ -103,3 +106,4 @@
   loop_control:
     label: "{{ item.key }}"
   delegate_to: localhost
+  no_log: true

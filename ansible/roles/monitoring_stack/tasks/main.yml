@@ -37,7 +37,7 @@
   register: monitoring_stack_grafana_datasources
 
 - name: Bring up stack
-  ansible.builtin.command:
-    cmd: docker compose up -d
-    chdir: "{{ monitoring_stack_dir }}"
-  changed_when: true
+  community.docker.docker_compose_v2:
+    project_src: "{{ monitoring_stack_dir }}"
+    state: present
+    pull: policy

@@ -55,10 +55,10 @@
   notify: Restart pangolin stack
 
 - name: Bring up stack
-  ansible.builtin.command:
-    cmd: docker compose up -d
-    chdir: "{{ pangolin_install_dir }}"
-  changed_when: true
+  community.docker.docker_compose_v2:
+    project_src: "{{ pangolin_install_dir }}"
+    state: present
+    pull: policy
 
 - name: Deploy Pangolin blueprint
   ansible.builtin.template:

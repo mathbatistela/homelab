@@ -7,7 +7,7 @@ evolution_api_data_dir: /mnt/homeshare/docker/evolution-api
 # API config
 evolution_api_port: 8080
 evolution_api_manager_port: 3001
-evolution_api_apikey: "evo_hermes_key_2024"
+evolution_api_apikey: "{{ vault.tools.evolution_api_key }}"
 
 # Shared infrastructure (database VM: 192.168.1.103)
 evolution_db_host: "192.168.1.103"

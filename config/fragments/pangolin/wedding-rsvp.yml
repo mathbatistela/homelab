@@ -10,3 +10,12 @@ pangolin_fragment_resources:
         hostname: "{{ hostvars['tools'].ansible_host }}"
         port: 3000
         method: http
+  wedding-rsvp-prod:
+    name: Wedding RSVP (Production domain)
+    protocol: http
+    full-domain: "casamento-gi-jorge.{{ pangolin_base_domain }}"
+    targets:
+      - site: "{{ pangolin_site_nice_id }}"
+        hostname: "{{ hostvars['tools'].ansible_host }}"
+        port: 3000
+        method: http

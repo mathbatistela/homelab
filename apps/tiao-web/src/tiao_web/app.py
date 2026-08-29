@@ -24,6 +24,19 @@ RECADO_ERRO = (
     "</body></html>"
 )
 
+RECADO_CAMINHO_DESCONHECIDO = (
+    "<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'>"
+    "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+    "<title>Caderneta</title></head><body style=\"font:18px system-ui;padding:24px\">"
+    "<p>Ih, patrão, não achei essa página aqui na caderneta. Confere se o link que "
+    "te mandaram tá certinho, ou pede pra mandar de novo.</p>"
+    "</body></html>"
+)
+
+
+async def caminho_desconhecido(request, exc):
+    return HTMLResponse(RECADO_CAMINHO_DESCONHECIDO, status_code=404)
+
 
 async def saude(request):
     return JSONResponse({"status": "ok"})
@@ -44,5 +57,6 @@ app = Starlette(
     routes=[
         Route("/saude", saude),
         Route("/pesagens", pesagens),
-    ]
+    ],
+    exception_handlers={404: caminho_desconhecido},
 )

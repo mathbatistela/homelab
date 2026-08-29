@@ -30,8 +30,13 @@
 
   roles:
     - role: geerlingguy.postgresql
+      # Must stay true. With no_log off, the user-reconciliation tasks print
+      # every entry of postgresql_users verbatim - eight database passwords,
+      # including tiao_user's, which is the credential the live Tião bot uses.
+      # That lands in stdout, terminal scrollback and any captured CI or agent
+      # log, which would undo the point of keeping them in the vault.
       vars:
-        postgres_users_no_log: false
+        postgres_users_no_log: true
 
   tags: postgresql_install
 
@@ -65,3 +70,9 @@
         - postgresql@17-main.service
         - redis-server.service
   tags: promtail
+
+# tiao_web_user is created by the role above but has no privileges until the
+# grants run. Imported here so a clean rebuild via `make play-database` produces
+# a usable read-only role instead of one that can log in and read nothing; the
+# grants play is idempotent, so running it every time costs nothing.
+- import_playbook: database-tiao-grants.yml

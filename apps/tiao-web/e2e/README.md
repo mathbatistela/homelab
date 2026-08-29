@@ -11,15 +11,31 @@ para isso que eles existem.
 ## Antes de rodar
 
 **Não rode durante a pesagem.** A suíte escreve quatro animais de mentira
-(`e2e-901` a `e2e-904`) e as pesagens do dia deles, e apaga tudo no fim. A
-limpeza roda também **antes** de semear, então uma rodada interrompida se
-conserta sozinha na rodada seguinte. Mas até lá as linhas ficam na caderneta do
-Seu Jader, e se ninguém for rodar a suíte de novo tão cedo, apague à mão:
+(`e2e-901` a `e2e-904`), as pesagens do dia deles e mais uma pesagem de ontem
+para o `e2e-901` — é ela que prova que cada dia mostra o peso daquele dia. Apaga
+tudo no fim. A limpeza roda também **antes** de semear, então uma rodada
+interrompida se conserta sozinha na rodada seguinte. Mas até lá as linhas ficam
+na caderneta do Seu Jader, e se ninguém for rodar a suíte de novo tão cedo,
+apague à mão:
 
 ```sql
-DELETE FROM pesagens WHERE animal_id IN (SELECT id FROM animais WHERE brinco LIKE 'e2e-90%');
-DELETE FROM animais WHERE brinco LIKE 'e2e-90%';
+DELETE FROM pesagens WHERE animal_id IN (
+  SELECT id FROM animais
+  WHERE brinco IN ('e2e-901', 'e2e-902', 'e2e-903', 'e2e-904', 'e2e-909-sonda')
+);
+DELETE FROM animais
+WHERE brinco IN ('e2e-901', 'e2e-902', 'e2e-903', 'e2e-904', 'e2e-909-sonda');
 ```
+
+Os brincos vão nomeados um a um, aqui e no `_limpar()` da suíte. Um `LIKE
+'e2e-90%'` faria a mesma coisa hoje e é um `DELETE` com curinga rodando como o
+bot, nas tabelas de verdade: bastaria alguém apertar o padrão, ou um animal do
+Seu Jader ganhar um brinco parecido, para as linhas dele irem junto sem ninguém
+perceber. A lista exata não tem esse jeito de dar errado.
+
+O `e2e-909-sonda` nunca chega a ser gravado — ele é o `INSERT` que
+`test_o_bot_continua_dono_da_caderneta` faz e desfaz com `ROLLBACK` para provar
+que o bot ainda escreve. Está na lista só para o caso de um `ROLLBACK` falhar.
 
 ## Variáveis de ambiente
 
@@ -58,6 +74,56 @@ hora com essa explicação. É que `test_pin_errado_nao_abre` só verifica que o
 portão não respondeu `200`, e um `429` também não é `200` — se passasse batido,
 uma janela esgotada deixaria esse teste verde sem ter provado nada sobre PIN
 errado.
+
+## Isto **não** entra no CI de cada push
+
+A suíte é para ser rodada **à mão**, quando alguém quer saber se a caderneta
+ainda está de pé: antes de um deploy, depois de mexer no Pangolin, ao investigar
+uma reclamação. Não é para rodar sozinha a cada push, nem em cron, nem em pull
+request.
+
+O motivo é o limitador acima. Ele conta por cliente, e o cliente é o IP: uma
+rodada do CI gasta duas das quinze tentativas da janela, e vários pushes na
+mesma tarde esgotam a janela inteira. **Quando isso acontece, quem fica de fora
+é o Seu Jader** — ele abre o link no curral, digita o PIN certo, e o portão
+responde `429` por quinze minutos por causa de um push que ele nem sabe que
+existiu. A caderneta dele é o que a suíte deveria proteger; um CI ligado nela é
+a suíte derrubando o que veio guardar.
+
+Some-se a isso que ela escreve na caderneta de verdade — durante uma pesagem, os
+animais de mentira aparecem na página que ele está olhando.
+
+O que roda sozinho é `tests/`: unitário, sem rede, sem banco, sem PIN.
+
+## A SQL daqui é uma cópia — e a original não mora neste repositório
+
+O `INSERT` que a fixture usa para semear é uma transcrição à mão do que o bot
+faz de verdade. O original está na skill do Tião, **na VM `hermes`**, fora deste
+repositório:
+
+```
+root@hermes-vm.local.batistela.tech:/root/.hermes/profiles/tiao/skills/tiao-gado/SKILL.md
+```
+
+São os blocos `INSERT INTO animais ... ON CONFLICT (brinco)` e `INSERT INTO
+pesagens ... ON CONFLICT (animal_id, data)` de lá.
+
+**Os dois têm que ser mudados juntos.** Se a skill ganhar uma coluna, trocar o
+alvo do `ON CONFLICT` ou passar a gravar por outro caminho, esta suíte continua
+verde: ela testa a página contra a cópia envelhecida dela mesma, não contra o
+que o bot escreve. Nenhum teste pega isso — não há como, daqui, comparar com um
+arquivo que vive em outra máquina. É por isso que está escrito aqui.
+
+Quem mexer na `tiao-gado/SKILL.md` mexe também no `caderneta()` de
+`test_fluxos_reais.py`, e vice-versa.
+
+## Um teste precisa da rede da fazenda
+
+`test_as_portas_estao_onde_o_plano_mandou` abre socket direto na VM
+(`192.168.1.111:8790` tem que atender, `8791` não) em vez de passar pelo túnel.
+Rodando de fora da LAN ele falha dizendo isso. Os endereços e as portas saem de
+`TIAO_LAN_IP`, `TIAO_PORTA_LEITURA` e `TIAO_PORTA_ESCRITA`, todos com o valor
+certo já embutido.
 
 ## O comando
 

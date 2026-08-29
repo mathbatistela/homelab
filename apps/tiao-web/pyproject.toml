@@ -27,3 +27,8 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 tiao_web = ["templates/*"]
+
+[tool.pytest.ini_options]
+# e2e/ talks to the live deployment and needs credentials in the environment, so
+# a bare `pytest` runs only the offline suite. `pytest e2e/` still names it.
+testpaths = ["tests"]

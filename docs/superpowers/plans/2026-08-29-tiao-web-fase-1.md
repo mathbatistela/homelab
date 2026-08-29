@@ -742,7 +742,7 @@ td { font-size:19px; }
     {% endfor %}
   </table>
 {% else %}
-  <p class="vazio">Nada anotado por aqui ainda, patrao.</p>
+  <p class="vazio">Nada anotado por aqui ainda, patrão.</p>
 {% endif %}
 </body>
 </html>

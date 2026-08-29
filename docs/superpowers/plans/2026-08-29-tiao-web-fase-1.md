@@ -1701,52 +1701,97 @@ def caderneta():
         c.commit()
 
 
-def _get(path, pin=True):
-    return httpx.get(
-        f"{BASE}{path}",
-        cookies={"pangolin_pin": PIN} if pin else {},
-        follow_redirects=False, timeout=30,
+PANGOLIN = os.environ.get("PANGOLIN_URL", "https://pangolin.batistela.tech")
+RESOURCE_ID = os.environ.get("TIAO_RESOURCE_ID", "285")
+
+
+@pytest.fixture(scope="session")
+def sessao():
+    """Authenticate to Pangolin's PIN gate exactly as a browser does.
+
+    Three steps, none of them guessable — verified against the live gate:
+      1. POST the pincode to the resource's auth endpoint. The
+         X-CSRF-Token header is mandatory (403 without it) and its value is a
+         literal constant, not something fetched.
+      2. Redeem the returned token on the site itself via ?p_session_request=,
+         which answers 302 and sets the cookie.
+      3. The cookie is named p_session_token_s.<epoch-ms> — per session, so it
+         must never be hardcoded. A cookie jar carries it for us.
+    """
+    cliente = httpx.Client(timeout=30, follow_redirects=False)
+    r = cliente.post(
+        f"{PANGOLIN}/api/v1/auth/resource/{RESOURCE_ID}/pincode",
+        json={"pincode": PIN},
+        headers={"X-CSRF-Token": "x-csrf-protection"},
     )
+    r.raise_for_status()
+    token = r.json()["data"]["session"]
+    cliente.get(f"{BASE}/pesagens", params={"p_session_request": token})
+    assert any(c.startswith("p_session_token_s.") for c in cliente.cookies.keys()), \
+        "o Pangolin não devolveu o cookie de sessão"
+    yield cliente
+    cliente.close()
+
+
+def _get(path, sessao=None):
+    """With `sessao`, the PIN gate is satisfied; without it, we are the public."""
+    if sessao is None:
+        return httpx.get(f"{BASE}{path}", follow_redirects=False, timeout=30)
+    return sessao.get(f"{BASE}{path}", follow_redirects=False)
 
 
 # ── The edge ────────────────────────────────────────────────────────────────
 
 def test_sem_pin_a_caderneta_nao_abre():
-    r = _get("/pesagens", pin=False)
+    """The one test whose failure stops everything: 200 here means the
+    father's ledger is readable by anyone on the internet."""
+    r = _get("/pesagens")
     assert r.status_code != 200, "a caderneta está aberta na internet sem PIN"
+    corpo = r.text.lower()
+    for vazamento in ("brinco", "novilha", "patrão", "pesagem de"):
+        assert vazamento not in corpo, f"o corpo não autenticado vazou {vazamento!r}"
 
 
-def test_com_pin_a_caderneta_abre():
-    assert _get("/pesagens").status_code == 200
+def test_pin_errado_nao_abre():
+    r = httpx.post(
+        f"{PANGOLIN}/api/v1/auth/resource/{RESOURCE_ID}/pincode",
+        json={"pincode": "000000"},
+        headers={"X-CSRF-Token": "x-csrf-protection"}, timeout=30,
+    )
+    assert r.status_code != 200
 
 
-def test_saude_responde_para_o_pangolin():
-    assert _get("/saude").status_code == 200
+def test_com_pin_a_caderneta_abre(sessao):
+    assert _get("/pesagens", sessao).status_code == 200
+
+
+def test_saude_responde_para_o_pangolin(sessao):
+    assert _get("/saude", sessao).status_code == 200
 
 
 # ── The flow the father actually lives ──────────────────────────────────────
 
-def test_o_que_o_bot_anotou_aparece_na_pagina(caderneta):
-    html = _get(f"/pesagens?data={HOJE.isoformat()}").text
+def test_o_que_o_bot_anotou_aparece_na_pagina(caderneta, sessao):
+    html = _get(f"/pesagens?data={HOJE.isoformat()}", sessao).text
     for brinco, peso, _ in BRINCOS:
         assert brinco in html, f"o brinco {brinco} não apareceu"
         assert f"{peso} kg" in html, f"o peso de {brinco} não apareceu"
 
 
-def test_a_pagina_traz_grafico_e_titulo_em_portugues(caderneta):
-    html = _get(f"/pesagens?data={HOJE.isoformat()}").text
+def test_a_pagina_traz_grafico_e_titulo_em_portugues(caderneta, sessao):
+    html = _get(f"/pesagens?data={HOJE.isoformat()}", sessao).text
     assert "<svg" in html, "o gráfico não foi desenhado"
     assert f"Pesagem de {HOJE.strftime('%d/%m/%Y')}" in html
 
 
-def test_um_dia_sem_pesagem_diz_isso_em_portugues():
+def test_um_dia_sem_pesagem_diz_isso_em_portugues(sessao):
     passado = (HOJE - datetime.timedelta(days=3650)).isoformat()
-    html = _get(f"/pesagens?data={passado}").text
+    html = _get(f"/pesagens?data={passado}", sessao).text
     assert "Nada anotado" in html
     assert "<svg" not in html
 
 
-def test_reenviar_a_mesma_pesagem_nao_duplica(caderneta):
+def test_reenviar_a_mesma_pesagem_nao_duplica(caderneta, sessao):
     """The father resends a photo when the corral signal drops."""
     with _conn() as c, c.cursor() as cur:
         cur.execute(
@@ -1762,27 +1807,27 @@ def test_reenviar_a_mesma_pesagem_nao_duplica(caderneta):
             ("e2e-901", HOJE),
         )
         assert cur.fetchone()[0] == 1, "a pesagem duplicou"
-    assert "999 kg" in _get(f"/pesagens?data={HOJE.isoformat()}").text
+    assert "999 kg" in _get(f"/pesagens?data={HOJE.isoformat()}", sessao).text
 
 
 # ── Nothing technical ever reaches him ──────────────────────────────────────
 
-def test_caminho_errado_responde_em_portugues():
-    r = _get("/caderneta-que-nao-existe")
+def test_caminho_errado_responde_em_portugues(sessao):
+    r = _get("/caderneta-que-nao-existe", sessao)
     assert r.status_code == 404
     for palavra in ("Not Found", "Traceback", "Error", "Exception"):
         assert palavra not in r.text
     assert "patrão" in r.text
 
 
-def test_nenhuma_pagina_vaza_detalhe_tecnico(caderneta):
-    html = _get(f"/pesagens?data={HOJE.isoformat()}").text
+def test_nenhuma_pagina_vaza_detalhe_tecnico(caderneta, sessao):
+    html = _get(f"/pesagens?data={HOJE.isoformat()}", sessao).text
     for vazamento in ("psycopg", "Traceback", "192.168.", "postgresql://", "SELECT ", "tiao_web_user"):
         assert vazamento not in html, f"a página vazou {vazamento!r}"
 
 
-def test_a_pagina_nao_depende_de_nada_externo(caderneta):
-    html = _get(f"/pesagens?data={HOJE.isoformat()}").text
+def test_a_pagina_nao_depende_de_nada_externo(caderneta, sessao):
+    html = _get(f"/pesagens?data={HOJE.isoformat()}", sessao).text
     assert not re.search(r'(src|href)\s*=\s*["\']https?://', html), \
         "a página busca um recurso externo; falharia no sinal da fazenda"
 

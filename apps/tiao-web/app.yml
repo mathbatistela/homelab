@@ -9,7 +9,11 @@ app:
       port: 8790
       image:
         name: tiao-web
-        tag: latest
+        # What is actually deployed. The Ansible role pins the digest tag CI
+        # published (tiao_web_image in ansible/roles/tiao_web/defaults/main.yml);
+        # nothing rolls an image forward on its own, so any change under src/
+        # needs a fresh CI build and a new pin there before it reaches the VM.
+        tag: sha-dc8e2d5
       healthcheck:
         path: /saude
         interval: 30s
@@ -26,6 +30,9 @@ app:
         enabled: true
         subdomain: tiao
 
+    # Intended sizing, not an enforced limit: the role's compose template
+    # (ansible/roles/tiao_web/templates/docker-compose.yml.j2) sets no deploy
+    # limits, so the container is currently unconstrained on the host.
     resources:
       memory: 256M
       cpus: 0.25

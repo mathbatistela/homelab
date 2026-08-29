@@ -2,6 +2,13 @@
 
 Read routes only in phase 1. There is no login here on purpose: Pangolin checks
 the PIN at the edge, before a request reaches this VM.
+
+Spec creation (``POST /specs``) is published on 8791, bound to 127.0.0.1, and
+must be a SECOND ASGI app or a second process — never a route added to this one.
+Everything this app serves goes out on 8790, which Pangolin exposes to the
+internet behind only the PIN; a write route added here would be published there
+too, and the write path would stop being loopback-only, which is the whole
+boundary the design rests on.
 """
 
 import logging

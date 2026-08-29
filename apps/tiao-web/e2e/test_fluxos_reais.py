@@ -307,17 +307,26 @@ def test_a_pagina_traz_grafico_e_titulo_em_portugues(caderneta, sessao):
     """`"<svg" in html` was the old assertion, and an empty chart satisfies it:
     the tag opens before the first bar is drawn. Count the bars instead.
 
-    One `<rect>` per row is the property, not one per e2e animal: on the day
-    this runs Seu Jader may have weighed his own herd, and those animals belong
-    on the same chart.
+    One `<rect>` per *weighed* row is the property, not one per e2e animal: on
+    the day this runs Seu Jader may have weighed his own herd, and those animals
+    belong on the same chart. Nor one per row: an animal recorded without a
+    weight shows "—" in the table and is dropped from the chart by design
+    (render.formatar and chart._numero), so comparing against every row would go
+    red on one of his rows and read as a broken site. Comparing against the rows
+    that carry a weight is the tighter statement, not the looser one — every
+    weighed animal has to be on the chart, and the e2e herd, all of it weighed,
+    fixes a floor no error page can clear.
     """
     html = _get(f"/pesagens?data={HOJE.isoformat()}", sessao).text
     linhas = _linhas(html)
     barras = html.count("<rect")
+    com_peso = [c for c in linhas if re.fullmatch(r"-?[\d.,]+ kg", c[1])]
     assert linhas, "a tabela veio vazia; não havia gráfico a desenhar"
     assert barras, "o gráfico abriu o <svg> e não desenhou barra nenhuma"
-    assert barras == len(linhas), \
-        f"o gráfico tem {barras} barras para {len(linhas)} animais na tabela"
+    assert len(com_peso) >= len(BRINCOS), \
+        f"a tabela trouxe {len(com_peso)} pesos, menos que os {len(BRINCOS)} animais do teste"
+    assert barras == len(com_peso), \
+        f"o gráfico tem {barras} barras para {len(com_peso)} pesos em {len(linhas)} linhas"
     assert f"Pesagem de {HOJE.strftime('%d/%m/%Y')}" in html
 
 

@@ -161,3 +161,26 @@ def test_pesagens_mostra_o_resumo(cliente):
     assert 'class="resumo"' in r.text
     assert "Cabeças" in r.text
     assert "Média" in r.text
+
+
+# --- Nem toda página é de leitura por acaso ---
+# POST /pesagens caía na resposta crua do Starlette: "Method Not Allowed", em
+# inglês e sem folha de estilo — a última string em inglês que o leitor ainda
+# alcançava.
+
+
+@pytest.mark.parametrize("metodo", ["post", "put", "delete"])
+def test_escrita_numa_pagina_de_leitura_tem_recado_em_portugues(cliente, metodo):
+    r = getattr(cliente, metodo)("/pesagens")
+    assert r.status_code == 405
+    assert "text/html" in r.headers["content-type"]
+    assert "só pra olhar" in r.text.lower()
+    assert "method not allowed" not in r.text.lower()
+    assert "405" not in r.text
+
+
+def test_recado_de_pagina_so_de_leitura_usa_a_folha_de_estilo_da_caderneta(cliente):
+    r = cliente.post("/pesagens")
+    assert "prefers-color-scheme" in r.text
+    assert "--papel" in r.text
+    assert "style=" not in r.text

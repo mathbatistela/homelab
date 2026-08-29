@@ -38,6 +38,11 @@ RECADO_CAMINHO_DESCONHECIDO = (
 
 RECADO_REGISTRO_NAO_ENCONTRADO = "Ih, patrão, isso aí eu não tenho anotado na caderneta."
 
+RECADO_SO_DE_OLHAR = (
+    "Ih, patrão, essa página aqui é só pra olhar. Pra anotar coisa nova na "
+    "caderneta, é comigo mesmo, lá na conversa."
+)
+
 
 class RegistroNaoEncontrado(HTTPException):
     """The URL is fine; the thing it names is not in the ledger.
@@ -71,6 +76,16 @@ async def encrenca(request, exc):
     return HTMLResponse(render_recado(RECADO_ERRO), status_code=500)
 
 
+async def so_de_olhar(request, exc):
+    """Every page here is read-only, and saying so is part of the caderneta.
+
+    Starlette answers a POST to an existing route with its own bare "Method Not
+    Allowed" — English, unstyled, and about a rule Seu Jader never agreed to.
+    Registered by status code like the others, so it is the same page.
+    """
+    return HTMLResponse(render_recado(RECADO_SO_DE_OLHAR), status_code=405)
+
+
 async def saude(request):
     return JSONResponse({"status": "ok"})
 
@@ -90,7 +105,7 @@ async def pesagens(request):
     return HTMLResponse(pagina)
 
 
-TRATADORES = {404: nao_encontrado, 500: encrenca}
+TRATADORES = {404: nao_encontrado, 405: so_de_olhar, 500: encrenca}
 
 app = Starlette(
     routes=[

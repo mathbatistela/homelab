@@ -108,7 +108,6 @@
     state: present
     backup: true
   loop:
-    - { key: "TELEGRAM_BOT_TOKEN", value: "{{ hermes_telegram_bot_token }}" }
     - { key: "DISCORD_BOT_TOKEN", value: "{{ hermes_discord_bot_token }}" }
     - { key: "CLAUDIO_DISCORD_BOT_TOKEN", value: "{{ hermes_claudio_discord_bot_token }}" }
     - { key: "JULIUS_DISCORD_BOT_TOKEN", value: "{{ hermes_julius_discord_bot_token }}" }
@@ -127,6 +126,31 @@
   # Guard against blanking a live credential if a vault key is ever missing —
   # only write values we actually have.
   when: item.value | length > 0
+
+# WARNING: TELEGRAM_BOT_TOKEN must NOT appear in this file, and this task is
+# what keeps it out. The token belongs to @chato_mhb_bot (bot id 8716176823),
+# and the `chato` profile owns that bot now: it is declared in
+# {{ hermes_home }}/profiles/chato/.env, one of the hand-placed per-profile
+# files this role deliberately leaves alone (see the comment above the .env
+# task). The gateway refuses to let two profiles claim the same platform
+# credential, so putting the token back here does not add a bot to the default
+# profile — it takes the existing one down, with
+#   Profile 'default' and 'chato' both configure telegram with the same credential.
+# and @chato_mhb_bot (the user's father-in-law's bot) stays fatal until someone
+# edits the VM by hand. That is not hypothetical: TELEGRAM_BOT_TOKEN used to be
+# an entry in the credential loop above, and an ordinary `make play-hermes`
+# restored it and broke the bot. Dropping it from the loop is not enough on its
+# own, because every host whose .env already holds the line would simply keep
+# it, so assert its absence instead. If the default profile is ever given a
+# Telegram bot again it needs a *different* token from
+# vault.hermes.telegram_bot_token, which is chato's.
+- name: Ensure the default Hermes profile declares no Telegram bot
+  ansible.builtin.lineinfile:
+    path: "{{ hermes_home }}/.env"
+    regexp: "^TELEGRAM_BOT_TOKEN="
+    state: absent
+    backup: true
+  notify: Restart hermes-gateway user service
 
 # lineinfile's own `backup: true` above only writes a new .env.<timestamp>~
 # copy when a line actually changes (unlike the old unconditional

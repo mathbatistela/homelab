@@ -32,6 +32,12 @@ hermes_email_home_address: "{{ admin_email | default('matheus@batistela.tech') }
 # Gateway/platform credentials, vault-managed (vault.hermes.*). Previously
 # these lived only in hand-placed .env entries on the hermes VM with no
 # source of truth in the repo; a rebuild would have lost them.
+#
+# @chato_mhb_bot's token, and no longer written to the default profile's .env:
+# the `chato` profile owns that bot and declares the token in its own
+# hand-placed profiles/chato/.env. Kept defined because the vault is the repo's
+# only copy of the credential. See "Ensure the default Hermes profile declares
+# no Telegram bot" in tasks/main.yml before wiring this into anything.
 hermes_telegram_bot_token: "{{ vault.hermes.telegram_bot_token | default('') }}"
 hermes_discord_bot_token: "{{ vault.hermes.discord_bot_token | default('') }}"
 hermes_claudio_discord_bot_token: "{{ vault.hermes.claudio_discord_bot_token | default('') }}"

@@ -189,3 +189,57 @@ def test_parametro_genuino_ainda_e_exigido_e_casado():
     dados = {**BASE, "fonte": {"sql": "SELECT 1 WHERE x = :data", "params": {}}}
     with pytest.raises(SpecInvalido, match="data"):
         parse_spec(dados)
+
+
+# --- Fix round 2: ingest and execution must read the SQL the same way ---
+# A hand-written regex read ":data::date" as "data"; SQLAlchemy's text() reads
+# it as "dat". A spec therefore passed parse_spec and raised at executar, and
+# Seu Jader got "deu uma encrenca" on a link the bot had just sent him.
+
+
+def test_cast_colado_no_parametro_e_recusado_no_ingest():
+    dados = {
+        **BASE,
+        "fonte": {
+            "sql": "SELECT p.peso_kg FROM pesagens p WHERE p.data = :data::date",
+            "params": {"data": "2026-06-21"},
+        },
+    }
+    with pytest.raises(SpecInvalido):
+        parse_spec(dados)
+
+
+def test_cast_explicito_do_parametro_e_aceito():
+    # CAST(:data AS date) is the form that survives text() intact.
+    dados = {
+        **BASE,
+        "fonte": {
+            "sql": "SELECT p.peso_kg FROM pesagens p WHERE p.data = CAST(:data AS date)",
+            "params": {"data": "2026-06-21"},
+        },
+    }
+    s = parse_spec(dados)
+    assert s.params == {"data": "2026-06-21"}
+
+
+@pytest.mark.parametrize(
+    "sql, params",
+    [
+        ("SELECT p.peso_kg FROM pesagens p WHERE p.data = :data", {"data": "2026-06-21"}),
+        ("SELECT p.peso_kg::text FROM pesagens p WHERE p.data = :data", {"data": "2026-06-21"}),
+        (
+            "SELECT p.peso_kg FROM pesagens p WHERE p.categoria = 'Categoria:Bovino' "
+            "AND p.data = :data",
+            {"data": "2026-06-21"},
+        ),
+        ("SELECT p.peso_kg FROM pesagens p WHERE p.brinco = :brinco AND p.data = :data",
+         {"brinco": "367", "data": "2026-06-21"}),
+    ],
+)
+def test_parametros_aceitos_sao_exatamente_os_que_o_driver_vai_ligar(sql, params):
+    # The property the fix buys: whatever parse_spec approved is what executar
+    # will bind. They cannot drift, because there is only one reader now.
+    from sqlalchemy import text
+
+    s = parse_spec({**BASE, "fonte": {"sql": sql, "params": params}})
+    assert set(text(s.sql)._bindparams) == set(s.params)

@@ -4,18 +4,14 @@ The bot emits one of these; the renderer turns any of them into the same-looking
 page. Keeping the shape small is what makes the output consistent.
 """
 
-import re
 from dataclasses import dataclass, field
 
-import sqlparse
+from sqlalchemy import text
 
 from .sql_guard import SqlNaoPermitido, check_sql
 
 FORMATOS = {"texto", "kg", "reais", "data", "numero"}
 TIPOS_GRAFICO = {"barras", "linha"}
-
-# ":nome" not preceded by another colon (so ::cast is not a parameter)
-_PARAM = re.compile(r"(?<!:):([a-zA-Z_][a-zA-Z0-9_]*)")
 
 
 class SpecInvalido(Exception):
@@ -23,19 +19,28 @@ class SpecInvalido(Exception):
 
 
 def _params_da_sql(sql: str) -> set:
-    """Placeholders actually referenced by the SQL.
+    """The placeholders SQLAlchemy will actually bind when this statement runs.
 
-    Walks the parsed token stream instead of scanning raw text, so a colon
-    inside a string literal ('Categoria:Bovino') or a comment (-- nota:x)
-    is never mistaken for a bind parameter.
+    Read off ``text()`` — the very object db.executar hands to the driver —
+    rather than scanned out of the SQL a second way here. Ingest validation and
+    execution then cannot disagree about what counts as a placeholder, because
+    only one of them is reading.
+
+    They used to. A regex here read ``:data::date`` as ``data`` while ``text()``
+    reads it as ``dat``, so that spec passed parse_spec and raised at executar:
+    Seu Jader gets "deu uma encrenca" on a link the bot had just sent him.
+    Phase-1 SQL is fixed, so it could not happen yet — but ``:data::date`` is
+    the natural Postgres form for a model to emit, and phase 3 lets the model
+    write the SQL.
+
+    The consequence to know: a cast on a bound value must be written
+    ``CAST(:data AS date)``. ``:data::date`` is refused at ingest, where the bot
+    can still fix it, instead of on the reader's screen.
+
+    ``_bindparams`` is private, but it is the exact answer, and reimplementing
+    it is precisely what caused the bug.
     """
-    analisada = sqlparse.parse(sql)[0]
-    encontrados = set()
-    for token in analisada.flatten():
-        if token.ttype in sqlparse.tokens.String or token.ttype in sqlparse.tokens.Comment:
-            continue
-        encontrados.update(_PARAM.findall(token.value))
-    return encontrados
+    return set(text(sql)._bindparams)
 
 
 @dataclass(frozen=True)

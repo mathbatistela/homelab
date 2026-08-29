@@ -38,6 +38,17 @@ async def caminho_desconhecido(request, exc):
     return HTMLResponse(RECADO_CAMINHO_DESCONHECIDO, status_code=404)
 
 
+async def encrenca(request, exc):
+    """Last net under every route.
+
+    Without this, anything a route raises outside its own guard reaches Seu
+    Jader as Starlette's "Internal Server Error" — English, on a page he cannot
+    read, about a problem he cannot act on.
+    """
+    logger.exception("erro nao tratado", exc_info=exc)
+    return HTMLResponse(RECADO_ERRO, status_code=500)
+
+
 async def saude(request):
     return JSONResponse({"status": "ok"})
 
@@ -46,11 +57,15 @@ async def pesagens(request):
     s = NOMEADAS["pesagens"](request.query_params.get("data"))
     try:
         linhas = executar(s)
+        pagina = render_pagina(s, linhas)
     except Exception:
+        # Rendering is inside the guard too: a spec whose chart or formato does
+        # not match the data it got back fails here, not in the query, and the
+        # reader should still get the recado rather than a broken page.
         # The technical detail goes to the log, never to Seu Jader.
-        logger.exception("falha ao consultar a caderneta")
+        logger.exception("falha ao montar a caderneta")
         return HTMLResponse(RECADO_ERRO, status_code=200)
-    return HTMLResponse(render_pagina(s, linhas))
+    return HTMLResponse(pagina)
 
 
 app = Starlette(
@@ -58,5 +73,5 @@ app = Starlette(
         Route("/saude", saude),
         Route("/pesagens", pesagens),
     ],
-    exception_handlers={404: caminho_desconhecido},
+    exception_handlers={404: caminho_desconhecido, 500: encrenca},
 )

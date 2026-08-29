@@ -93,3 +93,25 @@ def test_valor_da_linha_e_escapado():
     html = render_pagina(SPEC, [{"brinco": "<script>", "peso_kg": 1}])
     assert "<script>" not in html
     assert "&lt;script&gt;" in html
+
+
+def test_grafico_sobre_coluna_de_texto_ainda_entrega_a_tabela():
+    # parse_spec accepts this: it checks that grafico.y names a declared column,
+    # not that the column holds numbers. The chart is what has to give way.
+    s = parse_spec(
+        {
+            "titulo": "Pesagem de 21/06/2026",
+            "fonte": {"sql": "SELECT brinco, categoria FROM pesagens", "params": {}},
+            "tabela": {
+                "colunas": [
+                    {"campo": "brinco", "rotulo": "Brinco"},
+                    {"campo": "categoria", "rotulo": "Categoria"},
+                ]
+            },
+            "grafico": {"tipo": "barras", "x": "brinco", "y": "categoria"},
+        }
+    )
+    html = render_pagina(s, [{"brinco": "367", "categoria": "novilha"}])
+    assert "367" in html
+    assert "novilha" in html
+    assert "<svg" not in html

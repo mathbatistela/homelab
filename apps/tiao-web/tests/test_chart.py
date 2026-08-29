@@ -97,3 +97,27 @@ def test_valor_none_e_ignorado():
     assert ">a<" in svg
     assert ">c<" in svg
     assert ">b<" not in svg
+
+
+def test_valor_nao_numerico_e_ignorado():
+    # parse_spec checks that grafico.y names an existing column, not that the
+    # column holds numbers, so a legitimate spec can point the chart at a text
+    # column. That must cost the reader one bar, not the whole page.
+    svg = barras(["a", "b", "c"], [10, "novilha", 20])
+    assert svg.count("<rect") == 2
+    assert ">a<" in svg
+    assert ">c<" in svg
+    assert ">b<" not in svg
+
+
+def test_serie_toda_nao_numerica_nao_gera_svg():
+    assert barras(["a", "b"], ["novilha", "boi"]) == ""
+
+
+def test_nan_e_infinito_sao_ignorados():
+    # float() accepts both, but they serialise as "nan"/"inf" in the geometry
+    # attributes, which browsers refuse to paint.
+    svg = barras(["a", "b", "c"], [10, float("nan"), float("inf")])
+    assert svg.count("<rect") == 1
+    assert "nan" not in svg.lower()
+    assert "inf" not in svg.lower()

@@ -56,3 +56,33 @@ def test_rotas_existentes_nao_sao_afetadas_pelo_recado_de_404(cliente):
     assert r_pesagens.status_code == 200
     assert "text/html" in r_pesagens.headers["content-type"]
     assert "Pesagem de 21/06/2026" in r_pesagens.text
+
+
+def test_falha_no_render_mostra_recado_de_peao(cliente, monkeypatch):
+    # render_pagina used to sit outside the guarded block, so anything it
+    # raised became Starlette's English "Internal Server Error".
+    def explode(_s, _linhas):
+        raise ValueError("could not convert string to float: 'novilha'")
+
+    monkeypatch.setattr(modulo, "render_pagina", explode)
+    r = cliente.get("/pesagens")
+    assert r.status_code == 200
+    assert "deu uma encrenca" in r.text.lower()
+    assert "novilha" not in r.text
+    assert "internal server error" not in r.text.lower()
+
+
+def test_erro_fora_do_bloco_guardado_mostra_recado_em_portugues(monkeypatch):
+    # Anything raised before the guard (building the spec, for instance) still
+    # has to reach Seu Jader in Portuguese.
+    def explode(_data):
+        raise RuntimeError("boom")
+
+    monkeypatch.setitem(modulo.NOMEADAS, "pesagens", explode)
+    cliente = TestClient(modulo.app, raise_server_exceptions=False)
+    r = cliente.get("/pesagens")
+    assert r.status_code == 500
+    assert "text/html" in r.headers["content-type"]
+    assert "deu uma encrenca" in r.text.lower()
+    assert "internal server error" not in r.text.lower()
+    assert "boom" not in r.text

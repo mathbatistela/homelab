@@ -4,13 +4,31 @@ No chart library and no CDN: the page has to render over a weak connection at
 the ranch, where a blocked or slow CDN would simply leave a blank space.
 """
 
+import math
 from html import escape
 
 MARGEM_BASE = 22
 
 
+def _numero(valor):
+    """The value as a plottable float, or None to leave it out of the chart.
+
+    parse_spec checks that grafico.y names a column that exists, not that the
+    column holds numbers, so a perfectly valid spec can aim the chart at a text
+    column. A value that is not a finite number is dropped exactly like a
+    missing one — nan and inf serialise into the geometry attributes as "nan"
+    and "inf", which browsers refuse to paint. Losing one bar costs the reader
+    a bar; raising here costs him the whole page.
+    """
+    try:
+        n = float(valor)
+    except (TypeError, ValueError):
+        return None
+    return n if math.isfinite(n) else None
+
+
 def barras(rotulos, valores, *, largura: int = 320, altura: int = 180) -> str:
-    pares = [(r, float(v)) for r, v in zip(rotulos, valores) if v is not None]
+    pares = [(r, n) for r, v in zip(rotulos, valores) if (n := _numero(v)) is not None]
     if not pares:
         return ""
 

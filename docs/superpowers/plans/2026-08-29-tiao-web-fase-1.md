@@ -1611,6 +1611,244 @@ git commit -m "feat(pangolin): expose tiao.batistela.tech with PIN"
 
 ---
 
+---
+
+### Task 10: End-to-end validation of the real flows
+
+Everything before this proves a layer. This proves the *chain*: the bot writes the way it really
+writes, and the father reads the way he really reads — through the public domain, the PIN, the
+container and the read-only role. Nothing here uses a test double.
+
+**Files:**
+- Create: `apps/tiao-web/e2e/test_fluxos_reais.py`
+- Create: `apps/tiao-web/e2e/README.md`
+
+**Interfaces:**
+- Consumes: the deployed service at `https://tiao.batistela.tech`, the live `tiao_database`, and
+  both database roles (`tiao_user` as the bot writes, `tiao_web_user` as the site reads).
+- Produces: a runnable suite that leaves the ledger exactly as it found it.
+
+**Ground rules that make this an end-to-end test and not a unit test in disguise:**
+- Writes go in as **`tiao_user`**, using the exact SQL shape `tiao-gado/SKILL.md` prescribes,
+  including its `ON CONFLICT` clauses. If the skill's SQL is wrong, this must fail.
+- Reads come back over **HTTPS through Pangolin with the PIN**, not from `localhost:8790` and not
+  through Starlette's `TestClient`. The edge, the tunnel and the container are part of what is
+  under test.
+- The suite **restores the ledger** at the end. The father's data is not a fixture; the ledger is
+  currently empty and must be empty again when the run finishes.
+
+- [ ] **Step 1: Write the suite**
+
+`apps/tiao-web/e2e/test_fluxos_reais.py`:
+
+```python
+"""End-to-end checks against the live deployment.
+
+Run explicitly: these talk to the real database and the real public URL.
+    cd apps/tiao-web && .venv/bin/python -m pytest e2e/ -v -s
+
+Requires: PIN in TIAO_PIN, bot credentials in the tiao_user PG* vars,
+site credentials in TIAO_WEB_PG* vars, all supplied by the runner.
+"""
+
+import datetime
+import os
+import re
+
+import httpx
+import psycopg
+import pytest
+
+BASE = os.environ.get("TIAO_URL", "https://tiao.batistela.tech")
+PIN = os.environ["TIAO_PIN"]
+HOJE = datetime.date.today()
+
+BRINCOS = [("e2e-901", 320, "novilha"), ("e2e-902", 447, "boi"), ("e2e-903", 263, "bezerro")]
+
+
+def _conn(prefix=""):
+    return psycopg.connect(
+        host=os.environ[f"{prefix}PGHOST"], dbname=os.environ[f"{prefix}PGDATABASE"],
+        user=os.environ[f"{prefix}PGUSER"], password=os.environ[f"{prefix}PGPASSWORD"],
+    )
+
+
+@pytest.fixture(scope="module")
+def caderneta():
+    """Write as the bot writes, then remove every trace."""
+    with _conn() as c, c.cursor() as cur:
+        for brinco, peso, categoria in BRINCOS:
+            cur.execute(
+                "INSERT INTO animais (brinco, categoria) VALUES (%s, %s) "
+                "ON CONFLICT (brinco) DO NOTHING",
+                (brinco, categoria),
+            )
+            cur.execute(
+                "INSERT INTO pesagens (animal_id, data, peso_kg) "
+                "SELECT id, %s, %s FROM animais WHERE brinco = %s "
+                "ON CONFLICT (animal_id, data) DO UPDATE SET peso_kg = EXCLUDED.peso_kg",
+                (HOJE, peso, brinco),
+            )
+        c.commit()
+    yield
+    with _conn() as c, c.cursor() as cur:
+        cur.execute(
+            "DELETE FROM pesagens WHERE animal_id IN "
+            "(SELECT id FROM animais WHERE brinco = ANY(%s))",
+            ([b for b, _, _ in BRINCOS],),
+        )
+        cur.execute("DELETE FROM animais WHERE brinco = ANY(%s)", ([b for b, _, _ in BRINCOS],))
+        c.commit()
+
+
+def _get(path, pin=True):
+    return httpx.get(
+        f"{BASE}{path}",
+        cookies={"pangolin_pin": PIN} if pin else {},
+        follow_redirects=False, timeout=30,
+    )
+
+
+# ── The edge ────────────────────────────────────────────────────────────────
+
+def test_sem_pin_a_caderneta_nao_abre():
+    r = _get("/pesagens", pin=False)
+    assert r.status_code != 200, "a caderneta está aberta na internet sem PIN"
+
+
+def test_com_pin_a_caderneta_abre():
+    assert _get("/pesagens").status_code == 200
+
+
+def test_saude_responde_para_o_pangolin():
+    assert _get("/saude").status_code == 200
+
+
+# ── The flow the father actually lives ──────────────────────────────────────
+
+def test_o_que_o_bot_anotou_aparece_na_pagina(caderneta):
+    html = _get(f"/pesagens?data={HOJE.isoformat()}").text
+    for brinco, peso, _ in BRINCOS:
+        assert brinco in html, f"o brinco {brinco} não apareceu"
+        assert f"{peso} kg" in html, f"o peso de {brinco} não apareceu"
+
+
+def test_a_pagina_traz_grafico_e_titulo_em_portugues(caderneta):
+    html = _get(f"/pesagens?data={HOJE.isoformat()}").text
+    assert "<svg" in html, "o gráfico não foi desenhado"
+    assert f"Pesagem de {HOJE.strftime('%d/%m/%Y')}" in html
+
+
+def test_um_dia_sem_pesagem_diz_isso_em_portugues():
+    passado = (HOJE - datetime.timedelta(days=3650)).isoformat()
+    html = _get(f"/pesagens?data={passado}").text
+    assert "Nada anotado" in html
+    assert "<svg" not in html
+
+
+def test_reenviar_a_mesma_pesagem_nao_duplica(caderneta):
+    """The father resends a photo when the corral signal drops."""
+    with _conn() as c, c.cursor() as cur:
+        cur.execute(
+            "INSERT INTO pesagens (animal_id, data, peso_kg) "
+            "SELECT id, %s, %s FROM animais WHERE brinco = %s "
+            "ON CONFLICT (animal_id, data) DO UPDATE SET peso_kg = EXCLUDED.peso_kg",
+            (HOJE, 999, "e2e-901"),
+        )
+        c.commit()
+        cur.execute(
+            "SELECT count(*) FROM pesagens p JOIN animais a ON a.id = p.animal_id "
+            "WHERE a.brinco = %s AND p.data = %s",
+            ("e2e-901", HOJE),
+        )
+        assert cur.fetchone()[0] == 1, "a pesagem duplicou"
+    assert "999 kg" in _get(f"/pesagens?data={HOJE.isoformat()}").text
+
+
+# ── Nothing technical ever reaches him ──────────────────────────────────────
+
+def test_caminho_errado_responde_em_portugues():
+    r = _get("/caderneta-que-nao-existe")
+    assert r.status_code == 404
+    for palavra in ("Not Found", "Traceback", "Error", "Exception"):
+        assert palavra not in r.text
+    assert "patrão" in r.text
+
+
+def test_nenhuma_pagina_vaza_detalhe_tecnico(caderneta):
+    html = _get(f"/pesagens?data={HOJE.isoformat()}").text
+    for vazamento in ("psycopg", "Traceback", "192.168.", "postgresql://", "SELECT ", "tiao_web_user"):
+        assert vazamento not in html, f"a página vazou {vazamento!r}"
+
+
+def test_a_pagina_nao_depende_de_nada_externo(caderneta):
+    html = _get(f"/pesagens?data={HOJE.isoformat()}").text
+    assert not re.search(r'(src|href)\s*=\s*["\']https?://', html), \
+        "a página busca um recurso externo; falharia no sinal da fazenda"
+
+
+# ── The site cannot touch the ledger ────────────────────────────────────────
+
+def test_o_site_nao_consegue_escrever():
+    with _conn("TIAO_WEB_") as c, c.cursor() as cur:
+        with pytest.raises(psycopg.errors.Error):
+            cur.execute("INSERT INTO animais (brinco) VALUES ('e2e-invasor')")
+
+
+def test_o_site_nao_consegue_escrever_por_funcao():
+    for sql in ("SELECT setval('animais_id_seq', 1)", "SELECT lo_import('/etc/passwd')"):
+        with _conn("TIAO_WEB_") as c, c.cursor() as cur:
+            with pytest.raises(psycopg.errors.Error):
+                cur.execute(sql)
+
+
+def test_o_bot_continua_dono_da_caderneta():
+    with _conn() as c, c.cursor() as cur:
+        cur.execute("SELECT current_user")
+        assert cur.fetchone()[0] == "tiao_user"
+```
+
+- [ ] **Step 2: Write the runner's README**
+
+`apps/tiao-web/e2e/README.md` must state: that these tests hit the live deployment and the real
+database; the exact environment variables required and where each value comes from (the PIN from
+`config/fragments/pangolin/tiao.yml`, the bot credentials from the hermes VM's
+`profiles/tiao/.env`, the site credentials from `vault.database.tiao_web_user_pw`); that the suite
+writes and then removes `e2e-90x` rows and must not be run while the father is mid-weighing; and
+the one command that runs it.
+
+- [ ] **Step 3: Run the suite against the live deployment**
+
+```bash
+cd apps/tiao-web && .venv/bin/python -m pytest e2e/ -v -s
+```
+
+Every test must pass. `test_sem_pin_a_caderneta_nao_abre` failing means the ledger is open to the
+internet — stop everything and fix that before anything else.
+
+- [ ] **Step 4: Confirm the ledger is back to zero**
+
+```bash
+ssh root@hermes-vm.local.batistela.tech 'bash -s' <<'EOF'
+set -a; . /root/.hermes/profiles/tiao/.env; set +a
+psql -X -P pager=off -c "SELECT 'animais' t, count(*) FROM animais
+  UNION ALL SELECT 'pesagens', count(*) FROM pesagens
+  UNION ALL SELECT 'compras', count(*) FROM compras
+  UNION ALL SELECT 'compradores', count(*) FROM compradores;"
+EOF
+```
+
+Expected: every count `0`. A leftover `e2e-90x` row means the fixture's teardown failed.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add apps/tiao-web/e2e
+git commit -m "test(tiao-web): end-to-end checks against the live deployment"
+```
+
+---
+
 ## Done when
 
 - `https://tiao.batistela.tech/pesagens` asks for the PIN, then renders the day's weighing live.
@@ -1618,6 +1856,7 @@ git commit -m "feat(pangolin): expose tiao.batistela.tech with PIN"
 - `tiao_web_user` can read and provably cannot write.
 - The bot still owns its database (`SELECT current_user` returns `tiao_user`).
 - Ports 8790/8791 are bound to the LAN IP and loopback respectively, never `0.0.0.0`.
+- The end-to-end suite passes against the live deployment, and the ledger is empty afterwards.
 
 Phases 2 (remaining named views) and 3 (`POST /specs`, `/v/<token>`, bot link skill) are separate
 plans built on this renderer.

@@ -18,6 +18,10 @@ postgresql_users:
     password: "{{ vault.database.mailbot_user_pw }}"
   - name: evolution_user
     password: "{{ vault.database.evolution_user_pw }}"
+  - name: tiao_user
+    password: "{{ vault.database.tiao_user_pw }}"
+  - name: tiao_web_user
+    password: "{{ vault.database.tiao_web_user_pw }}"
 
 postgresql_databases:
   - name: fresh_rss_database
@@ -32,6 +36,8 @@ postgresql_databases:
     owner: mailbot_user
   - name: evolution_api
     owner: evolution_user
+  - name: tiao_database
+    owner: tiao_user
 
 influxdb_databases:
   - name: homeassistant

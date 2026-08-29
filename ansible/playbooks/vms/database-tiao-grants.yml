@@ -1,0 +1,53 @@
+---
+- name: "Grant read-only access on tiao_database to tiao_web_user"
+  hosts: database
+  gather_facts: false
+  become: true
+  become_user: postgres
+  tasks:
+    - name: Allow connecting to the database
+      community.postgresql.postgresql_privs:
+        db: tiao_database
+        type: database
+        objs: tiao_database
+        privs: CONNECT
+        roles: tiao_web_user
+
+    - name: Allow using the public schema
+      community.postgresql.postgresql_privs:
+        db: tiao_database
+        type: schema
+        objs: public
+        privs: USAGE
+        roles: tiao_web_user
+
+    - name: Grant SELECT on existing tables
+      community.postgresql.postgresql_privs:
+        db: tiao_database
+        type: table
+        schema: public
+        objs: ALL_IN_SCHEMA
+        privs: SELECT
+        roles: tiao_web_user
+
+    # Without this, any table created later is invisible to the web layer and the
+    # symptom surfaces weeks on as "a screen disappeared".
+    - name: Grant SELECT on tables created later by tiao_user
+      community.postgresql.postgresql_privs:
+        db: tiao_database
+        type: default_privs
+        schema: public
+        objs: TABLES
+        privs: SELECT
+        roles: tiao_web_user
+        target_roles: tiao_user
+
+    # Role-scoped, so every session this user opens is read-only and time-limited
+    # regardless of what the app sends.
+    - name: Force read-only, time-limited sessions for the role
+      community.postgresql.postgresql_query:
+        db: tiao_database
+        query: "{{ item }}"
+      loop:
+        - "ALTER ROLE tiao_web_user SET statement_timeout = '5s'"
+        - "ALTER ROLE tiao_web_user SET default_transaction_read_only = on"

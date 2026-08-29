@@ -6,4 +6,7 @@
   roles:
     - hermes
     - dev_dependencies
-    - tiao_web
+    # Tagged so the app can be redeployed on its own: `--tags tiao_web` skips the
+    # slow dev_dependencies tooling install, which a web-app redeploy has no need of.
+    - role: tiao_web
+      tags: tiao_web

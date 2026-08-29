@@ -14,19 +14,30 @@ def barras(rotulos, valores, *, largura: int = 320, altura: int = 180) -> str:
     if not pares:
         return ""
 
-    maximo = max(v for _, v in pares) or 1.0
+    # The scale always spans at least zero to zero: a chart of only positive
+    # values keeps zero pinned to the bottom (today's behaviour, unchanged
+    # byte-for-byte); a chart with negative values (e.g. weight lost since the
+    # last weighing) gets zero pulled inside the plot area, with bars for
+    # negative values hanging downward from it instead of drawing a negative,
+    # invisible, out-of-viewBox height.
+    valores = [v for _, v in pares]
+    minimo = min(0.0, min(valores))
+    maximo = max(0.0, max(valores))
+    amplitude = (maximo - minimo) or 1.0
     area = altura - MARGEM_BASE
     passo = largura / len(pares)
     corpo = max(passo * 0.6, 1.0)
+    linha_zero = area - (0 - minimo) / amplitude * area
 
     partes = [
         f'<svg viewBox="0 0 {largura} {altura}" width="100%" height="{altura}" '
         f'role="img" class="grafico">'
     ]
     for i, (rotulo, valor) in enumerate(pares):
-        h = (valor / maximo) * area
+        h = abs(valor) / amplitude * area
+        y_valor = area - (valor - minimo) / amplitude * area
+        y = min(linha_zero, y_valor)
         x = i * passo + (passo - corpo) / 2
-        y = area - h
         partes.append(
             f'<rect x="{x:.1f}" y="{y:.1f}" width="{corpo:.1f}" height="{h:.1f}" rx="2"/>'
         )

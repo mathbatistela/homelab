@@ -1,4 +1,21 @@
+import re
+
 from tiao_web.chart import barras
+
+LARGURA_PADRAO = 320
+ALTURA_PADRAO = 180
+
+
+def _retangulos(svg: str) -> list[dict[str, float]]:
+    """Parse the numeric attributes off every <rect> in an SVG fragment."""
+    campos = ("x", "y", "width", "height")
+    return [
+        {campo: float(valor) for campo, valor in zip(campos, m.groups())}
+        for m in re.finditer(
+            r'<rect x="([\d.\-]+)" y="([\d.\-]+)" width="([\d.\-]+)" height="([\d.\-]+)"',
+            svg,
+        )
+    ]
 
 
 def test_svg_tem_uma_barra_por_valor():
@@ -31,3 +48,52 @@ def test_rotulo_com_caractere_especial_e_escapado():
 
 def test_saida_e_deterministica():
     assert barras(["a"], [1]) == barras(["a"], [1])
+
+
+def test_serie_toda_positiva_permanece_identica():
+    # Golden output captured before the negative-value fix. A series with no
+    # negative values must keep producing byte-identical SVG, since Task 4's
+    # renderer is covered by golden tests against this output.
+    assert barras(["45", "120", "78"], [320, 447, 330]) == (
+        '<svg viewBox="0 0 320 180" width="100%" height="180" role="img" '
+        'class="grafico"><rect x="21.3" y="44.9" width="64.0" height="113.1" '
+        'rx="2"/><text x="53.3" y="174" text-anchor="middle" '
+        'class="rotulo">45</text><rect x="128.0" y="0.0" width="64.0" '
+        'height="158.0" rx="2"/><text x="160.0" y="174" text-anchor="middle" '
+        'class="rotulo">120</text><rect x="234.7" y="41.4" width="64.0" '
+        'height="116.6" rx="2"/><text x="266.7" y="174" text-anchor="middle" '
+        'class="rotulo">78</text></svg>'
+    )
+
+
+def test_valor_negativo_gera_altura_positiva_dentro_do_viewbox():
+    # A view like "ganho de peso desde a última pesagem" is negative for any
+    # animal that lost weight. A negative height is invalid SVG: browsers
+    # don't paint the rect and the reader silently loses data.
+    svg = barras(["a", "b"], [-5, 10])
+    retangulos = _retangulos(svg)
+    assert len(retangulos) == 2
+    for r in retangulos:
+        assert r["height"] > 0
+        assert r["y"] >= 0
+        assert r["y"] + r["height"] <= ALTURA_PADRAO
+        assert r["x"] >= 0
+        assert r["x"] + r["width"] <= LARGURA_PADRAO
+
+
+def test_serie_toda_negativa_gera_altura_positiva_dentro_do_viewbox():
+    svg = barras(["a", "b"], [-5, -10])
+    retangulos = _retangulos(svg)
+    assert len(retangulos) == 2
+    for r in retangulos:
+        assert r["height"] > 0
+        assert r["y"] >= 0
+        assert r["y"] + r["height"] <= ALTURA_PADRAO
+
+
+def test_valor_none_e_ignorado():
+    svg = barras(["a", "b", "c"], [10, None, 20])
+    assert svg.count("<rect") == 2
+    assert ">a<" in svg
+    assert ">c<" in svg
+    assert ">b<" not in svg

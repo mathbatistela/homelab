@@ -1,0 +1,31 @@
+app:
+  name: tiao-web
+  description: Caderneta do gado do Seu Jader — visualização em tabelas e gráficos
+  version: 0.1.0
+
+  services:
+    app:
+      type: backend
+      port: 8790
+      image:
+        name: tiao-web
+        tag: latest
+      healthcheck:
+        path: /saude
+        interval: 30s
+
+  homelab:
+    host: hermes
+    category: productivity
+
+    exposure:
+      local:
+        enabled: false
+        subdomain: tiao
+      public:
+        enabled: true
+        subdomain: tiao
+
+    resources:
+      memory: 256M
+      cpus: 0.25

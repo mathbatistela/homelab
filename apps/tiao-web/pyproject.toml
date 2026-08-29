@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tiao-web"
+version = "0.1.0"
+description = "Caderneta viewer for the Tiao bot"
+requires-python = ">=3.11"
+dependencies = [
+    "starlette>=0.40",
+    "uvicorn>=0.32",
+    "jinja2>=3.1",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.1",
+    "sqlparse>=0.5",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "httpx>=0.27"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+tiao_web = ["templates/*"]

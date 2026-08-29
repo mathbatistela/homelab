@@ -63,10 +63,8 @@ class ViewSpec:
     sql: str
     params: dict
     colunas: list
-    ordenar: str | None = None
     grafico: Grafico | None = None
     resumo: list = field(default_factory=list)
-    congelado: bool = False
 
 
 def parse_spec(dados: dict) -> ViewSpec:
@@ -110,6 +108,24 @@ def parse_spec(dados: dict) -> ViewSpec:
         tabela = {}
     if not isinstance(tabela, dict):
         raise SpecInvalido("tabela precisa ser um objeto")
+
+    # `ordenar` and `congelado` are in the spec document, but nothing in the
+    # renderer reads either one. Accepting them would mean a spec that asks for
+    # a sort gets a page in some other order and no one is told. Refuse until
+    # they exist.
+    #
+    # For whoever implements `ordenar`: it must NEVER be interpolated into the
+    # SQL string. Every value in a statement is bound by the driver, and that is
+    # the whole security model — an ORDER BY built by pasting model-authored
+    # text into the SQL walks straight past it. Sort the fetched rows in Python,
+    # or map the request onto a column already declared in `colunas` plus a
+    # fixed ASC/DESC token. Never onto free text.
+    if tabela.get("ordenar") is not None:
+        raise SpecInvalido(
+            "ordenação ainda não funciona: ponha o ORDER BY na própria consulta"
+        )
+    if dados.get("congelado"):
+        raise SpecInvalido("congelado ainda não funciona nesta caderneta")
 
     colunas_brutas = tabela.get("colunas")
     if colunas_brutas is None:
@@ -163,8 +179,6 @@ def parse_spec(dados: dict) -> ViewSpec:
         sql=sql,
         params=params,
         colunas=colunas,
-        ordenar=(tabela.get("ordenar") or None),
         grafico=grafico,
         resumo=resumo,
-        congelado=bool(dados.get("congelado", False)),
     )

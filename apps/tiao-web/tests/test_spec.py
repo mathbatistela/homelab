@@ -243,3 +243,26 @@ def test_parametros_aceitos_sao_exatamente_os_que_o_driver_vai_ligar(sql, params
 
     s = parse_spec({**BASE, "fonte": {"sql": sql, "params": params}})
     assert set(text(s.sql)._bindparams) == set(s.params)
+
+
+# --- Fix round 2: no field is accepted and then silently ignored ---
+
+
+def test_ordenar_e_recusado_enquanto_nao_existe():
+    dados = {**BASE, "tabela": {**BASE["tabela"], "ordenar": "peso_kg desc"}}
+    with pytest.raises(SpecInvalido, match="ordena"):
+        parse_spec(dados)
+
+
+def test_congelado_e_recusado_enquanto_nao_existe():
+    with pytest.raises(SpecInvalido, match="congel"):
+        parse_spec({**BASE, "congelado": True})
+
+
+def test_congelado_falso_e_aceito():
+    # "don't freeze" is exactly what the caderneta does, so nothing is ignored.
+    assert parse_spec({**BASE, "congelado": False}).titulo == BASE["titulo"]
+
+
+def test_spec_sem_ordenar_nem_congelado_continua_valido():
+    assert parse_spec(BASE).titulo == BASE["titulo"]

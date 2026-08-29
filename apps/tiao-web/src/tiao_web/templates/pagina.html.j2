@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ s.titulo }}</title>
+<style>{{ estilo }}</style>
+</head>
+<body>
+<h1>{{ s.titulo }}</h1>
+
+{% if s.resumo %}
+<div class="resumo">
+  {% for item in s.resumo %}
+  <div><span class="rotulo">{{ item.rotulo }}</span><span class="valor">{{ item.valor }}</span></div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if linhas %}
+  {% if grafico %}{{ grafico | safe }}{% endif %}
+  <table>
+    <tr>{% for c in s.colunas %}<th>{{ c.rotulo }}</th>{% endfor %}</tr>
+    {% for linha in linhas %}{% set i = loop.index0 %}
+    <tr>{% for c in s.colunas %}<td>{{ celulas[i][loop.index0] }}</td>{% endfor %}</tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <p class="vazio">Nada anotado por aqui ainda, patrao.</p>
+{% endif %}
+</body>
+</html>

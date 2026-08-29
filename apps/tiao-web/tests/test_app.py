@@ -1,4 +1,6 @@
 import pytest
+from starlette.applications import Starlette
+from starlette.routing import Route
 from starlette.testclient import TestClient
 
 import tiao_web.app as modulo
@@ -110,3 +112,45 @@ def test_recado_de_caminho_desconhecido_usa_a_folha_de_estilo_da_caderneta(clien
     assert "--papel" in r.text
     assert "style=" not in r.text
     assert "não achei essa página" in r.text.lower()
+
+
+# --- A missing page and a missing record are different problems ---
+# The 404 handler is keyed on the status code, so a route raising
+# HTTPException(404) for an ear tag that does not exist would be answered
+# "não achei essa página" — sending Seu Jader to check a link that is correct.
+
+
+def test_registro_inexistente_tem_recado_proprio():
+    async def sem_registro(request):
+        raise modulo.RegistroNaoEncontrado("Esse brinco eu não achei não, patrão.")
+
+    app = Starlette(
+        routes=[Route("/animal/{brinco}", sem_registro)],
+        exception_handlers=modulo.TRATADORES,
+    )
+    r = TestClient(app).get("/animal/367")
+    assert r.status_code == 404
+    assert "esse brinco eu não achei não" in r.text.lower()
+    assert "não achei essa página" not in r.text.lower()
+
+
+def test_registro_inexistente_sem_recado_usa_o_padrao():
+    async def sem_registro(request):
+        raise modulo.RegistroNaoEncontrado()
+
+    app = Starlette(
+        routes=[Route("/animal/{brinco}", sem_registro)],
+        exception_handlers=modulo.TRATADORES,
+    )
+    r = TestClient(app).get("/animal/367")
+    assert r.status_code == 404
+    assert modulo.RECADO_REGISTRO_NAO_ENCONTRADO in r.text
+    assert "não achei essa página" not in r.text.lower()
+
+
+def test_caminho_desconhecido_continua_com_o_recado_de_link_errado(cliente):
+    # Today's behaviour for a genuinely unknown path must not change.
+    r = cliente.get("/nao-existe")
+    assert r.status_code == 404
+    assert "não achei essa página" in r.text.lower()
+    assert modulo.RECADO_REGISTRO_NAO_ENCONTRADO not in r.text

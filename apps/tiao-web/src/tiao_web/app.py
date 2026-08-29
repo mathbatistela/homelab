@@ -7,6 +7,7 @@ the PIN at the edge, before a request reaches this VM.
 import logging
 
 from starlette.applications import Starlette
+from starlette.exceptions import HTTPException
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
 
@@ -28,9 +29,28 @@ RECADO_CAMINHO_DESCONHECIDO = (
     "te mandaram tá certinho, ou pede pra mandar de novo."
 )
 
+RECADO_REGISTRO_NAO_ENCONTRADO = "Ih, patrão, isso aí eu não tenho anotado na caderneta."
 
-async def caminho_desconhecido(request, exc):
-    return HTMLResponse(render_recado(RECADO_CAMINHO_DESCONHECIDO), status_code=404)
+
+class RegistroNaoEncontrado(HTTPException):
+    """The URL is fine; the thing it names is not in the ledger.
+
+    Both cases are HTTP 404 and the handler is keyed on the status code, so
+    without this a route raising HTTPException(404) for an ear tag nobody ever
+    wrote down would be answered "não achei essa página" — sending Seu Jader off
+    to check a link that was correct all along. A route raises this instead and
+    says what is actually missing: "esse brinco eu não achei não".
+    """
+
+    def __init__(self, recado: str = RECADO_REGISTRO_NAO_ENCONTRADO):
+        super().__init__(status_code=404, detail=recado)
+
+
+async def nao_encontrado(request, exc):
+    recado = (
+        exc.detail if isinstance(exc, RegistroNaoEncontrado) else RECADO_CAMINHO_DESCONHECIDO
+    )
+    return HTMLResponse(render_recado(recado), status_code=404)
 
 
 async def encrenca(request, exc):
@@ -63,10 +83,12 @@ async def pesagens(request):
     return HTMLResponse(pagina)
 
 
+TRATADORES = {404: nao_encontrado, 500: encrenca}
+
 app = Starlette(
     routes=[
         Route("/saude", saude),
         Route("/pesagens", pesagens),
     ],
-    exception_handlers={404: caminho_desconhecido, 500: encrenca},
+    exception_handlers=TRATADORES,
 )

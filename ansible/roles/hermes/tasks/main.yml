@@ -56,6 +56,15 @@
     state: started
     daemon_reload: true
 
+# This role owns {{ hermes_home }}/.env only. The per-profile files under
+# {{ hermes_home }}/profiles/*/.env are hand-placed and deliberately left alone.
+# One of them is coupled to state this repo does manage: profiles/tiao/.env
+# holds PGPASSWORD for tiao_user, the same secret declared on the database host
+# as vault.database.tiao_user_pw (see
+# inventories/local/host_vars/database/postgresql_databases.yml). Nothing keeps
+# the two in sync. Editing PGPASSWORD there without updating the vault means the
+# next `make play-database` resets the database password back to the stale vault
+# value and the Tião bot loses its ledger. Change both together.
 - name: Ensure Hermes environment file exists with safe permissions
   ansible.builtin.file:
     path: "{{ hermes_home }}/.env"

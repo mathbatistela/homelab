@@ -18,6 +18,15 @@ postgresql_users:
     password: "{{ vault.database.mailbot_user_pw }}"
   - name: evolution_user
     password: "{{ vault.database.evolution_user_pw }}"
+  # WARNING: this secret lives in two places and nothing keeps them in sync.
+  # The live Tiao bot reads the same password from PGPASSWORD in
+  # /root/.hermes/profiles/tiao/.env on the hermes VM, which is NOT managed by
+  # Ansible. postgresql_user reconciles the server-side password against the
+  # vault on every run, so the moment the two disagree the next
+  # `make play-database` resets tiao_user's password to the stale vault value
+  # and the bot can no longer open its own ledger. Rotate both together or
+  # neither. Nothing fails loudly when this breaks: the only symptom the user's
+  # father ever sees is Tião replying "deu ruim, patrão".
   - name: tiao_user
     password: "{{ vault.database.tiao_user_pw }}"
   - name: tiao_web_user

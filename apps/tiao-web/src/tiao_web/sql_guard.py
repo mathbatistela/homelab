@@ -8,11 +8,6 @@ value the user picks is bound rather than interpolated.
 
 import sqlparse
 
-PROIBIDAS = {
-    "INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE",
-    "GRANT", "REVOKE", "COPY", "CALL", "DO", "MERGE", "REFRESH", "VACUUM",
-}
-
 
 class SqlNaoPermitido(Exception):
     """The statement is not a plain single SELECT."""
@@ -31,11 +26,16 @@ def check_sql(sql: str, *, limite: int = 500) -> str:
     if (analisada.get_type() or "").upper() != "SELECT":
         raise SqlNaoPermitido("apenas SELECT e permitido")
 
-    # Defence in depth: get_type() reports SELECT for a CTE whose inner
-    # statement writes, so scan every keyword token too.
+    # Defence in depth: get_type() only inspects the leading command, so a
+    # CTE whose inner statement writes still reports SELECT at the top
+    # level. Scan every token for a nested DML keyword instead of matching
+    # on text: TRUNCATE, COPY and VACUUM are non-reserved words in
+    # PostgreSQL and are legal column names or aliases (e.g.
+    # "SELECT total AS truncate FROM animais"), so a text/keyword-class
+    # match on those would reject a legitimate read. SELECT, INSERT,
+    # UPDATE and DELETE are reserved words that sqlparse only ever tags as
+    # Keyword.DML, so this check has no such false positive.
     for token in analisada.flatten():
-        if token.ttype in sqlparse.tokens.Keyword and token.normalized.upper() in PROIBIDAS:
-            raise SqlNaoPermitido(f"comando nao permitido: {token.normalized}")
         if token.ttype is sqlparse.tokens.Keyword.DML and token.normalized.upper() != "SELECT":
             raise SqlNaoPermitido(f"comando nao permitido: {token.normalized}")
 

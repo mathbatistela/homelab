@@ -22,11 +22,30 @@ def test_limit_existente_e_preservado():
         "ALTER TABLE animais ADD COLUMN x TEXT",
         "TRUNCATE animais",
         "GRANT SELECT ON animais TO x",
+        "COPY animais FROM '/tmp/x'",
+        "VACUUM animais",
     ],
 )
 def test_escrita_e_rejeitada(sql):
     with pytest.raises(SqlNaoPermitido):
         check_sql(sql)
+
+
+@pytest.mark.parametrize(
+    "sql, esperado",
+    [
+        (
+            "SELECT total AS truncate FROM animais",
+            "SELECT total AS truncate FROM animais LIMIT 500",
+        ),
+        ("SELECT copy FROM animais", "SELECT copy FROM animais LIMIT 500"),
+        ("SELECT vacuum FROM animais", "SELECT vacuum FROM animais LIMIT 500"),
+    ],
+)
+def test_palavra_nao_reservada_como_coluna_ou_alias_e_aceita(sql, esperado):
+    # TRUNCATE, COPY e VACUUM nao sao palavras reservadas no PostgreSQL: sao
+    # nomes de coluna e apelidos (alias) legitimos.
+    assert check_sql(sql) == esperado
 
 
 def test_multiplas_instrucoes_sao_rejeitadas():

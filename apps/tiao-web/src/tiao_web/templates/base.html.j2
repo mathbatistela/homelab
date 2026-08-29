@@ -1,0 +1,15 @@
+{# One head, one stylesheet, one type scale for every page the caderneta serves —
+   including the two that appear when something has already gone wrong. #}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ titulo }}</title>
+<style>{{ estilo }}</style>
+</head>
+<body>
+<h1>{{ titulo }}</h1>
+{% block corpo %}{% endblock %}
+</body>
+</html>

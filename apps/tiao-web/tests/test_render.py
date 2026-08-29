@@ -1,4 +1,4 @@
-from tiao_web.render import formatar, render_pagina
+from tiao_web.render import formatar, render_pagina, render_recado
 from tiao_web.spec import parse_spec
 
 SPEC = parse_spec(
@@ -115,3 +115,17 @@ def test_grafico_sobre_coluna_de_texto_ainda_entrega_a_tabela():
     assert "367" in html
     assert "novilha" in html
     assert "<svg" not in html
+
+
+def test_recado_passa_pelo_mesmo_estilo_da_pagina():
+    html = render_recado("Ih, patrão, deu uma encrenca.")
+    assert "Ih, patrão, deu uma encrenca." in html
+    assert "<style>" in html
+    assert "prefers-color-scheme" in html
+    assert "http://" not in html and "https://" not in html
+
+
+def test_recado_escapa_o_texto():
+    html = render_recado("<script>")
+    assert "<script>" not in html
+    assert "&lt;script&gt;" in html

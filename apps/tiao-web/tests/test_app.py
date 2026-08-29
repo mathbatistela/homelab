@@ -86,3 +86,27 @@ def test_erro_fora_do_bloco_guardado_mostra_recado_em_portugues(monkeypatch):
     assert "deu uma encrenca" in r.text.lower()
     assert "internal server error" not in r.text.lower()
     assert "boom" not in r.text
+
+
+# --- The two pages the reader sees when something already went wrong are the
+# --- two that most need to look like the caderneta he knows.
+
+
+def test_recado_de_erro_usa_a_folha_de_estilo_da_caderneta(cliente, monkeypatch):
+    def explode(_s):
+        raise RuntimeError("connection refused")
+
+    monkeypatch.setattr(modulo, "executar", explode)
+    r = cliente.get("/pesagens")
+    assert "prefers-color-scheme" in r.text  # dark mode, only estilo.css has it
+    assert "--papel" in r.text
+    assert "style=" not in r.text  # no page-local font declaration
+    assert "deu uma encrenca" in r.text.lower()
+
+
+def test_recado_de_caminho_desconhecido_usa_a_folha_de_estilo_da_caderneta(cliente):
+    r = cliente.get("/nao-existe")
+    assert "prefers-color-scheme" in r.text
+    assert "--papel" in r.text
+    assert "style=" not in r.text
+    assert "não achei essa página" in r.text.lower()

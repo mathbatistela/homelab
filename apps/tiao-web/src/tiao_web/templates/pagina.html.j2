@@ -1,14 +1,5 @@
-<!doctype html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ s.titulo }}</title>
-<style>{{ estilo }}</style>
-</head>
-<body>
-<h1>{{ s.titulo }}</h1>
-
+{% extends "base.html.j2" %}
+{% block corpo %}
 {% if s.resumo %}
 <div class="resumo">
   {% for item in s.resumo %}
@@ -28,5 +19,4 @@
 {% else %}
   <p class="vazio">Nada anotado por aqui ainda, patrão.</p>
 {% endif %}
-</body>
-</html>
+{% endblock %}

@@ -81,5 +81,19 @@ def render_pagina(s, linhas) -> str:
         )
 
     return _env.get_template("pagina.html.j2").render(
-        s=s, linhas=linhas, celulas=celulas, grafico=grafico, estilo=_estilo
+        titulo=s.titulo, s=s, linhas=linhas, celulas=celulas, grafico=grafico, estilo=_estilo
+    )
+
+
+def render_recado(mensagem: str, *, titulo: str = "Caderneta") -> str:
+    """A page carrying nothing but one message.
+
+    The two occasions Seu Jader meets one — a failure, and a link that leads
+    nowhere — are precisely when the page should look like the caderneta he
+    already knows, so it goes through the same base template and the same
+    stylesheet as every other screen: same background, same type scale, same
+    dark mode.
+    """
+    return _env.get_template("recado.html.j2").render(
+        titulo=titulo, mensagem=mensagem, estilo=_estilo
     )

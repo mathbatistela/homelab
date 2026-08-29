@@ -16,6 +16,7 @@ td { font-size:19px; }
 .grafico rect { fill:var(--destaque); }
 .grafico .rotulo { font-size:11px; fill:#6b6b6b; }
 .vazio { padding:28px 0; color:#6b6b6b; }
+.recado { padding:24px 0; font-size:19px; }
 @media (prefers-color-scheme: dark) {
   :root { --tinta:#f2efe8; --papel:#14150f; --linha:#33352b; }
   table,.resumo div { background:#1d1f18; }

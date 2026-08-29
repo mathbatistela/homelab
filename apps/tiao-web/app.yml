@@ -9,11 +9,16 @@ app:
       port: 8790
       image:
         name: tiao-web
-        # What is actually deployed. The Ansible role pins the digest tag CI
-        # published (tiao_web_image in ansible/roles/tiao_web/defaults/main.yml);
-        # nothing rolls an image forward on its own, so any change under src/
-        # needs a fresh CI build and a new pin there before it reaches the VM.
-        tag: sha-bc5f954
+        # Descriptive, not authoritative. The role's tiao_web_image
+        # (ansible/roles/tiao_web/defaults/main.yml) is the single source of
+        # truth for what is deployed: it is the only value the playbook renders
+        # into the compose file, so that is what the VM actually runs. This tag
+        # mirrors it for readers of the manifest. The two may legitimately
+        # differ while a pin is deliberately held back for rollback -- when they
+        # disagree, believe the role. Nothing rolls an image forward on its own,
+        # so any change under src/ needs a fresh CI build and a new pin there
+        # before it reaches the VM.
+        tag: sha-6320b16
       healthcheck:
         path: /saude
         interval: 30s

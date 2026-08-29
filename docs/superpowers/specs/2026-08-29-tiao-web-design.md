@@ -241,10 +241,20 @@ outweighs the benefit.
 | Network | 8790 published on the LAN IP only; the internet arrives through the tunnel |
 | Write path | 8791 published on `127.0.0.1` only, enforced by Docker |
 | SQL | single-`SELECT` check, bound parameters, forced `LIMIT` |
-| Database | `tiao_web_user` has `SELECT` only, read-only transactions, 5s timeout |
+| Database | `tiao_web_user` holds `SELECT` and nothing else — the actual boundary |
 
 The layers are independent: model-authored SQL is contained by database privileges, and
 Seu Jader's filter clicks are contained by parameter binding, regardless of the SQL.
+
+**Verified against the live role, and one correction.** `setval()`, `lo_import()` and
+`pg_terminate_backend()` are refused with *permission denied* rather than by the read-only
+transaction — a stronger containment than designed, since privilege denial does not depend on
+transaction mode. But `default_transaction_read_only` and `statement_timeout` are USERSET GUCs,
+so the role can unset them both: they are defence in depth, not the boundary. The boundary is the
+`SELECT`-only grant, confirmed by disabling the guard inside a genuinely read-write transaction
+and watching every write still fail. This costs nothing against the threat that matters —
+model-authored SQL cannot issue `SET`, because the guard admits only `SELECT` — but it does mean
+the 5s timeout is advisory rather than a hard server-side cap.
 
 ## Testing
 

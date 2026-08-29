@@ -27,6 +27,9 @@ REENVIO = ("e2e-904", 512, "vaca")
 
 PADRAO = "e2e-90%"
 
+# Every table the ledger has. The site may read all four and write none.
+CADERNETA = ("animais", "pesagens", "compras", "compradores")
+
 
 def _conn(prefix=""):
     return psycopg.connect(
@@ -254,22 +257,35 @@ def test_o_site_nao_consegue_escrever():
     The refused INSERT arrives as ReadOnlySqlTransaction (25006), not as a
     privilege error: the role runs with default_transaction_read_only, which
     trips before privileges are ever consulted. That alone is a thin proof — a
-    session setting is not a grant — so the grants are checked directly too.
+    session setting is not a grant — so the grants are checked directly too,
+    across all four tables of the ledger. pesagens is the one that matters most:
+    it holds the weights, and a widened grant there would let the site write the
+    father's weighings with nothing else in the suite noticing.
     """
     with _conn("TIAO_WEB_") as c, c.cursor() as cur:
         with pytest.raises(psycopg.errors.ReadOnlySqlTransaction):
             cur.execute("INSERT INTO animais (brinco) VALUES ('e2e-invasor')")
 
     with _conn("TIAO_WEB_") as c, c.cursor() as cur:
-        cur.execute(
-            "SELECT has_table_privilege('animais', 'INSERT'), "
-            "has_table_privilege('animais', 'UPDATE'), "
-            "has_table_privilege('animais', 'DELETE'), "
-            "has_table_privilege('animais', 'SELECT')"
-        )
-        insere, atualiza, apaga, le = cur.fetchone()
-        assert not (insere or atualiza or apaga), "o site tem permissão de escrita na caderneta"
-        assert le, "o site perdeu a permissão de leitura"
+        # 25006 is also what a hot standby raises, so the refusal above would
+        # look identical on a replica of a role that writes freely on the
+        # primary. Rule that reading out before trusting it.
+        cur.execute("SELECT pg_is_in_recovery()")
+        assert cur.fetchone()[0] is False, \
+            "isto é uma réplica: a recusa acima não prova nada sobre o primário"
+
+        # has_table_privilege reports table-level grants only: an INSERT granted
+        # on a single column would still read False here.
+        for tabela in CADERNETA:
+            cur.execute(
+                "SELECT has_table_privilege(%s, 'INSERT'), has_table_privilege(%s, 'UPDATE'), "
+                "has_table_privilege(%s, 'DELETE'), has_table_privilege(%s, 'SELECT')",
+                (tabela, tabela, tabela, tabela),
+            )
+            insere, atualiza, apaga, le = cur.fetchone()
+            assert not (insere or atualiza or apaga), \
+                f"o site tem permissão de escrita em {tabela}"
+            assert le, f"o site perdeu a permissão de leitura em {tabela}"
 
 
 def test_o_site_nao_consegue_escrever_por_funcao():

@@ -29,15 +29,15 @@ os passa pelo ambiente — nunca por arquivo versionado.
 | Variável | O que é | De onde vem |
 | --- | --- | --- |
 | `TIAO_PIN` | o PIN da borda | `config/fragments/pangolin/tiao.yml`, em `auth.pincode` |
-| `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | credenciais do **bot** (`tiao_user`), que escreve | `/root/.hermes/profiles/tiao/.env` na VM `hermes` (`root@hermes-vm.local.batistela.tech`) |
-| `TIAO_WEB_PGHOST`, `TIAO_WEB_PGDATABASE`, `TIAO_WEB_PGUSER`, `TIAO_WEB_PGPASSWORD` (e `TIAO_WEB_PGPORT`, se não for 5432) | credenciais do **site** (`tiao_web_user`), que só lê | `vault.database.tiao_web_user_pw` em `ansible/inventories/local/group_vars/all/vault.yml` (`ansible-vault view`); host e base são os mesmos do bot |
+| `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | credenciais do **bot** (`tiao_user`), que escreve | `/root/.hermes/profiles/tiao/.env` na VM `hermes` (`root@hermes-vm.local.batistela.tech`) |
+| `TIAO_WEB_PGHOST`, `TIAO_WEB_PGDATABASE`, `TIAO_WEB_PGUSER`, `TIAO_WEB_PGPASSWORD` | credenciais do **site** (`tiao_web_user`), que só lê | `vault.database.tiao_web_user_pw` em `ansible/inventories/local/group_vars/all/vault.yml` (`ansible-vault view`); host e base são os mesmos do bot |
 
-`PGPORT` e `TIAO_WEB_PGPORT` são lidos direto pela suíte, com `5432` de padrão
-— não dependem mais do libpq pegá-los do ambiente por conta própria.
-
-Opcionais, com o valor certo já embutido no código: `TIAO_URL`
-(`https://tiao.batistela.tech`), `PANGOLIN_URL` (`https://pangolin.batistela.tech`)
-e `TIAO_RESOURCE_ID` (`285`, o id do recurso no Pangolin).
+**Opcionais.** `PGPORT` e `TIAO_WEB_PGPORT` só são precisos se o Postgres não
+estiver na 5432: a suíte lê os dois direto, com `5432` de padrão, em vez de
+depender do libpq pegá-los do ambiente sozinho. Também já vêm com o valor certo
+embutido: `TIAO_URL` (`https://tiao.batistela.tech`), `PANGOLIN_URL`
+(`https://pangolin.batistela.tech`) e `TIAO_RESOURCE_ID` (`285`, o id do recurso
+no Pangolin).
 
 ## O limitador de PIN
 

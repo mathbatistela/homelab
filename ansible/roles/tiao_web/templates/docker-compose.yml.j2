@@ -1,0 +1,13 @@
+services:
+  tiao-web:
+    image: {{ tiao_web_image }}
+    container_name: tiao-web
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      # Read routes: LAN only, reached by Pangolin. Never published on 0.0.0.0.
+      - "{{ tiao_web_lan_ip }}:{{ tiao_web_read_port }}:8790"
+      # Spec creation: loopback only, reached by the natively-running bot.
+      - "127.0.0.1:{{ tiao_web_write_port }}:8791"
+    volumes:
+      - "{{ tiao_web_state_dir }}:/var/lib/tiao-web"

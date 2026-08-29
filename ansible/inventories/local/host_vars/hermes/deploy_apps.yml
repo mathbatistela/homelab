@@ -1,0 +1,5 @@
+---
+# GHCR pull credentials for apps deployed on this host (tiao_web).
+# hermes_tools reuses this same vault key on the tools host; the hermes host simply
+# had no app pulling from GHCR until now.
+deploy_webhook_ghcr_token: "{{ vault.tools.deploy_webhook_ghcr_token }}"

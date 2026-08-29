@@ -1,0 +1,42 @@
+---
+- name: Ensure tiao-web directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ tiao_web_compose_dir }}"
+    - "{{ tiao_web_state_dir }}"
+
+# Reuses the GHCR credentials already set up for deploy_webhook (vault.tools.deploy_webhook_ghcr_token),
+# wired onto this host by host_vars/hermes/deploy_apps.yml — same pattern as hermes_tools on the tools VM.
+- name: Log in to GHCR to pull the tiao-web image
+  community.docker.docker_login:
+    registry_url: ghcr.io
+    username: "{{ tiao_web_ghcr_user }}"
+    password: "{{ deploy_webhook_ghcr_token }}"
+  no_log: true
+
+- name: Copy docker-compose file for tiao-web
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ tiao_web_compose_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Copy .env file for tiao-web
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ tiao_web_compose_dir }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Deploy tiao-web using docker-compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ tiao_web_compose_dir }}"
+    state: present
+    pull: policy

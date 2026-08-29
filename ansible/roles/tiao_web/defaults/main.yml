@@ -1,0 +1,11 @@
+---
+tiao_web_compose_dir: /opt/tiao-web
+tiao_web_state_dir: /var/lib/tiao-web
+tiao_web_image: "ghcr.io/mathbatistela/homelab/tiao-web:sha-REPLACE_WITH_BUILT_SHA"
+tiao_web_read_port: 8790
+tiao_web_write_port: 8791
+tiao_web_lan_ip: "{{ ansible_host }}"
+tiao_web_db_host: "{{ hostvars['database'].ansible_host }}"
+tiao_web_db_name: tiao_database
+tiao_web_db_user: tiao_web_user
+tiao_web_ghcr_user: mathbatistela

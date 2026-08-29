@@ -75,4 +75,11 @@
 # grants run. Imported here so a clean rebuild via `make play-database` produces
 # a usable read-only role instead of one that can log in and read nothing; the
 # grants play is idempotent, so running it every time costs nothing.
+#
+# Tagged postgresql_install so the grants travel with the user creation however
+# someone invokes this. Without the tag, `--tags postgresql_install` - the
+# natural way to reconcile just the roles, and the way this play was actually
+# run when tiao_web_user was created - would create the role and skip its
+# grants, leaving a login that can read nothing.
 - import_playbook: database-tiao-grants.yml
+  tags: postgresql_install

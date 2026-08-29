@@ -48,6 +48,19 @@ def check_sql(sql: str, *, limite: int = 500) -> str:
         return f"{texto} LIMIT {limite}"
     if alvo is None:
         raise SqlNaoPermitido("LIMIT sem valor")
+    if alvo.is_group:
+        # Reject rather than attempt a rewrite that cannot take. sqlparse
+        # groups a parenthesised or computed limit — LIMIT (100000),
+        # LIMIT 100000+1, both valid PostgreSQL — into a TokenList, and a
+        # TokenList builds its string from its children, so assigning to
+        # .value there changes nothing: the guard would report a capped
+        # statement and hand back the original, uncapped. Grouped limits
+        # under the cap (LIMIT (10)) are rejected by the same rule: the
+        # guard reads integer literals, not expressions, and one rule with
+        # no exceptions is what makes the ceiling checkable. This path is
+        # spec authoring, on the loopback-only write port, so a rejection
+        # reaches the bot and never Seu Jader.
+        raise SqlNaoPermitido("LIMIT precisa ser um numero simples")
     if _acima_do_teto(alvo, limite):
         alvo.ttype = sqlparse.tokens.Number.Integer
         alvo.value = alvo.normalized = str(limite)
@@ -73,9 +86,11 @@ def _limit_do_topo(analisada):
 def _acima_do_teto(alvo, limite: int) -> bool:
     """True unless the declared limit is an integer literal within the cap.
 
-    One rule and no exceptions: anything that cannot be read as a small enough
-    integer — ``LIMIT ALL``, a bind parameter, an expression — counts as
-    unbounded and is replaced by the cap.
+    One rule and no exceptions: any single token that cannot be read as a small
+    enough integer — ``LIMIT ALL``, a bind parameter, a float — counts as
+    unbounded and is replaced by the cap. Grouped values never reach here;
+    check_sql rejects them, because rewriting a TokenList in place does not
+    take.
     """
     if alvo.ttype not in sqlparse.tokens.Number:
         return True

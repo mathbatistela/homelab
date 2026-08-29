@@ -101,6 +101,9 @@ def test_limit_com_offset_mantem_o_offset():
 @pytest.mark.parametrize("valor", ["ALL", ":n", "10.5"])
 def test_limit_ilegivel_e_tratado_como_ilimitado(valor):
     # Anything we cannot read as an integer within the cap gets the cap.
+    # Os tres valores aqui sao tokens simples: sqlparse nao agrupa nenhum deles.
+    # Valor agrupado (entre parenteses ou com conta) segue outro caminho — ver
+    # test_limit_agrupado_* no fim do arquivo.
     assert (
         check_sql(f"SELECT brinco FROM animais LIMIT {valor}")
         == "SELECT brinco FROM animais LIMIT 500"
@@ -111,3 +114,26 @@ def test_teto_configuravel():
     assert check_sql("SELECT brinco FROM animais LIMIT 900", limite=10) == (
         "SELECT brinco FROM animais LIMIT 10"
     )
+
+
+# --- Fix round 3: a limit the guard cannot rewrite is rejected, not "capped" ---
+# The cases above all reach _acima_do_teto as a single ungrouped token, which is
+# exactly why they missed this: sqlparse groups a parenthesised or computed
+# limit into a TokenList, whose str() comes from its children, so the old
+# assignment to .value was a silent no-op and the statement went out uncapped
+# while check_sql reported it capped.
+
+
+@pytest.mark.parametrize("valor", ["(100000)", "100000+1"])
+def test_limit_agrupado_acima_do_teto_e_rejeitado(valor):
+    with pytest.raises(SqlNaoPermitido):
+        check_sql(f"SELECT brinco FROM animais LIMIT {valor}")
+
+
+def test_limit_agrupado_abaixo_do_teto_tambem_e_rejeitado():
+    # Escolha deliberada: LIMIT (10) cabe no teto, mas o guard le numero
+    # inteiro simples, nao expressao. Rejeitar vale para todo valor agrupado —
+    # uma regra so, sem excecao, e o que mantem o teto verificavel. Quem escreve
+    # a spec troca por LIMIT 10.
+    with pytest.raises(SqlNaoPermitido):
+        check_sql("SELECT brinco FROM animais LIMIT (10)")

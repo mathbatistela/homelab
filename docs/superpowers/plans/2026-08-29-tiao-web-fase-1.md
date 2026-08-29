@@ -1354,7 +1354,7 @@ Expected: image builds with no error.
 ---
 tiao_web_compose_dir: /opt/tiao-web
 tiao_web_state_dir: /var/lib/tiao-web
-tiao_web_image: "ghcr.io/mathbatistela/homelab/tiao-web:latest"
+tiao_web_image: "ghcr.io/mathbatistela/homelab/tiao-web:sha-REPLACE_WITH_BUILT_SHA"
 tiao_web_read_port: 8790
 tiao_web_write_port: 8791
 tiao_web_lan_ip: "{{ ansible_host }}"
@@ -1473,13 +1473,27 @@ deploy_webhook_ghcr_token: "{{ vault.tools.deploy_webhook_ghcr_token }}"
 
 - [ ] **Step 9: Push so CI builds the image, then deploy**
 
+The CI workflow only builds on a push to `main`, and a pull_request build sets `push: false`, so
+neither publishes an image for this branch. Use `workflow_dispatch`, which the workflow supports
+via its `app` input and which does push — it tags `sha-<commit>` (never `latest`, which is gated
+on the default branch). This gets a genuine CI-built image without merging to `main`, and pinning
+an exact tag is better practice than chasing `latest` anyway.
+
 ```bash
 git add apps/tiao-web/Dockerfile ansible/roles/tiao_web \
         ansible/playbooks/vms/hermes.yml \
         ansible/inventories/local/host_vars/hermes/deploy_apps.yml
 git commit -m "feat(tiao-web): containerise and deploy to the hermes VM"
-git push
-# wait for .github/workflows/apps.yml to publish ghcr.io/mathbatistela/homelab/tiao-web:latest
+git push -u origin feat/tiao-web-fase-1
+
+gh workflow run apps.yml --ref feat/tiao-web-fase-1 -f app=tiao-web
+gh run watch "$(gh run list --workflow=apps.yml --branch=feat/tiao-web-fase-1 --limit=1 --json databaseId --jq '.[0].databaseId')"
+```
+
+Then set `tiao_web_image` in `ansible/roles/tiao_web/defaults/main.yml` to the exact tag the run
+published (`ghcr.io/mathbatistela/homelab/tiao-web:sha-<commit>`), commit that, and deploy:
+
+```bash
 make play-hermes
 ```
 

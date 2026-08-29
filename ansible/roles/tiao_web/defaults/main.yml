@@ -1,7 +1,7 @@
 ---
 tiao_web_compose_dir: /opt/tiao-web
 tiao_web_state_dir: /var/lib/tiao-web
-tiao_web_image: "ghcr.io/mathbatistela/homelab/tiao-web:sha-dc8e2d5"
+tiao_web_image: "ghcr.io/mathbatistela/homelab/tiao-web:sha-bc5f954"
 tiao_web_read_port: 8790
 tiao_web_write_port: 8791
 tiao_web_lan_ip: "{{ ansible_host }}"
@@ -9,3 +9,7 @@ tiao_web_db_host: "{{ hostvars['database'].ansible_host }}"
 tiao_web_db_name: tiao_database
 tiao_web_db_user: tiao_web_user
 tiao_web_ghcr_user: mathbatistela
+# Enforced as cgroup limits by the compose template. Keep in step with the
+# sizing apps/tiao-web/app.yml declares.
+tiao_web_memory_limit: 256M
+tiao_web_cpu_limit: "0.25"

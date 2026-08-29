@@ -11,3 +11,12 @@ services:
       - "127.0.0.1:{{ tiao_web_write_port }}:8791"
     volumes:
       - "{{ tiao_web_state_dir }}:/var/lib/tiao-web"
+    # The sizing apps/tiao-web/app.yml declares, actually enforced. Compose v2
+    # applies deploy.resources.limits without swarm, so these become real cgroup
+    # limits on the container. Hermes also runs a family member's Telegram bot;
+    # an unbounded viewer process must not be able to starve it.
+    deploy:
+      resources:
+        limits:
+          memory: {{ tiao_web_memory_limit }}
+          cpus: "{{ tiao_web_cpu_limit }}"

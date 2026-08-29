@@ -13,7 +13,7 @@ app:
         # published (tiao_web_image in ansible/roles/tiao_web/defaults/main.yml);
         # nothing rolls an image forward on its own, so any change under src/
         # needs a fresh CI build and a new pin there before it reaches the VM.
-        tag: sha-dc8e2d5
+        tag: sha-bc5f954
       healthcheck:
         path: /saude
         interval: 30s
@@ -30,9 +30,10 @@ app:
         enabled: true
         subdomain: tiao
 
-    # Intended sizing, not an enforced limit: the role's compose template
-    # (ansible/roles/tiao_web/templates/docker-compose.yml.j2) sets no deploy
-    # limits, so the container is currently unconstrained on the host.
+    # Enforced, not just intended: the role's compose template
+    # (ansible/roles/tiao_web/templates/docker-compose.yml.j2) applies these as
+    # deploy.resources.limits, via tiao_web_memory_limit / tiao_web_cpu_limit in
+    # that role's defaults. Changing a number here means changing it there too.
     resources:
       memory: 256M
       cpus: 0.25

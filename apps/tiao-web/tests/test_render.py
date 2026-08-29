@@ -55,6 +55,15 @@ def test_formatar_numerico_continua_igual_apos_fallback():
     assert formatar(0, "kg") == "0 kg"
 
 
+def test_formatar_com_texto_nao_numerico_avisa_no_log(caplog):
+    with caplog.at_level("WARNING", logger="tiao_web"):
+        formatar("novilha", "kg")
+    assert len(caplog.records) == 1
+    mensagem = caplog.records[0].getMessage()
+    assert "kg" in mensagem
+    assert "novilha" not in mensagem
+
+
 def test_pagina_tem_titulo_e_linhas():
     html = render_pagina(SPEC, LINHAS)
     assert "Pesagem de 21/06/2026" in html

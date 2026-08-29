@@ -5,6 +5,7 @@ on every screen, whatever query produced it.
 """
 
 import datetime
+import logging
 from decimal import Decimal
 from pathlib import Path
 
@@ -19,6 +20,8 @@ _env = Environment(
 )
 _estilo = (TEMPLATES / "estilo.css").read_text(encoding="utf-8")
 
+logger = logging.getLogger("tiao_web")
+
 
 def formatar(valor, formato: str) -> str:
     if valor is None or valor == "":
@@ -27,12 +30,12 @@ def formatar(valor, formato: str) -> str:
         try:
             return f"{_num(valor):g} kg"
         except (ValueError, TypeError):
-            return str(valor)
+            return _sem_formato(valor, formato)
     if formato == "reais":
         try:
             inteiro = f"{_num(valor):,.2f}"
         except (ValueError, TypeError):
-            return str(valor)
+            return _sem_formato(valor, formato)
         return "R$ " + inteiro.replace(",", "@").replace(".", ",").replace("@", ".")
     if formato == "data":
         if isinstance(valor, (datetime.date, datetime.datetime)):
@@ -42,7 +45,22 @@ def formatar(valor, formato: str) -> str:
         try:
             return f"{_num(valor):g}"
         except (ValueError, TypeError):
-            return str(valor)
+            return _sem_formato(valor, formato)
+    return str(valor)
+
+
+def _sem_formato(valor, formato: str) -> str:
+    """A value that doesn't match its declared formato: show it as plain text.
+
+    The reader gets the table instead of a crashed page, but a mismatch between
+    a column's declared formato and the data it actually holds means the bot
+    wrote a wrong spec — that's worth finding, so it goes to the log.
+    """
+    logger.warning(
+        "valor incompatível com formato %r (tipo %s); exibindo como texto",
+        formato,
+        type(valor).__name__,
+    )
     return str(valor)
 
 

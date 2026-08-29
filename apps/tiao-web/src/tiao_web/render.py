@@ -24,16 +24,25 @@ def formatar(valor, formato: str) -> str:
     if valor is None or valor == "":
         return "—"
     if formato == "kg":
-        return f"{_num(valor):g} kg"
+        try:
+            return f"{_num(valor):g} kg"
+        except (ValueError, TypeError):
+            return str(valor)
     if formato == "reais":
-        inteiro = f"{_num(valor):,.2f}"
+        try:
+            inteiro = f"{_num(valor):,.2f}"
+        except (ValueError, TypeError):
+            return str(valor)
         return "R$ " + inteiro.replace(",", "@").replace(".", ",").replace("@", ".")
     if formato == "data":
         if isinstance(valor, (datetime.date, datetime.datetime)):
             return valor.strftime("%d/%m/%Y")
         return str(valor)
     if formato == "numero":
-        return f"{_num(valor):g}"
+        try:
+            return f"{_num(valor):g}"
+        except (ValueError, TypeError):
+            return str(valor)
     return str(valor)
 
 

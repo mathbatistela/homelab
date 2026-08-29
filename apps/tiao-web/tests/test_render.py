@@ -36,6 +36,25 @@ def test_formatar_vazio_nao_mostra_none():
     assert formatar(None, "kg") == "—"
 
 
+def test_formatar_kg_com_texto_nao_numerico_cai_para_texto_plano():
+    assert formatar("novilha", "kg") == "novilha"
+
+
+def test_formatar_reais_com_texto_nao_numerico_cai_para_texto_plano():
+    assert formatar("novilha", "reais") == "novilha"
+
+
+def test_formatar_numero_com_texto_nao_numerico_cai_para_texto_plano():
+    assert formatar("novilha", "numero") == "novilha"
+
+
+def test_formatar_numerico_continua_igual_apos_fallback():
+    assert formatar(282, "kg") == "282 kg"
+    assert formatar(2900, "reais") == "R$ 2.900,00"
+    assert formatar(7, "numero") == "7"
+    assert formatar(0, "kg") == "0 kg"
+
+
 def test_pagina_tem_titulo_e_linhas():
     html = render_pagina(SPEC, LINHAS)
     assert "Pesagem de 21/06/2026" in html

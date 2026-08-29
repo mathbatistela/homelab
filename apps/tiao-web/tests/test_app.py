@@ -154,3 +154,10 @@ def test_caminho_desconhecido_continua_com_o_recado_de_link_errado(cliente):
     assert r.status_code == 404
     assert "não achei essa página" in r.text.lower()
     assert modulo.RECADO_REGISTRO_NAO_ENCONTRADO not in r.text
+
+
+def test_pesagens_mostra_o_resumo(cliente):
+    r = cliente.get("/pesagens?data=2026-06-21")
+    assert 'class="resumo"' in r.text
+    assert "Cabeças" in r.text
+    assert "Média" in r.text

@@ -13,7 +13,7 @@ from starlette.routing import Route
 
 from .db import executar
 from .render import render_pagina, render_recado
-from .views import NOMEADAS
+from .views import NOMEADAS, resumir_pesagens
 
 logger = logging.getLogger("tiao_web")
 
@@ -72,7 +72,7 @@ async def pesagens(request):
     s = NOMEADAS["pesagens"](request.query_params.get("data"))
     try:
         linhas = executar(s)
-        pagina = render_pagina(s, linhas)
+        pagina = render_pagina(resumir_pesagens(s, linhas), linhas)
     except Exception:
         # Rendering is inside the guard too: a spec whose chart or formato does
         # not match the data it got back fails here, not in the query, and the

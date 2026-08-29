@@ -5,7 +5,9 @@ two pages on unrelated subjects looking identical.
 """
 
 import datetime
+from dataclasses import replace
 
+from .render import formatar
 from .spec import parse_spec
 
 SQL_PESAGENS = """
@@ -40,6 +42,38 @@ def pesagens(data: str | None):
             "grafico": {"tipo": "barras", "x": "brinco", "y": "peso_kg"},
         }
     )
+
+
+def resumir_pesagens(s, linhas: list[dict]):
+    """Cabeças and Média — the line a rancher glances at first.
+
+    Computed after the query rather than written into the spec, because the
+    values come from the rows. Formatting goes through render.formatar so an
+    average weight reads exactly like a weight in the table below it.
+    """
+    if not linhas:
+        # The page already says "Nada anotado por aqui ainda, patrão."
+        return replace(s, resumo=[])
+
+    resumo = [{"rotulo": "Cabeças", "valor": formatar(len(linhas), "numero")}]
+    if (media := _media_kg(linhas)) is not None:
+        resumo.append({"rotulo": "Média", "valor": formatar(round(media), "kg")})
+    return replace(s, resumo=resumo)
+
+
+def _media_kg(linhas: list[dict]) -> float | None:
+    """Mean weight over the rows that carry one.
+
+    Every row is a head, but a weighing can be missing or arrive as something
+    that is not a number, and one bad row must not cost the whole summary.
+    """
+    pesos = []
+    for linha in linhas:
+        try:
+            pesos.append(float(linha.get("peso_kg")))
+        except (TypeError, ValueError):
+            continue
+    return sum(pesos) / len(pesos) if pesos else None
 
 
 NOMEADAS = {"pesagens": pesagens}

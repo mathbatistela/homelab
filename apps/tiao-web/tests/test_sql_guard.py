@@ -60,3 +60,54 @@ def test_cte_que_escreve_e_rejeitada():
 
 def test_ponto_e_virgula_final_e_aceito():
     assert check_sql("SELECT 1;") == "SELECT 1 LIMIT 500"
+
+
+# --- Fix round 2: 500 is a ceiling, not a default ---
+# _tem_limit matched the keyword anywhere in the flattened token stream, so a
+# LIMIT inside a subquery counted as "already limited" and a LIMIT 100000 was
+# accepted as written. Nothing else caps the result size: statement_timeout is
+# advisory (the role can unset it) and the pool is 2 connections deep.
+
+
+def test_limit_acima_do_teto_e_reduzido():
+    assert (
+        check_sql("SELECT brinco FROM animais LIMIT 100000")
+        == "SELECT brinco FROM animais LIMIT 500"
+    )
+
+
+def test_limit_no_teto_e_preservado():
+    sql = "SELECT brinco FROM animais LIMIT 500"
+    assert check_sql(sql) == sql
+
+
+def test_limit_aninhado_nao_vale_como_teto():
+    sql = "SELECT * FROM (SELECT brinco FROM animais LIMIT 10) t"
+    assert check_sql(sql) == f"{sql} LIMIT 500"
+
+
+def test_limit_aninhado_grande_ganha_teto_externo():
+    sql = "SELECT * FROM (SELECT brinco FROM animais LIMIT 100000) t"
+    assert check_sql(sql) == f"{sql} LIMIT 500"
+
+
+def test_limit_com_offset_mantem_o_offset():
+    assert (
+        check_sql("SELECT brinco FROM animais ORDER BY brinco LIMIT 900 OFFSET 5")
+        == "SELECT brinco FROM animais ORDER BY brinco LIMIT 500 OFFSET 5"
+    )
+
+
+@pytest.mark.parametrize("valor", ["ALL", ":n", "10.5"])
+def test_limit_ilegivel_e_tratado_como_ilimitado(valor):
+    # Anything we cannot read as an integer within the cap gets the cap.
+    assert (
+        check_sql(f"SELECT brinco FROM animais LIMIT {valor}")
+        == "SELECT brinco FROM animais LIMIT 500"
+    )
+
+
+def test_teto_configuravel():
+    assert check_sql("SELECT brinco FROM animais LIMIT 900", limite=10) == (
+        "SELECT brinco FROM animais LIMIT 10"
+    )

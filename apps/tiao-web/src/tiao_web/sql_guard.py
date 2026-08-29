@@ -39,13 +39,47 @@ def check_sql(sql: str, *, limite: int = 500) -> str:
         if token.ttype is sqlparse.tokens.Keyword.DML and token.normalized.upper() != "SELECT":
             raise SqlNaoPermitido(f"comando nao permitido: {token.normalized}")
 
-    if not _tem_limit(analisada):
-        texto = f"{texto} LIMIT {limite}"
+    # The cap is a ceiling, not a default. Nothing behind this layer bounds the
+    # result size: statement_timeout is set on the role and the role can unset
+    # it, and the pool is two connections deep — a single unbounded read is
+    # enough to hold one of them and hand the phone a page it cannot render.
+    tem_limit, alvo = _limit_do_topo(analisada)
+    if not tem_limit:
+        return f"{texto} LIMIT {limite}"
+    if alvo is None:
+        raise SqlNaoPermitido("LIMIT sem valor")
+    if _acima_do_teto(alvo, limite):
+        alvo.ttype = sqlparse.tokens.Number.Integer
+        alvo.value = alvo.normalized = str(limite)
+        texto = str(analisada)
     return texto
 
 
-def _tem_limit(analisada) -> bool:
-    return any(
-        token.ttype in sqlparse.tokens.Keyword and token.normalized.upper() == "LIMIT"
-        for token in analisada.flatten()
-    )
+def _limit_do_topo(analisada):
+    """Whether the statement declares a LIMIT of its own, and its value token.
+
+    Only the top level counts. The old check matched the keyword anywhere in
+    the flattened stream, so ``SELECT * FROM (SELECT ... LIMIT 10) t`` read as
+    "already limited" and got no outer cap at all — a subquery's limit says
+    nothing about how many rows come back.
+    """
+    tokens = [t for t in analisada.tokens if not t.is_whitespace]
+    for i, token in enumerate(tokens):
+        if token.ttype in sqlparse.tokens.Keyword and token.normalized.upper() == "LIMIT":
+            return True, (tokens[i + 1] if i + 1 < len(tokens) else None)
+    return False, None
+
+
+def _acima_do_teto(alvo, limite: int) -> bool:
+    """True unless the declared limit is an integer literal within the cap.
+
+    One rule and no exceptions: anything that cannot be read as a small enough
+    integer — ``LIMIT ALL``, a bind parameter, an expression — counts as
+    unbounded and is replaced by the cap.
+    """
+    if alvo.ttype not in sqlparse.tokens.Number:
+        return True
+    try:
+        return int(alvo.value) > limite
+    except ValueError:
+        return True

@@ -39,14 +39,29 @@ que o bot ainda escreve. Está na lista só para o caso de um `ROLLBACK` falhar.
 
 ## Variáveis de ambiente
 
-Nenhuma delas está no repositório. Quem roda a suíte junta os valores na hora e
-os passa pelo ambiente — nunca por arquivo versionado.
+Quem roda a suíte junta os valores na hora e os passa pelo ambiente — nunca por
+arquivo versionado. Isso vale para as duas credenciais de banco: elas moram
+fora deste repositório, uma no `.env` da VM, outra cofrada com
+`ansible-vault`.
+
+**Não vale para o PIN.** `TIAO_PIN` está commitado em texto puro em
+`config/fragments/pangolin/tiao.yml`, em `auth.pincode` — não há indireção de
+vault ali. Ele está no histórico do git, então trocá-lo é um commit novo, e
+qualquer um com acesso ao repositório tem a página. Foi decisão, não descuido:
+um `{{ vault.* }}` ali foi considerado e rejeitado porque `make
+play-pangolin` carrega o inventário local **e** o da nuvem, cada um com seu
+próprio `group_vars/all/vault.yml` cifrado, e o comportamento padrão do
+Ansible para merge de hash (`replace`) faz uma chave `vault` de nível
+superior num deles sobrescrever silenciosamente a do outro — vale revisitar
+essa escolha. É por isso que o limitador de tentativas do Pangolin (abaixo)
+não é só conveniência: é ele que segura a porta enquanto o PIN estiver em
+texto puro no repositório.
 
 | Variável | O que é | De onde vem |
 | --- | --- | --- |
-| `TIAO_PIN` | o PIN da borda | `config/fragments/pangolin/tiao.yml`, em `auth.pincode` |
-| `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | credenciais do **bot** (`tiao_user`), que escreve | `/root/.hermes/profiles/tiao/.env` na VM `hermes` (`root@hermes-vm.local.batistela.tech`) |
-| `TIAO_WEB_PGHOST`, `TIAO_WEB_PGDATABASE`, `TIAO_WEB_PGUSER`, `TIAO_WEB_PGPASSWORD` | credenciais do **site** (`tiao_web_user`), que só lê | `vault.database.tiao_web_user_pw` em `ansible/inventories/local/group_vars/all/vault.yml` (`ansible-vault view`); host e base são os mesmos do bot |
+| `TIAO_PIN` | o PIN da borda | commitado em texto puro em `config/fragments/pangolin/tiao.yml`, em `auth.pincode` — **não** está fora do repositório |
+| `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | credenciais do **bot** (`tiao_user`), que escreve | `/root/.hermes/profiles/tiao/.env` na VM `hermes` (`root@hermes-vm.local.batistela.tech`) — fora do repositório |
+| `TIAO_WEB_PGHOST`, `TIAO_WEB_PGDATABASE`, `TIAO_WEB_PGUSER`, `TIAO_WEB_PGPASSWORD` | credenciais do **site** (`tiao_web_user`), que só lê | `vault.database.tiao_web_user_pw` em `ansible/inventories/local/group_vars/all/vault.yml` (`ansible-vault view`) — fora do repositório; host e base são os mesmos do bot |
 
 **Opcionais.** `PGPORT` e `TIAO_WEB_PGPORT` só são precisos se o Postgres não
 estiver na 5432: a suíte lê os dois direto, com `5432` de padrão, em vez de

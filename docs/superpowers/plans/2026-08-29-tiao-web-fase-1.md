@@ -965,7 +965,30 @@ ssh root@hermes-vm.local.batistela.tech \
 Expected: the `SELECT` returns a count; the `INSERT` fails with a permission or read-only
 transaction error, and the exit code is non-zero.
 
-- [ ] **Step 7: Confirm the bot still has its database**
+- [ ] **Step 7: Confirm the role contains the function-call bypasses**
+
+The SQL guard cannot catch a write reached through a function call — `SELECT setval(...)` carries
+no DML keyword. The design answer is that the database role refuses them; this step proves it
+rather than assuming it. Run each as `tiao_web_user`:
+
+```bash
+ssh root@hermes-vm.local.batistela.tech 'bash -s' <<'EOF'
+export PGHOST=192.168.1.103 PGDATABASE=tiao_database PGUSER=tiao_web_user PGPASSWORD='<new>'
+for q in "SELECT setval('animais_id_seq', 100)" \
+         "SELECT lo_import('/etc/passwd')" \
+         "SELECT pg_terminate_backend(1)"; do
+  printf '%-46s -> ' "$q"
+  psql -X -tAc "$q" 2>&1 | head -1
+done
+EOF
+```
+
+Expected: `setval` and `lo_import` fail with a read-only-transaction or permission error;
+`pg_terminate_backend` either fails on privilege or affects nothing outside this role's own
+backends. **If any of the three succeeds, stop** — the guard would then be the only layer
+standing, and that is not the design.
+
+- [ ] **Step 8: Confirm the bot still has its database**
 
 ```bash
 ssh root@hermes-vm.local.batistela.tech \
@@ -975,7 +998,7 @@ ssh root@hermes-vm.local.batistela.tech \
 Expected: `tiao_user`. If this fails, the vault password did not match the live one — fix the
 vault value and re-run, before going further.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add ansible/inventories/local/host_vars/database/postgresql_databases.yml \

@@ -56,7 +56,15 @@ def rebanho(request):
 
 def animal(request, brinco):
     """One animal's card: what it is, what it weighs, what it cost, what it's worth."""
-    bicho = get_object_or_404(_rebanho_base(), brinco=brinco)
+    return _ficha(request, get_object_or_404(_rebanho_base(), brinco=brinco))
+
+
+def animal_por_id(request, pk):
+    """Same card, for an animal with no ear tag to address it by."""
+    return _ficha(request, get_object_or_404(_rebanho_base(), pk=pk))
+
+
+def _ficha(request, bicho):
     Animal.com_cotacoes([bicho])
     despesas = list(bicho.despesas.all())
     return render(request, "gado/animal.html", {

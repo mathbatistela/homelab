@@ -179,7 +179,23 @@ class Movimentacao(models.Model):
 
 
 class Animal(models.Model):
-    brinco = models.TextField("brinco", unique=True)
+    """A head of cattle -- identified by ear tag when there is one.
+
+    Much of what Jader will type in at the start is history: animals he bought
+    and never weighed, animals already sold, animals he only ever called "a
+    vaca do chifre quebrado". A record that refuses to exist until every field
+    is known would simply lose that history, so almost everything here is
+    optional. The one floor is that an animal must be REFERABLE: a tag, or a
+    phrase he recognises. An animal with neither can never be spoken about
+    again, which makes it worse than not recorded.
+    """
+
+    # Nullable AND unique: Postgres treats NULLs as distinct, so any number of
+    # untagged animals coexist while real tags stay unique.
+    brinco = models.TextField("brinco", unique=True, blank=True, null=True)
+    referencia = models.TextField(
+        "referência", blank=True, null=True,
+        help_text="Como o patrão chama o bicho quando não tem brinco")
     raca = models.TextField("raça", blank=True, null=True)
     categoria = models.CharField("categoria", max_length=16, blank=True, null=True,
                                  choices=Categoria)
@@ -210,6 +226,10 @@ class Animal(models.Model):
         # the ORM and `save()` does not run `full_clean()`, so a choices field
         # alone would let a typo through. These are the last line.
         constraints = [
+            # Referable or not recorded. Everything else may be filled in later.
+            models.CheckConstraint(
+                condition=models.Q(brinco__isnull=False) | models.Q(referencia__isnull=False),
+                name="animais_identificavel"),
             models.CheckConstraint(
                 condition=models.Q(sexo__in=Sexo.values) | models.Q(sexo__isnull=True),
                 name="animais_sexo_valido"),
@@ -220,7 +240,37 @@ class Animal(models.Model):
         ]
 
     def __str__(self):
-        return f"brinco {self.brinco}"
+        return f"brinco {self.brinco}" if self.brinco else self.identificacao
+
+    @property
+    def identificacao(self):
+        """What to call this animal on screen and out loud."""
+        if self.brinco:
+            return self.brinco
+        if self.referencia:
+            return self.referencia
+        return f"sem brinco #{self.pk}"
+
+    @property
+    def faltando(self):
+        """Which useful facts this record still lacks.
+
+        Backfilled history arrives full of holes, and holes are fine -- but they
+        must be VISIBLE, or they never get filled. Each entry names what the gap
+        actually costs.
+        """
+        faltas = []
+        if not self.brinco:
+            faltas.append("brinco")
+        if not self.categoria:
+            faltas.append("categoria (sem ela não dá pra saber o valor)")
+        if self.ultima_pesagem is None:
+            faltas.append("nunca foi pesado")
+        if not self.propriedade_id and not self.venda_id:
+            faltas.append("em qual pasto está")
+        if self.valor_compra is None:
+            faltas.append("quanto custou")
+        return faltas
 
     def clean_fields(self, exclude=None):
         # Must happen HERE, not in clean(): Django validates choices inside

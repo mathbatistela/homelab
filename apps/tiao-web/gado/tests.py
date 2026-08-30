@@ -343,3 +343,84 @@ class TestTelaCheia(BaseGado):
     def test_coluna_do_brinco_fica_fixa(self):
         corpo = self.client.get("/").content.decode()
         self.assertIn("th:first-child,td:first-child{position:sticky", corpo)
+
+
+class TestBagunçaInicial(BaseGado):
+    """The first weeks are a pile of half-remembered history.
+
+    Purchases never weighed, animals already sold, sales with no weight, cattle
+    known only as "the cow with the broken horn" -- all mixed together. A schema
+    that refuses these loses the history; the only floor is that an animal must
+    stay referable.
+    """
+
+    def test_bicho_so_com_referencia(self):
+        a = Animal.objects.create(referencia="a vaca do chifre quebrado",
+                                  categoria="vaca")
+        self.assertIsNone(a.brinco)
+        self.assertEqual(a.identificacao, "a vaca do chifre quebrado")
+
+    def test_varios_sem_brinco_convivem(self):
+        """NULL is distinct from NULL in Postgres, so unique does not collide."""
+        Animal.objects.create(referencia="o boi manso do curral")
+        Animal.objects.create(referencia="a bezerra da ponta branca")
+        self.assertEqual(Animal.objects.filter(brinco__isnull=True).count(), 2)
+
+    def test_bicho_anonimo_e_recusado(self):
+        """The one floor: no tag AND no phrase means it can never be spoken of."""
+        with self.assertRaises((IntegrityError, ValidationError)), transaction.atomic():
+            Animal.objects.create(categoria="boi")
+
+    def test_comprado_e_nunca_pesado(self):
+        a = Animal.objects.create(brinco="T900", categoria="boi",
+                                  valor_compra=Decimal("2500"))
+        self.assertIsNone(a.peso_atual_kg)
+        self.assertIsNone(a.valor_atual)      # sem peso não há valor
+        self.assertIsNone(a.pago_por_arroba)  # nem preço por arroba
+        self.assertEqual(a.custo_total, Decimal("2500"))   # o que custou, esse sim
+
+    def test_vendido_sem_nunca_ter_pesado(self):
+        v = Movimentacao.objects.create(tipo=Movimentacao.VENDA,
+                                        data=datetime.date(2026, 8, 1),
+                                        valor=Decimal("3000"), quantidade=1)
+        a = Animal.objects.create(brinco="T901", categoria="boi", venda=v)
+        self.assertIsNotNone(a.venda_id)
+        self.assertIsNone(a.valor_atual)
+
+    def test_venda_sem_peso_e_sem_animal_ligado(self):
+        """He sold a lot before any of it was in the system."""
+        v = Venda.objects.create(data=datetime.date(2026, 7, 1),
+                                 valor=Decimal("18000"), quantidade=6)
+        self.assertEqual(v.animais_vendidos.count(), 0)
+        self.assertAlmostEqual(float(v.valor_por_cabeca), 3000.0)
+
+    def test_faltando_diz_o_que_o_buraco_custa(self):
+        a = Animal.objects.create(referencia="a vermelha")
+        faltas = " | ".join(a.faltando)
+        self.assertIn("brinco", faltas)
+        self.assertIn("categoria", faltas)
+        self.assertIn("nunca foi pesado", faltas)
+        # e o que ela já tem não aparece como falta
+        self.assertNotIn("referência", faltas)
+
+    def test_animal_completo_nao_tem_faltas(self):
+        self.vaca.valor_compra = Decimal("2987.14")
+        self.vaca.save()
+        self.assertEqual(self.vaca.faltando, [])
+
+    def test_lista_aguenta_a_mistura(self):
+        """The herd page must render with all of this on it at once."""
+        Animal.objects.create(referencia="a vaca do chifre quebrado")
+        Animal.objects.create(brinco="T900", categoria="boi")
+        corpo = self.client.get("/").content.decode()
+        self.assertEqual(self.client.get("/").status_code, 200)
+        self.assertIn("a vaca do chifre quebrado", corpo)
+        self.assertIn("T900", corpo)
+
+    def test_ficha_de_bicho_sem_brinco_abre_pelo_id(self):
+        a = Animal.objects.create(referencia="o boi manso")
+        r = self.client.get(reverse("gado:animal_por_id", args=[a.pk]))
+        self.assertEqual(r.status_code, 200)
+        corpo = r.content.decode()
+        self.assertIn("o boi manso", corpo)
+        self.assertIn("Falta anotar", corpo)

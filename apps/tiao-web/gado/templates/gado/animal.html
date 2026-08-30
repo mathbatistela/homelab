@@ -1,8 +1,14 @@
 {% extends "gado/base.html" %}{% load gado_extras %}
-{% block titulo %}Brinco {{ a.brinco }}{% endblock %}
+{% block titulo %}{{ a.identificacao }}{% endblock %}
 {% block conteudo %}
 
-<h2>Brinco {{ a.brinco }}</h2>
+<h2>{% if a.brinco %}Brinco {{ a.brinco }}{% else %}{{ a.identificacao }}{% endif %}</h2>
+{% if a.faltando %}
+<div class="cartao falta">
+  <div class="rot">Falta anotar</div>
+  <ul>{% for f in a.faltando %}<li>{{ f }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
 
 {% if a.pago_por_arroba %}
 <div class="conta">

@@ -43,19 +43,59 @@ class DespesaInline(TabularInline):
     ordering = ("-data",)
 
 
+class FaltandoFilter(admin.SimpleListFilter):
+    """Finds the holes in the backfilled history.
+
+    Jader types in months of paper at the start, and most of it arrives partial.
+    Accepting that is the easy half; the hard half is being able to come back
+    and finish it. Without a way to LIST what is incomplete, a gap is recorded
+    once and never seen again.
+    """
+
+    title = "o que falta"
+    parameter_name = "falta"
+
+    def lookups(self, request, model_admin):
+        return [
+            ("brinco", "sem brinco"),
+            ("categoria", "sem categoria (não dá pra valorar)"),
+            ("pesagem", "nunca foi pesado"),
+            ("valor", "sem valor de compra"),
+            ("pasto", "sem pasto"),
+            ("nada", "completo"),
+        ]
+
+    def queryset(self, request, qs):
+        escolha = self.value()
+        if escolha == "brinco":
+            return qs.filter(brinco__isnull=True)
+        if escolha == "categoria":
+            return qs.filter(categoria__isnull=True)
+        if escolha == "pesagem":
+            return qs.filter(pesagens__isnull=True)
+        if escolha == "valor":
+            return qs.filter(valor_compra__isnull=True)
+        if escolha == "pasto":
+            return qs.filter(propriedade__isnull=True, venda__isnull=True)
+        if escolha == "nada":
+            return qs.exclude(brinco__isnull=True).exclude(categoria__isnull=True) \
+                     .exclude(pesagens__isnull=True).exclude(valor_compra__isnull=True)
+        return qs
+
+
 @admin.register(Animal)
 class AnimalAdmin(ModelAdmin):
-    list_display = ("brinco", "categoria", "sexo", "propriedade",
+    list_display = ("identificacao_display", "categoria", "sexo", "propriedade",
                     "peso_display", "arrobas_display", "valor_display",
-                    "despesas_display", "situacao")
-    list_filter = ("categoria", "sexo", "propriedade", "raca")
-    search_fields = ("brinco", "observacoes")
+                    "despesas_display", "situacao", "faltando_display")
+    list_filter = (FaltandoFilter, "categoria", "sexo", "propriedade", "raca")
+    search_fields = ("brinco", "referencia", "observacoes")
     autocomplete_fields = ("compra", "venda", "propriedade")
     inlines = [PesagemInline, DespesaInline]
     list_per_page = 50
     fieldsets = (
-        ("Identificação", {"fields": ("brinco", "categoria", "sexo", "raca",
-                                      "pelagem", "data_nascimento")}),
+        ("Identificação", {"fields": ("brinco", "referencia", "categoria", "sexo",
+                                      "raca", "pelagem", "data_nascimento")}),
         ("Onde está", {"fields": ("propriedade",)}),
         ("Compra", {"fields": ("compra", "valor_compra")}),
         ("Venda", {"fields": ("venda",)}),
@@ -77,6 +117,21 @@ class AnimalAdmin(ModelAdmin):
                 .prefetch_related("pesagens", "despesas")
                 .annotate(_ultima=Max("pesagens__data"),
                           _despesas=Sum("despesas__valor")))
+
+    @admin.display(description="animal", ordering="brinco")
+    def identificacao_display(self, obj):
+        if obj.brinco:
+            return obj.brinco
+        return format_html('<i style="color:{}">{}</i>', "#5c5c5c", obj.identificacao)
+
+    @admin.display(description="falta")
+    def faltando_display(self, obj):
+        faltas = obj.faltando
+        if not faltas:
+            return format_html('<span style="color:{}">completo</span>', "#15803d")
+        # Só o rótulo curto na lista; a ficha mostra o porquê de cada um.
+        curto = [f.split(" (")[0] for f in faltas]
+        return format_html('<span style="color:{}">{}</span>', "#b45309", ", ".join(curto))
 
     @admin.display(description="peso", ordering="_ultima")
     def peso_display(self, obj):

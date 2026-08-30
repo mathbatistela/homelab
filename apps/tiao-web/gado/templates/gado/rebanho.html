@@ -50,7 +50,10 @@
   <tbody>
   {% for a in animais %}
     <tr>
-      <td class="brinco"><a href="{% url 'gado:animal' a.brinco %}">{{ a.brinco }}</a></td>
+      <td class="brinco">
+        {% if a.brinco %}<a href="{% url 'gado:animal' a.brinco %}">{{ a.brinco }}</a>
+        {% else %}<a href="{% url 'gado:animal_por_id' a.pk %}" class="sem-brinco">{{ a.identificacao }}</a>
+        {% endif %}</td>
       <td>{{ a.categoria|default:"—" }}</td>
       <td>{{ a.propriedade.nome|default:"—"|title }}</td>
       <td class="num">{% if a.peso_atual_kg %}{{ a.peso_atual_kg|numero }} kg{% else %}—{% endif %}</td>

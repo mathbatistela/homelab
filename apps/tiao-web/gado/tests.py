@@ -424,3 +424,42 @@ class TestBagunçaInicial(BaseGado):
         corpo = r.content.decode()
         self.assertIn("o boi manso", corpo)
         self.assertIn("Falta anotar", corpo)
+
+
+class TestVendido(BaseGado):
+    """A sold animal is worth what it fetched, not what it would fetch."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.vaca.valor_compra = Decimal("2987.14")
+        cls.vaca.save()
+        cls.venda = Venda.objects.create(data=datetime.date(2026, 8, 25),
+                                         valor=Decimal("10450.00"), quantidade=2)
+        cls.vaca.venda = cls.venda
+        cls.vaca.save()
+
+    def test_resultado_e_o_que_rendeu_de_verdade(self):
+        self.assertEqual(self.vaca.valor_venda, Decimal("5225.00"))
+        self.assertAlmostEqual(float(self.vaca.resultado), 5225.00 - 2987.14, places=2)
+
+    def test_resumo_nao_conta_vendido_no_valor_da_boiada(self):
+        """Counting a sold animal's hypothetical value inflates the herd."""
+        corpo = self.client.get("/").content.decode()
+        self.assertIn("Vendidas", corpo)
+        # o boi (não vendido) entra; a vaca (vendida) não
+        self.assertIn("R$ 4.796,22", corpo)      # valor do boi
+        self.assertNotIn("R$ 8.488,20", corpo)   # soma dos dois, se contasse errado
+
+    def test_ficha_do_vendido_mostra_a_venda(self):
+        corpo = self.client.get(
+            reverse("gado:animal", args=["2031"])).content.decode()
+        self.assertIn("Vendida", corpo)
+        self.assertIn("R$ 5.225,00", corpo)   # saiu por
+        self.assertIn("Valeria hoje", corpo)  # o hipotético, rotulado como tal
+
+    def test_ficha_do_nao_vendido_nao_fala_de_venda(self):
+        corpo = self.client.get(
+            reverse("gado:animal", args=["7001"])).content.decode()
+        self.assertNotIn("Saiu por", corpo)
+        self.assertIn("Vale hoje", corpo)

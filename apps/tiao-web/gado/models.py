@@ -425,11 +425,37 @@ class Animal(models.Model):
 
     @property
     def ganho(self):
-        """What the animal is worth today minus what it has cost."""
+        """What the animal is worth today minus what it has cost.
+
+        Only meaningful while he still owns it. Once sold, what matters is what
+        he actually got -- see `resultado`.
+        """
         vale, custo = self.valor_atual, self.custo_total
         if vale is None or custo is None:
             return None
         return vale - custo
+
+    @property
+    def vendido(self):
+        return self.venda_id is not None
+
+    @property
+    def valor_venda(self):
+        """What this head fetched -- the deal's total split by head count."""
+        return self.venda.valor_por_cabeca if self.venda_id else None
+
+    @property
+    def resultado(self):
+        """Realised profit on a sold animal: what it fetched, minus what it cost.
+
+        This is the number that is TRUE about a sold animal. `valor_atual` for
+        one he no longer owns is a hypothetical -- what it would be worth if he
+        had kept it -- and showing that as its value overstates the herd.
+        """
+        venda, custo = self.valor_venda, self.custo_total
+        if venda is None or custo is None:
+            return None
+        return venda - custo
 
     @property
     def valor_atual(self):

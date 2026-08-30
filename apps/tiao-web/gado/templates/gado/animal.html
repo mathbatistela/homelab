@@ -27,10 +27,25 @@
 </div>
 {% endif %}
 
+{% if a.vendido %}
+<div class="conta">
+  <div class="titulo">Vendida</div>
+  <div class="par"><span class="rot">Saiu por</span>
+    <span class="val destaque">{{ a.valor_venda|reais }}</span></div>
+  <div class="par"><span class="rot">Custou até sair</span>
+    <span class="val">{{ a.custo_total|reais }}</span></div>
+  <div class="par"><span class="rot">{% if a.resultado > 0 %}Deu de lucro{% else %}Deu de prejuízo{% endif %}</span>
+    <span class="val destaque {{ a.resultado|classe_ganho }}">{{ a.resultado|reais_sinal }}</span></div>
+  <div class="par"><span class="rot">Pra quem</span>
+    <span class="val">{{ a.venda.comprador.nome|default:"—" }}
+      <br><small>{{ a.venda.data|date:"d/m/Y" }}</small></span></div>
+</div>
+{% endif %}
+
 <div class="cartao">
-  <div class="par"><span class="rot">Vale hoje</span>
+  <div class="par"><span class="rot">{% if a.vendido %}Valeria hoje{% else %}Vale hoje{% endif %}</span>
     <span class="val destaque">{{ a.valor_atual|reais }}</span></div>
-  {% if a.custo_total %}
+  {% if a.custo_total and not a.vendido %}
   <div class="par"><span class="rot">Custou até agora</span>
     <span class="val">{{ a.custo_total|reais }}</span></div>
   <div class="par"><span class="rot">{% if a.ganho > 0 %}Ganho{% else %}Prejuízo{% endif %}</span>

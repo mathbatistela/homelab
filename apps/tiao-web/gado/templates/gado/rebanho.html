@@ -3,7 +3,10 @@
 {% block conteudo %}
 
 <div class="resumo">
-  <div class="caixa"><div class="rot">Cabeças</div><div class="val">{{ total_cabecas }}</div></div>
+  <div class="caixa"><div class="rot">No pasto</div><div class="val">{{ total_cabecas }}</div></div>
+  {% if total_vendidas %}
+  <div class="caixa"><div class="rot">Vendidas</div><div class="val">{{ total_vendidas }}</div></div>
+  {% endif %}
   <div class="caixa"><div class="rot">Peso somado</div><div class="val">{{ peso_total|numero }} kg</div></div>
   <div class="caixa"><div class="rot">Valor hoje</div><div class="val">{{ valor_total|reais }}</div></div>
   {% if custo_total %}

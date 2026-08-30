@@ -35,16 +35,21 @@ def rebanho(request):
         animais = animais.filter(venda__isnull=False)
     animais = Animal.com_cotacoes(animais)
 
-    valores = [a.valor_atual for a in animais if a.valor_atual is not None]
-    custos = [a.custo_total for a in animais if a.custo_total is not None]
-    ganhos = [a.ganho for a in animais if a.ganho is not None]
+    # Sold animals are excluded from the herd's worth: they are no longer his,
+    # and counting what they "would be worth today" inflates the total with
+    # cattle that left the farm.
+    no_pasto = [a for a in animais if not a.vendido]
+    valores = [a.valor_atual for a in no_pasto if a.valor_atual is not None]
+    custos = [a.custo_total for a in no_pasto if a.custo_total is not None]
+    ganhos = [a.ganho for a in no_pasto if a.ganho is not None]
     return render(request, "gado/rebanho.html", {
         "animais": animais,
-        "total_cabecas": len(animais),
+        "total_cabecas": len(no_pasto),
+        "total_vendidas": len(animais) - len(no_pasto),
         "valor_total": sum(valores) if valores else None,
         "custo_total": sum(custos) if custos else None,
         "ganho_total": sum(ganhos) if ganhos else None,
-        "peso_total": sum(a.peso_atual_kg or 0 for a in animais),
+        "peso_total": sum(a.peso_atual_kg or 0 for a in no_pasto),
         "propriedades": (Animal.objects.exclude(propriedade=None)
                          .values_list("propriedade__nome", flat=True)
                          .distinct().order_by("propriedade__nome")),

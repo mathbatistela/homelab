@@ -12,6 +12,7 @@ psql DDL -- that is how `cotacoes` ended up with no history at all.
 from decimal import Decimal
 
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.db import models
 
 # Carcass yield, the numbers Seu Jader uses. The arroba the market pays is of
@@ -21,7 +22,36 @@ RENDIMENTO_MACHO = 55.0
 RENDIMENTO_FEMEA = 45.0
 KG_POR_ARROBA = 15.0
 
-FEMEAS = {"vaca", "novilha", "bezerra", "femea", "fêmea", "f"}
+class Sexo(models.TextChoices):
+    MACHO = "macho", "macho"
+    FEMEA = "femea", "fêmea"
+
+
+class Categoria(models.TextChoices):
+    BEZERRO = "bezerro", "bezerro"
+    GARROTE = "garrote", "garrote"
+    NOVILHO = "novilho", "novilho"
+    BOI = "boi", "boi"
+    TOURO = "touro", "touro"
+    BEZERRA = "bezerra", "bezerra"
+    NOVILHA = "novilha", "novilha"
+    VACA = "vaca", "vaca"
+
+
+# The category settles the sex -- a vaca is never macho. Kept in ONE place so
+# the derivation and the coherence check cannot drift apart. This matters in
+# money: sex picks the carcass yield (55% vs 45%), so an animal recorded as a
+# vaca but flagged macho would be priced about R$ 1.100 too high, quietly.
+SEXO_DA_CATEGORIA = {
+    Categoria.BEZERRO: Sexo.MACHO,
+    Categoria.GARROTE: Sexo.MACHO,
+    Categoria.NOVILHO: Sexo.MACHO,
+    Categoria.BOI: Sexo.MACHO,
+    Categoria.TOURO: Sexo.MACHO,
+    Categoria.BEZERRA: Sexo.FEMEA,
+    Categoria.NOVILHA: Sexo.FEMEA,
+    Categoria.VACA: Sexo.FEMEA,
+}
 
 
 def _sem_acento(s):
@@ -31,8 +61,40 @@ def _sem_acento(s):
     return s
 
 
+# The bot writes through the ORM in free prose -- "fêmea", "FEMEA", "f", "vaca
+# gorda". Storage is strict; the boundary is forgiving. Normalising here means
+# the CHECK constraint never has to reject something a human clearly meant.
+_APELIDOS_SEXO = {"f": Sexo.FEMEA, "femea": Sexo.FEMEA, "fema": Sexo.FEMEA,
+                  "m": Sexo.MACHO, "macho": Sexo.MACHO}
+_APELIDOS_CATEGORIA = {"vaca gorda": Categoria.VACA, "boi gordo": Categoria.BOI}
+
+
+def normalizar_sexo(valor):
+    """Free text -> a Sexo value, or None when it is not recognisable."""
+    if not valor:
+        return None
+    chave = _sem_acento(valor)
+    if chave in Sexo.values:
+        return chave
+    return _APELIDOS_SEXO.get(chave)
+
+
+def normalizar_categoria(valor):
+    """Free text -> a Categoria value, or None when it is not recognisable."""
+    if not valor:
+        return None
+    chave = _sem_acento(valor)
+    if chave in Categoria.values:
+        return chave
+    return _APELIDOS_CATEGORIA.get(chave)
+
+
 def e_femea(categoria_ou_sexo):
-    return _sem_acento(categoria_ou_sexo) in {_sem_acento(x) for x in FEMEAS}
+    valor = normalizar_sexo(categoria_ou_sexo)
+    if valor is None:
+        cat = normalizar_categoria(categoria_ou_sexo)
+        valor = SEXO_DA_CATEGORIA.get(cat) if cat else None
+    return valor == Sexo.FEMEA
 
 
 class Propriedade(models.Model):
@@ -120,8 +182,10 @@ class Movimentacao(models.Model):
 class Animal(models.Model):
     brinco = models.TextField("brinco", unique=True)
     raca = models.TextField("raça", blank=True, null=True)
-    categoria = models.TextField("categoria", blank=True, null=True)
-    sexo = models.TextField("sexo", blank=True, null=True)
+    categoria = models.CharField("categoria", max_length=16, blank=True, null=True,
+                                 choices=Categoria)
+    sexo = models.CharField("sexo", max_length=16, blank=True, null=True,
+                            choices=Sexo)
     data_nascimento = models.DateField("data de nascimento", blank=True, null=True)
     compra = models.ForeignKey(
         Movimentacao, models.DO_NOTHING, blank=True, null=True,
@@ -143,9 +207,55 @@ class Animal(models.Model):
         verbose_name = "animal"
         verbose_name_plural = "animais"
         ordering = ["brinco"]
+        # Enforced by the database, not only by the form. The bot writes through
+        # the ORM and `save()` does not run `full_clean()`, so a choices field
+        # alone would let a typo through. These are the last line.
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(sexo__in=Sexo.values) | models.Q(sexo__isnull=True),
+                name="animais_sexo_valido"),
+            models.CheckConstraint(
+                condition=models.Q(categoria__in=Categoria.values)
+                | models.Q(categoria__isnull=True),
+                name="animais_categoria_valida"),
+        ]
 
     def __str__(self):
         return f"brinco {self.brinco}"
+
+    def clean_fields(self, exclude=None):
+        # Must happen HERE, not in clean(): Django validates choices inside
+        # clean_fields, which runs first, so "fêmea" would be rejected before
+        # clean() ever got the chance to turn it into "femea".
+        if self.categoria:
+            self.categoria = normalizar_categoria(self.categoria) or self.categoria
+        if self.sexo:
+            self.sexo = normalizar_sexo(self.sexo) or self.sexo
+        super().clean_fields(exclude=exclude)
+
+    def clean(self):
+        """Fills in the sex from the category, and refuses a contradiction."""
+        super().clean()
+        esperado = SEXO_DA_CATEGORIA.get(self.categoria) if self.categoria else None
+        if not esperado:
+            return
+        if not self.sexo:
+            self.sexo = esperado          # a categoria já diz; não faça perguntar
+        elif self.sexo != esperado:
+            raise ValidationError({"sexo": (
+                f"{self.get_categoria_display()} é {Sexo(esperado).label}, "
+                f"não {Sexo(self.sexo).label}")})
+
+    def save(self, *args, **kwargs):
+        # `save()` never calls clean() on its own, and the bot saves through the
+        # ORM -- without this a row could be stored with a blank or contradictory
+        # sex. Only the two enum fields are validated, and uniqueness and
+        # constraints are left to the database, so this costs no extra query.
+        self.full_clean(
+            exclude=[f.name for f in self._meta.fields
+                     if f.name not in ("categoria", "sexo")],
+            validate_unique=False, validate_constraints=False)
+        return super().save(*args, **kwargs)
 
     @property
     def rendimento(self):

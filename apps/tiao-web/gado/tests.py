@@ -13,9 +13,12 @@ from decimal import Decimal
 from django.test import TestCase
 from django.urls import reverse
 
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
+
 from .models import (
-    Animal, Compra, Comprador, Contraparte, Cotacao, Despesa, Fornecedor,
-    Movimentacao, Pesagem, Propriedade, Venda,
+    Animal, Categoria, Compra, Comprador, Contraparte, Cotacao, Despesa,
+    Fornecedor, Movimentacao, Pesagem, Propriedade, Sexo, Venda,
 )
 
 
@@ -207,3 +210,57 @@ class TestConsultas(BaseGado):
         cache.clear()
         with self.assertNumQueries(6):   # 22 cabeças ou 82: o mesmo
             self.client.get("/")
+
+
+class TestEnums(BaseGado):
+    """categoria and sexo are closed sets, and they must agree with each other.
+
+    They drive the carcass yield, which drives the price of every head. A vaca
+    recorded as macho is not a typo you notice -- it is R$ 1.100 of silent error.
+    """
+
+    def test_valores_ficam_em_ascii(self):
+        a = Animal.objects.create(brinco="A1", categoria="vaca", sexo="fêmea")
+        a.refresh_from_db()
+        self.assertEqual(a.sexo, Sexo.FEMEA)
+        self.assertEqual(a.sexo, "femea")
+
+    def test_aceita_como_o_bot_escreve(self):
+        for entrada, esperado in [("FÊMEA", Sexo.FEMEA), ("f", Sexo.FEMEA),
+                                  ("Macho", Sexo.MACHO), ("m", Sexo.MACHO)]:
+            a = Animal(brinco=f"B{entrada}", sexo=entrada)
+            a.full_clean()
+            self.assertEqual(a.sexo, esperado, entrada)
+
+    def test_categoria_preenche_o_sexo_sozinha(self):
+        a = Animal.objects.create(brinco="C1", categoria="novilha")
+        self.assertEqual(a.sexo, Sexo.FEMEA)
+        b = Animal.objects.create(brinco="C2", categoria="garrote")
+        self.assertEqual(b.sexo, Sexo.MACHO)
+
+    def test_contradicao_e_recusada(self):
+        with self.assertRaises(ValidationError) as caso:
+            Animal.objects.create(brinco="D1", categoria="vaca", sexo="macho")
+        self.assertIn("sexo", caso.exception.message_dict)
+
+    def test_categoria_desconhecida_e_recusada(self):
+        with self.assertRaises(ValidationError):
+            Animal.objects.create(brinco="D2", categoria="jumento")
+
+    def test_banco_recusa_mesmo_driblando_o_orm(self):
+        """The CHECK is the last line: .update() never calls clean()."""
+        a = Animal.objects.create(brinco="E1", categoria="vaca")
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Animal.objects.filter(pk=a.pk).update(sexo="jacare")
+
+    def test_rendimento_sai_do_enum(self):
+        vaca = Animal.objects.create(brinco="F1", categoria=Categoria.VACA)
+        boi = Animal.objects.create(brinco="F2", categoria=Categoria.BOI)
+        self.assertEqual(vaca.rendimento, 45.0)
+        self.assertEqual(boi.rendimento, 55.0)
+
+    def test_todas_as_categorias_tem_sexo_e_rendimento(self):
+        """A new category added without a sex would silently price as male."""
+        from .models import SEXO_DA_CATEGORIA
+        for cat in Categoria.values:
+            self.assertIn(cat, SEXO_DA_CATEGORIA, f"{cat} sem sexo definido")

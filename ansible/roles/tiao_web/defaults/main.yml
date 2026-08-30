@@ -1,7 +1,7 @@
 ---
 tiao_web_compose_dir: /opt/tiao-web
 tiao_web_state_dir: /var/lib/tiao-web
-tiao_web_image: "ghcr.io/mathbatistela/homelab/tiao-web:sha-79260d7"
+tiao_web_image: "ghcr.io/mathbatistela/homelab/tiao-web:sha-c95cc70"
 tiao_web_read_port: 8790
 tiao_web_lan_ip: "{{ ansible_host }}"
 tiao_web_db_host: "{{ hostvars['database'].ansible_host }}"

@@ -8,7 +8,7 @@
   <div class="caixa"><div class="rot">Vendidas</div><div class="val">{{ total_vendidas }}</div></div>
   {% endif %}
   <div class="caixa"><div class="rot">Peso somado</div><div class="val">{{ peso_total|numero }} kg</div></div>
-  <div class="caixa"><div class="rot">Valor hoje</div><div class="val">{{ valor_total|reais }}</div></div>
+  <div class="caixa"><div class="rot">Deve dar</div><div class="val">{{ valor_total|reais }}</div></div>
   {% if custo_total %}
   <div class="caixa"><div class="rot">Custou</div><div class="val">{{ custo_total|reais }}</div></div>
   <div class="caixa"><div class="rot">Ganho</div>
@@ -46,8 +46,8 @@
     <th>Brinco</th><th>Categoria</th><th>Onde está</th>
     <th class="num">Último peso</th><th>Pesado em</th>
     <th class="num">Em @</th>
-    <th class="num">Pagou na @</th><th class="num">Vale a @</th><th class="num">Dif. na @</th>
-    <th class="num">Vale hoje</th>
+    <th class="num">Pagou na @</th><th class="num">@ de referência</th><th class="num">Dif. na @</th>
+    <th class="num">Deve dar</th>
     <th class="num">Despesas</th><th>Situação</th>
   </tr></thead>
   <tbody>
@@ -74,6 +74,9 @@
 </table>
 </div>
 </div>
+<p class="rodape">Os valores são estimativa pela cotação de Araçatuba, que é média
+de mercado. O que o comprador paga é outra conversa — e vaca magra sai mais barata
+na arroba.</p>
 {% else %}
 <p class="vazio">Nenhuma cabeça com esse filtro, patrão.</p>
 {% endif %}

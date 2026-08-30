@@ -15,7 +15,7 @@
   <div class="titulo">A conta da arroba</div>
   <div class="par"><span class="rot">Pagou na arroba</span>
     <span class="val destaque">{{ a.pago_por_arroba|reais }}</span></div>
-  <div class="par"><span class="rot">A arroba tá hoje</span>
+  <div class="par"><span class="rot">A arroba de referência</span>
     <span class="val destaque">{{ a.cotacao_por_arroba|reais }}</span></div>
   <div class="par"><span class="rot">{% if a.ganho_por_arroba > 0 %}Ganhou{% else %}Perdeu{% endif %} na arroba</span>
     <span class="val destaque {{ a.ganho_por_arroba|classe_ganho }}">{{ a.ganho_por_arroba|reais_sinal }}</span></div>
@@ -48,7 +48,7 @@
 {% endif %}
 
 <div class="cartao">
-  <div class="par"><span class="rot">{% if a.vendido %}Valeria hoje{% else %}Vale hoje{% endif %}</span>
+  <div class="par"><span class="rot">{% if a.vendido %}Valeria hoje{% else %}Deve dar mais ou menos{% endif %}</span>
     <span class="val destaque">{{ a.valor_atual|reais }}</span></div>
   {% if a.custo_total and not a.vendido %}
   <div class="par"><span class="rot">Custou até agora</span>
@@ -64,6 +64,8 @@
   <div class="par"><span class="rot">Contando rendimento de</span>
     <span class="val">{{ a.rendimento|floatformat:0 }}%</span></div>
   {% endif %}
+  <p class="aviso">Isso é conta pela cotação de Araçatuba, que é uma média.
+    Cada comprador paga o dele, e vaca magra sai por arroba mais barata.</p>
 </div>
 
 <div class="cartao">

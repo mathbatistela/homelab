@@ -265,6 +265,14 @@ class Animal(models.Model):
     peso_venda = models.DecimalField(
         "peso na venda", max_digits=8, decimal_places=2, blank=True, null=True,
         help_text="Peso no dia da venda, se diferente da última pesagem")
+    # The arroba is not one price per deal. Within a single sale a thin cow --
+    # "meia carne" -- fetches less per arroba than a finished one, so the price
+    # belongs to the HEAD, with the deal's price as the fallback for the rest.
+    preco_arroba_venda = models.DecimalField(
+        "preço da arroba desta cabeça", max_digits=10, decimal_places=2,
+        blank=True, null=True,
+        help_text="Quando esta cabeça saiu por arroba diferente da do negócio "
+                  "(magra, meia carne)")
 
     class Meta:
         db_table = "animais"
@@ -506,11 +514,14 @@ class Animal(models.Model):
     def valor_venda_apurado(self):
         """What this head fetched, from whichever fact he actually has.
 
-        He prices a sale in one of three ways, depending on the buyer:
+        He prices a sale in one of four ways, depending on the buyer and on the
+        animal:
 
           1. per head -- "essa saiu por 5.200"
-          2. by the arroba -- the frigorífico's way: R$/@ times the head's arrobas
-          3. one number for the lot -- selling to a neighbour
+          2. by THIS head's arroba -- a thin cow, "meia carne", goes cheaper
+             than the finished ones in the very same deal
+          3. by the deal's arroba -- one R$/@ for everything
+          4. one number for the lot -- selling to a neighbour
 
         They are tried in that order, most specific first. What he typed always
         wins over anything derived, so editing a single head later does not get
@@ -520,10 +531,11 @@ class Animal(models.Model):
             return None
         if self.valor_venda is not None:
             return self.valor_venda
-        if self.venda.preco_arroba is not None:
+        preco = self.preco_arroba_venda or self.venda.preco_arroba
+        if preco is not None:
             arrobas = self.arrobas_na_venda
             if arrobas is not None:
-                return Decimal(str(round(arrobas, 4))) * self.venda.preco_arroba
+                return Decimal(str(round(arrobas, 4))) * preco
         return self.venda.valor_por_cabeca
 
     @property
@@ -534,8 +546,10 @@ class Animal(models.Model):
             return None
         if self.valor_venda is not None:
             return "valor por cabeça"
-        if self.venda.preco_arroba is not None and self.arrobas_na_venda is not None:
-            return (f"{self.arrobas_na_venda:.2f} @ × R$ {self.venda.preco_arroba}"
+        preco = self.preco_arroba_venda or self.venda.preco_arroba
+        if preco is not None and self.arrobas_na_venda is not None:
+            propria = " (arroba desta cabeça)" if self.preco_arroba_venda else ""
+            return (f"{self.arrobas_na_venda:.2f} @ × R$ {preco}{propria}"
                     .replace(".", ","))
         if self.venda.valor_por_cabeca is not None:
             return "rateio do total da venda"
@@ -556,11 +570,15 @@ class Animal(models.Model):
 
     @property
     def valor_atual(self):
-        """Live market value of this head.
+        """ESTIMATE of what this head would fetch, at the reference quote.
 
-        The spreadsheet had a single hand-typed price in cell F10. This reads
-        the quote the 19:00 cron stored, for THIS animal's category -- a cow is
-        not paid the steer price.
+        Not a promise, and the screens must not read like one. The quote is SP
+        Araçatuba's published average; what he is actually paid is whatever the
+        buyer offers, and it varies by buyer and by animal -- a thin cow goes
+        for less per arroba than a finished one in the same lot. This number is
+        for deciding whether to sell, never for what he will receive.
+
+        A sold animal has a real number instead: `valor_venda_apurado`.
         """
 
         arrobas, cot = self.peso_arrobas, self.cotacao_atual

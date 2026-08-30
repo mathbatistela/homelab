@@ -462,7 +462,8 @@ class TestVendido(BaseGado):
         corpo = self.client.get(
             reverse("gado:animal", args=["7001"])).content.decode()
         self.assertNotIn("Saiu por", corpo)
-        self.assertIn("Vale hoje", corpo)
+        # "Deve dar", não "Vale": é estimativa pela cotação de referência.
+        self.assertIn("Deve dar mais ou menos", corpo)
 
 
 class TestTresJeitosDeVender(BaseGado):
@@ -529,6 +530,30 @@ class TestTresJeitosDeVender(BaseGado):
         self.assertEqual(self.vaca.valor_venda_apurado, Decimal("5225.00"))
         self.assertEqual(self.vaca.origem_valor_venda, "rateio do total da venda")
 
+    def test_meia_carne_sai_por_arroba_mais_barata_na_mesma_venda(self):
+        """Two cows in one lot, different arroba prices.
+
+        The thin one -- "meia carne" -- is worth less per arroba than the
+        finished one, in the very same deal. A single price on the sale cannot
+        express that, which is why the price also lives on the head.
+        """
+        self._vender(preco_arroba=Decimal("322.00"))
+        self.vaca.preco_arroba_venda = Decimal("270.00")   # magra
+        self.vaca.save()
+        # vaca: 11,61 @ x 270 = 3134,70   (a dela)
+        self.assertAlmostEqual(float(self.vaca.valor_venda_apurado), 3134.70, places=2)
+        # boi: 14,19 @ x 322 = 4569,18    (a do negócio)
+        self.assertAlmostEqual(float(self.boi.valor_venda_apurado), 4569.18, places=2)
+        self.assertIn("arroba desta cabeça", self.vaca.origem_valor_venda)
+        self.assertNotIn("arroba desta cabeça", self.boi.origem_valor_venda)
+
+    def test_valor_por_cabeca_ainda_vence_a_arroba_propria(self):
+        self._vender(preco_arroba=Decimal("322.00"))
+        self.vaca.preco_arroba_venda = Decimal("270.00")
+        self.vaca.valor_venda = Decimal("3000.00")
+        self.vaca.save()
+        self.assertEqual(self.vaca.valor_venda_apurado, Decimal("3000.00"))
+
     def test_a_ordem_de_precedencia(self):
         v = self._vender(preco_arroba=Decimal("320.00"), valor=Decimal("10450.00"))
         # com os três presentes, vence o por-cabeça
@@ -568,3 +593,33 @@ class TestTresJeitosDeVender(BaseGado):
         self.assertIn("R$ 3.715,20", corpo)
         self.assertIn("11,61 @", corpo)     # a conta aparece
         self.assertIn("320", corpo)
+
+
+class TestEstimativaNaoEPromessa(BaseGado):
+    """The Araçatuba quote is a reference average, not what he will be paid.
+
+    Screens that read like a promise are how someone decides to sell on a number
+    that was never on offer.
+    """
+
+    def test_a_lista_diz_que_e_estimativa(self):
+        corpo = self.client.get("/").content.decode()
+        self.assertIn("estimativa pela cotação de Araçatuba", corpo)
+        self.assertIn("vaca magra sai mais barata", corpo)
+
+    def test_a_ficha_avisa_que_o_comprador_paga_o_dele(self):
+        corpo = self.client.get(
+            reverse("gado:animal", args=["2031"])).content.decode()
+        self.assertIn("Cada comprador paga o dele", corpo)
+        self.assertIn("Deve dar mais ou menos", corpo)
+        self.assertNotIn("Vale hoje", corpo)   # não pode ler como fato
+
+    def test_vendido_mostra_o_real_antes_do_estimado(self):
+        v = Venda.objects.create(data=datetime.date(2026, 8, 25),
+                                 quantidade=1, preco_arroba=Decimal("300.00"))
+        self.vaca.venda = v
+        self.vaca.save()
+        corpo = self.client.get(
+            reverse("gado:animal", args=["2031"])).content.decode()
+        # o que rendeu de verdade vem antes do que valeria
+        self.assertLess(corpo.index("Saiu por"), corpo.index("Valeria hoje"))

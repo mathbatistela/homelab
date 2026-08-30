@@ -98,9 +98,13 @@ class AnimalAdmin(ModelAdmin):
                                       "raca", "pelagem", "data_nascimento")}),
         ("Onde está", {"fields": ("propriedade",)}),
         ("Compra", {"fields": ("compra", "valor_compra")}),
-        ("Venda", {"fields": ("venda", "valor_venda", "peso_venda"),
-                   "description": "Deixe em branco para calcular pelo preço da "
-                                  "arroba da venda, ou pelo rateio do total."}),
+        ("Venda", {"fields": ("venda", "valor_venda", "preco_arroba_venda",
+                              "peso_venda"),
+                   "description": "Preenchidos do mais específico ao menos: valor "
+                                  "por cabeça vence tudo; depois a arroba desta "
+                                  "cabeça (magra, meia carne); depois a arroba do "
+                                  "negócio; por último o rateio do total. Deixe em "
+                                  "branco o que não souber."}),
         ("Outros", {"fields": ("observacoes",)}),
     )
 

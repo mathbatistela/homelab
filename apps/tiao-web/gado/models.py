@@ -11,7 +11,6 @@ psql DDL -- that is how `cotacoes` ended up with no history at all.
 
 from decimal import Decimal
 
-from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -305,7 +304,25 @@ class Animal(models.Model):
 
     @property
     def cotacao_atual(self):
-        return Cotacao.mais_recente(self.categoria or self.sexo)
+        # When a view has already fetched the quotes for the whole page it
+        # attaches them here; otherwise ask for this animal's own.
+        cat = Cotacao.categoria_de(self.categoria or self.sexo)
+        if hasattr(self, "_cotacoes"):
+            return self._cotacoes.get(cat)
+        return Cotacao.mais_recente(cat)
+
+    @staticmethod
+    def com_cotacoes(animais):
+        """Hands one quote lookup to a whole list of animals.
+
+        Use it whenever you iterate more than one animal: the alternative is a
+        query per head.
+        """
+        cotacoes = Cotacao.ultimas_por_categoria()
+        animais = list(animais)
+        for a in animais:
+            a._cotacoes = cotacoes
+        return animais
 
     # --- O que ele calcula de cabeça toda vez que pesa -----------------------
     # "Paguei quanto na arroba?" é a pergunta da engorda: você compra a X a
@@ -476,20 +493,27 @@ class Cotacao(models.Model):
 
     @classmethod
     def mais_recente(cls, categoria_ou_sexo):
-        """Latest quote for a category, cached briefly.
+        """Latest quote for one category. Always current -- never memoised.
 
-        Without the cache this is one query per animal on the herd list -- 300
-        head, 300 queries, all asking the same three questions. The quote only
-        changes once a day at 19:00, so five minutes of staleness costs nothing.
+        There WAS a five-minute memo here, to stop the herd list running one
+        query per animal. It was wrong twice over. Gunicorn runs three workers
+        and Django's LocMemCache is per PROCESS, so for up to five minutes after
+        a new quote two readers could see two different prices for the same
+        animal. And a price is precisely the thing that must not be stale by
+        design.
+
+        The N+1 is solved properly instead, by `ultimas_por_categoria()`: three
+        queries once per request, handed to every animal on the page.
         """
-        chave = f"cotacao:{cls.categoria_de(categoria_ou_sexo)}"
-        achado = cache.get(chave)
-        if achado is None:
-            achado = cls.objects.filter(
-                categoria=cls.categoria_de(categoria_ou_sexo)
-            ).order_by("-data_pregao").first()
-            cache.set(chave, achado, 300)
-        return achado
+        return cls.objects.filter(
+            categoria=cls.categoria_de(categoria_ou_sexo)
+        ).order_by("-data_pregao").first()
+
+    @classmethod
+    def ultimas_por_categoria(cls):
+        """{categoria: última cotação} in three queries, whatever the herd size."""
+        return {c: cls.objects.filter(categoria=c).order_by("-data_pregao").first()
+                for c, _ in cls.CATEGORIAS}
 
 
 # --- Proxy models -------------------------------------------------------------

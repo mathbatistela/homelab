@@ -47,9 +47,6 @@ class BaseGado(TestCase):
                                    bruto_a_vista=Decimal(preco),
                                    bruto_30d=Decimal(preco))
 
-    def setUp(self):
-        from django.core.cache import cache
-        cache.clear()   # mais_recente() caches for 5 minutes
 
 
 class TestValorAtual(BaseGado):
@@ -183,21 +180,17 @@ class TestConsultas(BaseGado):
             a = Animal.objects.create(brinco=f"T{i}", categoria="boi", sexo="macho")
             Pesagem.objects.create(animal=a, data=datetime.date(2026, 8, 29),
                                    peso_kg=Decimal("400"))
-        from django.core.cache import cache
-
         # The invariant is that the count does not GROW with the herd -- not
         # that it equals some magic number. Asserting the number would break on
         # any harmless change and would not have caught an N+1 anyway.
-        cache.clear()
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(7):
             self.client.get("/")
 
         for i in range(60):
             a = Animal.objects.create(brinco=f"U{i}", categoria="boi", sexo="macho")
             Pesagem.objects.create(animal=a, data=datetime.date(2026, 8, 29),
                                    peso_kg=Decimal("400"))
-        cache.clear()
-        with self.assertNumQueries(6):   # 22 cabeças ou 82: o mesmo
+        with self.assertNumQueries(7):   # 22 cabeças ou 82: o mesmo
             self.client.get("/")
 
 

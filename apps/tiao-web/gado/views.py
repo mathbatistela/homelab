@@ -33,7 +33,7 @@ def rebanho(request):
         animais = animais.filter(venda__isnull=True)
     elif situacao == "vendido":
         animais = animais.filter(venda__isnull=False)
-    animais = list(animais)
+    animais = Animal.com_cotacoes(animais)
 
     valores = [a.valor_atual for a in animais if a.valor_atual is not None]
     custos = [a.custo_total for a in animais if a.custo_total is not None]
@@ -57,6 +57,7 @@ def rebanho(request):
 def animal(request, brinco):
     """One animal's card: what it is, what it weighs, what it cost, what it's worth."""
     bicho = get_object_or_404(_rebanho_base(), brinco=brinco)
+    Animal.com_cotacoes([bicho])
     despesas = list(bicho.despesas.all())
     return render(request, "gado/animal.html", {
         "a": bicho,

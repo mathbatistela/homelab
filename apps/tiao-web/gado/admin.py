@@ -64,6 +64,14 @@ class AnimalAdmin(ModelAdmin):
 
     def get_queryset(self, request):
         # Without these, the herd list runs two queries per row.
+        #
+        # The quote is NOT preloaded here, unlike on Jader's pages: a queryset
+        # is lazy, so nothing can be hung on the objects at this point, and the
+        # obvious workarounds (stashing per-request state on the shared
+        # ModelAdmin instance, or reaching into _fetch_all) are respectively
+        # thread-unsafe and private API. The admin therefore spends one small
+        # query per row for the price. That is a page of 50, read by one person,
+        # against a price that must never be stale -- a trade worth making.
         return (super().get_queryset(request)
                 .select_related("propriedade", "compra", "venda")
                 .prefetch_related("pesagens", "despesas")

@@ -110,6 +110,10 @@ TRATADORES = {404: nao_encontrado, 405: so_de_olhar, 500: encrenca}
 app = Starlette(
     routes=[
         Route("/saude", saude),
+        # Jader types the bare domain -- he will never type a path. Serving the
+        # page at "/" as well as "/pesagens" means the front door is never a
+        # 404. Same handler, no redirect: one less hop through the tunnel.
+        Route("/", pesagens),
         Route("/pesagens", pesagens),
     ],
     exception_handlers=TRATADORES,

@@ -5,6 +5,7 @@ two pages on unrelated subjects looking identical.
 """
 
 import datetime
+from zoneinfo import ZoneInfo
 from dataclasses import replace
 
 from .render import formatar
@@ -19,11 +20,22 @@ ORDER BY a.brinco
 """
 
 
+# The container runs in UTC. `date.today()` there rolls over at 21:00 in Sao
+# Paulo, so every evening the page asked for TOMORROW and rendered empty --
+# exactly when Jader, done with the day's work, would open it. The default day
+# must be the farm's day, not the server's.
+FUSO_FAZENDA = ZoneInfo("America/Sao_Paulo")
+
+
+def hoje_na_fazenda() -> datetime.date:
+    return datetime.datetime.now(FUSO_FAZENDA).date()
+
+
 def _data_valida(data: str | None) -> datetime.date:
     try:
-        return datetime.date.fromisoformat(data) if data else datetime.date.today()
+        return datetime.date.fromisoformat(data) if data else hoje_na_fazenda()
     except (TypeError, ValueError):
-        return datetime.date.today()
+        return hoje_na_fazenda()
 
 
 def pesagens(data: str | None):

@@ -29,7 +29,9 @@ h2{font-size:22px;margin:22px 0 10px}
        border-radius:12px;padding:13px 15px}
 .caixa .rot{font-size:14px;color:var(--fraca);text-transform:uppercase;
             letter-spacing:.05em}
-.caixa .val{font-size:25px;font-weight:700;margin-top:3px}
+/* nowrap: without it "R$ 28.553,22" breaks after the R$ and the box grows a
+   line, which on a phone is what pushed the table off the screen. */
+.caixa .val{font-size:25px;font-weight:700;margin-top:3px;white-space:nowrap}
 /* Wide tables scroll inside their own box; the page never scrolls sideways. */
 .rolagem{overflow-x:auto;-webkit-overflow-scrolling:touch;
          border:1px solid var(--linha);border-radius:12px;background:var(--cartao)}
@@ -65,9 +67,61 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .par .rot{color:var(--fraca)}
 .par .val{font-weight:600;text-align:right}
 .destaque{font-size:29px;font-weight:700}
+/* The brinco column stays put while the rest scrolls sideways. Without it you
+   scroll two columns right and no longer know which animal the row is. */
+th:first-child,td:first-child{position:sticky;left:0;z-index:2;
+  background:var(--cartao);box-shadow:3px 0 5px -2px rgba(0,0,0,.18)}
+th:first-child{background:#f0ece4;z-index:3}
+
+.barra-tabela{display:flex;justify-content:space-between;align-items:center;
+  gap:10px;margin-bottom:8px}
+.dica{color:var(--fraca);font-size:15px}
+.botao{appearance:none;border:1px solid var(--linha);background:var(--cartao);
+  color:var(--tinta);font:inherit;font-size:17px;padding:11px 17px;
+  border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;
+  white-space:nowrap}
+.botao:active{background:#efeae1}
+
+/* Wide mode. Works on any phone because it is only CSS: the OS fullscreen and
+   the landscape lock are layered on top where they exist (Android), and simply
+   do not happen where they do not (iOS Safari supports neither). */
+body.expandido header,body.expandido nav,body.expandido .resumo,
+body.expandido .filtros,body.expandido .rodape,body.expandido h2{display:none}
+body.expandido main{padding:0;max-width:none}
+/* The element handed to requestFullscreen must CONTAIN the way out. The browser
+   renders only the fullscreen element and its descendants, so an exit button
+   that is a sibling of the table simply vanishes -- leaving the reader in a
+   full-screen table with no visible escape. */
+body.expandido #painel-boiada{position:fixed;inset:0;z-index:50;
+  background:var(--cartao);display:flex;flex-direction:column}
+body.expandido #painel-boiada .rolagem{flex:1;border:none;border-radius:0;margin:0}
+/* Kept clear of the phone's bottom furniture: Safari floats a toolbar there and
+   the home indicator takes its own strip, so a button 10px up gets covered --
+   and a wide mode with no visible way out is a trap. */
+body.expandido .barra-tabela{position:fixed;z-index:51;margin:0;width:auto;
+  right:16px;bottom:calc(22px + env(safe-area-inset-bottom, 0px))}
+body.expandido .dica{display:none}
+/* Inverted on purpose: in wide mode the whole screen is the white table, and a
+   white button on it is invisible -- which is how the way out gets lost. */
+body.expandido .botao{background:var(--tinta);color:#fff;border-color:var(--tinta);
+  box-shadow:0 3px 14px rgba(0,0,0,.35)}
+
 @media (max-width:520px){
   body{font-size:18px}
   th,td{padding:10px 11px}
+  main{padding:12px}
+  /* One swipeable row instead of a stack. Five boxes stacked two-per-row filled
+     the whole phone screen and pushed the table below the fold -- and the table
+     is what he opened the page for. */
+  .resumo{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+          padding-bottom:4px;gap:8px}
+  .caixa{flex:0 0 auto;min-width:132px;padding:10px 13px}
+  .caixa .val{font-size:21px}
+  .caixa .rot{font-size:13px}
+  .filtros{gap:6px;margin-bottom:10px}
+  .filtros a{padding:8px 13px;font-size:15px}
+  .barra-tabela{gap:8px}
+  .dica{font-size:14px}
 }
 </style>
 </head>
@@ -82,5 +136,66 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 {% block conteudo %}{% endblock %}
 <p class="rodape">Atualizado {% now "d/m/Y \à\s H:i" %}</p>
 </main>
+<script>
+// Three things, each optional, tried in order of how widely they work:
+//   1. the CSS class -- always; this alone gives the table the whole screen
+//   2. the OS fullscreen -- Android Chrome; iOS Safari has it for video only
+//   3. the landscape lock -- Android only, and only while in fullscreen
+// Steps 2 and 3 throw when unsupported or refused, so each is caught on its
+// own: a phone that cannot lock the rotation still gets the wide table.
+(function () {
+  var corpo = document.body;
+
+  function estaExpandido() { return corpo.classList.contains("expandido"); }
+
+  function rotulo() {
+    var b = document.getElementById("btn-expandir");
+    if (b) b.textContent = estaExpandido() ? "⤡  Sair" : "⛶  Tela cheia";
+  }
+
+  async function abrir(alvo) {
+    corpo.classList.add("expandido");
+    rotulo();
+    try {
+      if (alvo.requestFullscreen) await alvo.requestFullscreen();
+      else if (alvo.webkitRequestFullscreen) alvo.webkitRequestFullscreen();
+    } catch (e) { /* iOS, ou o usuário recusou: o modo CSS já vale */ }
+    try {
+      if (screen.orientation && screen.orientation.lock)
+        await screen.orientation.lock("landscape");
+    } catch (e) { /* sem trava: o aparelho gira sozinho se não estiver travado */ }
+  }
+
+  function fechar() {
+    corpo.classList.remove("expandido");
+    rotulo();
+    try {
+      if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+    } catch (e) {}
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+    else if (document.webkitFullscreenElement && document.webkitExitFullscreen)
+      document.webkitExitFullscreen();
+  }
+
+  window.alternarTabela = function (idAlvo) {
+    var alvo = document.getElementById(idAlvo);
+    if (!alvo) return;
+    estaExpandido() ? fechar() : abrir(alvo);
+  };
+
+  // Leaving fullscreen through the system (back gesture, Esc) must also drop
+  // the CSS class, or the page stays stuck with its header hidden.
+  ["fullscreenchange", "webkitfullscreenchange"].forEach(function (ev) {
+    document.addEventListener(ev, function () {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement
+          && estaExpandido()) fechar();
+    });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && estaExpandido()) fechar();
+  });
+  rotulo();
+})();
+</script>
 </body>
 </html>

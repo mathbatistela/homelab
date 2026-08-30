@@ -309,3 +309,37 @@ class TestContaDaArroba(BaseGado):
         corpo = self.client.get("/").content.decode()
         self.assertIn("Pagou na @", corpo)
         self.assertIn("R$ 257,29", corpo)
+
+
+class TestTelaCheia(BaseGado):
+    """The wide-table mode, checked in the markup.
+
+    Behaviour was verified in a real browser at 390px; what a test can hold is
+    the structural invariant that broke it, so it cannot come back.
+    """
+
+    def test_botao_fica_dentro_do_painel_que_vai_a_tela_cheia(self):
+        """The bug: the browser renders ONLY the fullscreen element and its
+        descendants. With the button as a sibling of the table it disappeared on
+        entering fullscreen, leaving no visible way out.
+        """
+        corpo = self.client.get("/").content.decode()
+        painel = corpo.index('id="painel-boiada"')
+        botao = corpo.index('id="btn-expandir"')
+        fim_painel = corpo.index("</table>", painel)
+        self.assertLess(painel, botao, "o botão está antes do painel")
+        self.assertLess(botao, fim_painel, "o botão caiu fora do painel")
+
+    def test_botao_aciona_o_painel_e_nao_a_tabela(self):
+        corpo = self.client.get("/").content.decode()
+        self.assertIn("alternarTabela('painel-boiada')", corpo)
+
+    def test_a_pagina_traz_as_tres_camadas(self):
+        corpo = self.client.get("/").content.decode()
+        self.assertIn("expandido", corpo)          # CSS, funciona em qualquer aparelho
+        self.assertIn("requestFullscreen", corpo)  # Android
+        self.assertIn("orientation.lock", corpo)   # Android
+
+    def test_coluna_do_brinco_fica_fixa(self):
+        corpo = self.client.get("/").content.decode()
+        self.assertIn("th:first-child,td:first-child{position:sticky", corpo)

@@ -31,6 +31,12 @@
 </div>
 
 {% if animais %}
+<div id="painel-boiada">
+<div class="barra-tabela">
+  <span class="dica">Arraste a tabela para o lado para ver o resto</span>
+  <button type="button" class="botao" id="btn-expandir"
+          onclick="alternarTabela('painel-boiada')">⛶  Tela cheia</button>
+</div>
 <div class="rolagem">
 <table>
   <thead><tr>
@@ -60,6 +66,7 @@
   {% endfor %}
   </tbody>
 </table>
+</div>
 </div>
 {% else %}
 <p class="vazio">Nenhuma cabeça com esse filtro, patrão.</p>

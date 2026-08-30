@@ -102,9 +102,9 @@ class AnimalAdmin(ModelAdmin):
                               "peso_venda"),
                    "description": "Preenchidos do mais específico ao menos: valor "
                                   "por cabeça vence tudo; depois a arroba desta "
-                                  "cabeça (magra, meia carne); depois a arroba do "
-                                  "negócio; por último o rateio do total. Deixe em "
-                                  "branco o que não souber."}),
+                                  "cabeça, quando ela saiu por preço próprio; "
+                                  "depois a arroba do negócio; por último o rateio "
+                                  "do total. Deixe em branco o que não souber."}),
         ("Outros", {"fields": ("observacoes",)}),
     )
 

@@ -530,15 +530,16 @@ class TestTresJeitosDeVender(BaseGado):
         self.assertEqual(self.vaca.valor_venda_apurado, Decimal("5225.00"))
         self.assertEqual(self.vaca.origem_valor_venda, "rateio do total da venda")
 
-    def test_meia_carne_sai_por_arroba_mais_barata_na_mesma_venda(self):
-        """Two cows in one lot, different arroba prices.
+    def test_cabecas_do_mesmo_lote_podem_ter_arrobas_diferentes(self):
+        """Two heads in one lot, two arroba prices.
 
-        The thin one -- "meia carne" -- is worth less per arroba than the
-        finished one, in the very same deal. A single price on the sale cannot
-        express that, which is why the price also lives on the head.
+        The buyer sets the price animal by animal, for reasons that are his --
+        nothing here infers it from weight or from anything else. A single price
+        on the sale cannot express that, which is why the price also lives on
+        the head, entered by hand.
         """
         self._vender(preco_arroba=Decimal("322.00"))
-        self.vaca.preco_arroba_venda = Decimal("270.00")   # magra
+        self.vaca.preco_arroba_venda = Decimal("270.00")   # preço próprio dela
         self.vaca.save()
         # vaca: 11,61 @ x 270 = 3134,70   (a dela)
         self.assertAlmostEqual(float(self.vaca.valor_venda_apurado), 3134.70, places=2)
@@ -605,7 +606,9 @@ class TestEstimativaNaoEPromessa(BaseGado):
     def test_a_lista_diz_que_e_estimativa(self):
         corpo = self.client.get("/").content.decode()
         self.assertIn("estimativa pela cotação de Araçatuba", corpo)
-        self.assertIn("vaca magra sai mais barata", corpo)
+        # Trecho curto de propósito: a frase quebra linha no template, e uma
+        # asserção que atravessa a quebra falha por formatação, não por conteúdo.
+        self.assertIn("pode ser diferente de uma", corpo)
 
     def test_a_ficha_avisa_que_o_comprador_paga_o_dele(self):
         corpo = self.client.get(

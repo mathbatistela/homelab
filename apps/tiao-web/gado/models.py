@@ -265,14 +265,15 @@ class Animal(models.Model):
     peso_venda = models.DecimalField(
         "peso na venda", max_digits=8, decimal_places=2, blank=True, null=True,
         help_text="Peso no dia da venda, se diferente da última pesagem")
-    # The arroba is not one price per deal. Within a single sale a thin cow --
-    # "meia carne" -- fetches less per arroba than a finished one, so the price
-    # belongs to the HEAD, with the deal's price as the fallback for the rest.
+    # The arroba is not one price per deal. Within a single sale different heads
+    # can go at different prices -- the buyer decides, animal by animal, and the
+    # reasons are his. So the price belongs to the HEAD, with the deal's price as
+    # the fallback for the rest. Nothing here infers a price from weight or from
+    # any other field: it is recorded, never derived.
     preco_arroba_venda = models.DecimalField(
         "preço da arroba desta cabeça", max_digits=10, decimal_places=2,
         blank=True, null=True,
-        help_text="Quando esta cabeça saiu por arroba diferente da do negócio "
-                  "(magra, meia carne)")
+        help_text="Quando esta cabeça saiu por arroba diferente da do negócio")
 
     class Meta:
         db_table = "animais"
@@ -518,8 +519,8 @@ class Animal(models.Model):
         animal:
 
           1. per head -- "essa saiu por 5.200"
-          2. by THIS head's arroba -- a thin cow, "meia carne", goes cheaper
-             than the finished ones in the very same deal
+          2. by THIS head's arroba -- heads in the same deal can go at
+             different prices, decided one by one
           3. by the deal's arroba -- one R$/@ for everything
           4. one number for the lot -- selling to a neighbour
 
@@ -574,9 +575,9 @@ class Animal(models.Model):
 
         Not a promise, and the screens must not read like one. The quote is SP
         Araçatuba's published average; what he is actually paid is whatever the
-        buyer offers, and it varies by buyer and by animal -- a thin cow goes
-        for less per arroba than a finished one in the same lot. This number is
-        for deciding whether to sell, never for what he will receive.
+        buyer offers, and it varies by buyer and by animal -- two heads in the
+        same lot can go at different prices per arroba. This number is for
+        deciding whether to sell, never for what he will receive.
 
         A sold animal has a real number instead: `valor_venda_apurado`.
         """

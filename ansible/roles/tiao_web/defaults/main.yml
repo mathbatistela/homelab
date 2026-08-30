@@ -1,13 +1,20 @@
 ---
 tiao_web_compose_dir: /opt/tiao-web
 tiao_web_state_dir: /var/lib/tiao-web
-tiao_web_image: "ghcr.io/mathbatistela/homelab/tiao-web:sha-6320b16"
+tiao_web_image: "ghcr.io/mathbatistela/homelab/tiao-web:sha-2bc6a77"
 tiao_web_read_port: 8790
-tiao_web_write_port: 8791
 tiao_web_lan_ip: "{{ ansible_host }}"
 tiao_web_db_host: "{{ hostvars['database'].ansible_host }}"
 tiao_web_db_name: tiao_database
-tiao_web_db_user: tiao_web_user
+# tiao_user, not the read-only tiao_web_user. That user exists with SELECT only
+# and default_transaction_read_only=on, which suited the old viewer -- a page
+# that only read. This app manages the herd: the admin writes, and Django writes
+# a session row on every login, so with the read-only role nobody could even log
+# in. The read-only database user is deliberately traded away here, because the
+# application's purpose changed from viewing to managing.
+tiao_web_db_user: tiao_user
+tiao_web_secret_file: "{{ tiao_web_state_dir }}/secret_key"
+tiao_web_public_origin: "https://tiao.batistela.tech"
 tiao_web_ghcr_user: mathbatistela
 # Enforced as cgroup limits by the compose template. Keep in step with the
 # sizing apps/tiao-web/app.yml declares.

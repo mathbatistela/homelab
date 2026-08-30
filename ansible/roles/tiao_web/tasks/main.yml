@@ -27,6 +27,25 @@
     group: root
     mode: "0644"
 
+# The key is generated on the host the first time and then left alone. Putting
+# it in the repo would publish it; putting it in the vault would mean a rotation
+# needs the vault password. Regenerating it on every run would log everyone out
+# on every deploy.
+- name: Generate the Django secret key once
+  ansible.builtin.shell:
+    cmd: "openssl rand -base64 48 | tr -d '\\n' > {{ tiao_web_secret_file }}"
+    creates: "{{ tiao_web_secret_file }}"
+
+- name: Read the Django secret key
+  ansible.builtin.slurp:
+    src: "{{ tiao_web_secret_file }}"
+  register: tiao_web_secret_raw
+
+- name: Keep the secret key out of the log
+  ansible.builtin.set_fact:
+    tiao_web_secret_key: "{{ tiao_web_secret_raw.content | b64decode }}"
+  no_log: true
+
 - name: Copy .env file for tiao-web
   ansible.builtin.template:
     src: env.j2

@@ -52,3 +52,7 @@ apps/hermes-tools/frontend/node_modules/
 ansible/roles/hermes_miniapp/
 config/fragments/pangolin/hermes-miniapp.yml
 config/fragments/traefik/hermes-miniapp.yml
+apps/tiao-web/.env.dev
+apps/tiao-web/.venv-django/
+apps/tiao-web/.senha-admin.txt
+apps/tiao-web/.venv/

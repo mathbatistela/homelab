@@ -1,0 +1,38 @@
+{% extends "gado/base.html" %}{% load gado_extras %}
+{% block titulo %}Cotação{% endblock %}
+{% block conteudo %}
+
+<h2>Cotação do gado</h2>
+{% if ultimas %}
+<div class="resumo">
+  {% for rotulo, c in ultimas.items %}
+  <div class="caixa">
+    <div class="rot">{{ rotulo }}</div>
+    <div class="val">{{ c.bruto_a_vista|reais }}</div>
+    <div class="rot">{% if c.por_quilo %}o quilo{% else %}a arroba{% endif %}
+      · {{ c.data_pregao|date:"d/m" }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+{% for rotulo, linhas in historico.items %}
+<h2>{{ rotulo|title }}</h2>
+<div class="rolagem"><table>
+  <thead><tr><th>Pregão</th><th class="num">À vista</th><th class="num">30 dias</th><th>Praça</th></tr></thead>
+  <tbody>{% for c in linhas %}
+    <tr>
+      <td>{{ c.data_pregao|date:"d/m/Y" }}</td>
+      <td class="num">{{ c.bruto_a_vista|reais }}</td>
+      <td class="num">{{ c.bruto_30d|reais }}</td>
+      <td>{{ c.praca }}</td>
+    </tr>
+  {% endfor %}</tbody>
+</table></div>
+{% endfor %}
+
+<p class="rodape">O preço vem da Scot Consultoria e é lido todo dia às 19h.
+Fim de semana e feriado não têm pregão novo.</p>
+{% else %}
+<p class="vazio">Ainda não tenho cotação guardada, patrão.</p>
+{% endif %}
+{% endblock %}

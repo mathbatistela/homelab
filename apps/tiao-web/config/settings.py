@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 from django.urls import reverse_lazy
@@ -42,12 +43,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-w&oc44ceoq6!fy(@c3*yws)pj9w6%^jijl-@l8ik!ijnjon8xv'
+# Production supplies this through the environment. The fallback exists only so
+# `manage.py` works locally; it is never what the deployed container uses.
+SECRET_KEY = _env("DJANGO_SECRET_KEY") or "dev-inseguro-nao-use-em-producao"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = _env("DJANGO_DEBUG", "") == "1"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [h for h in _env("DJANGO_ALLOWED_HOSTS", "*").split(",") if h]
 
 
 # Application definition
@@ -67,6 +70,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Serves the admin's and Unfold's static files. There is no nginx in
+    # front of this container -- Pangolin proxies straight to gunicorn -- so
+    # without WhiteNoise the admin renders unstyled in production.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -98,16 +105,29 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "HOST": _env("PGHOST", "localhost"),
-        "PORT": _env("PGPORT", "5432"),
-        "NAME": _env("PGDATABASE", "tiao_database"),
-        "USER": _env("PGUSER", "tiao_user"),
-        "PASSWORD": _env("PGPASSWORD"),
+# Tests run on SQLite. `tiao_user` has no CREATEDB on the homelab Postgres, and
+# granting it there just so a test run can create test_tiao_database would hand
+# a web app a right it must never have in production. Nothing here depends on
+# Postgres-specific behaviour; the CHECK constraint on cotacoes.categoria lives
+# in the database and is exercised by the live cron, not by these tests.
+if "test" in sys.argv:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "HOST": _env("PGHOST", "localhost"),
+            "PORT": _env("PGPORT", "5432"),
+            "NAME": _env("PGDATABASE", "tiao_database"),
+            "USER": _env("PGUSER", "tiao_user"),
+            "PASSWORD": _env("PGPASSWORD"),
+        }
+    }
 
 
 # Password validation
@@ -206,4 +226,19 @@ UNFOLD = {
             },
         ],
     },
+}
+
+
+# --- Behind Pangolin ---------------------------------------------------------
+# The tunnel terminates TLS and forwards plain HTTP, so Django sees an insecure
+# request and would reject the admin login as a CSRF failure. These two settings
+# are what make logging in work through the public domain.
+CSRF_TRUSTED_ORIGINS = [o for o in _env(
+    "DJANGO_CSRF_ORIGINS", "https://tiao.batistela.tech").split(",") if o]
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }

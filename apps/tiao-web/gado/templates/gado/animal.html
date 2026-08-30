@@ -1,0 +1,65 @@
+{% extends "gado/base.html" %}{% load gado_extras %}
+{% block titulo %}Brinco {{ a.brinco }}{% endblock %}
+{% block conteudo %}
+
+<h2>Brinco {{ a.brinco }}</h2>
+
+<div class="cartao">
+  <div class="par"><span class="rot">Vale hoje</span>
+    <span class="val destaque">{{ a.valor_atual|reais }}</span></div>
+  {% if a.cotacao_atual %}
+  <div class="par"><span class="rot">Pela cotação de</span>
+    <span class="val">{{ a.cotacao_atual.get_categoria_display }},
+      {{ a.cotacao_atual.bruto_a_vista|reais }}{% if a.cotacao_atual.por_quilo %} o quilo{% else %} a arroba{% endif %}
+      <br><small>{{ a.cotacao_atual.data_pregao|date:"d/m/Y" }}</small></span></div>
+  <div class="par"><span class="rot">Contando rendimento de</span>
+    <span class="val">{{ a.rendimento|floatformat:0 }}%</span></div>
+  {% endif %}
+</div>
+
+<div class="cartao">
+  <div class="par"><span class="rot">Categoria</span><span class="val">{{ a.categoria|default:"—" }}</span></div>
+  <div class="par"><span class="rot">Sexo</span><span class="val">{{ a.sexo|default:"—" }}</span></div>
+  <div class="par"><span class="rot">Onde está</span><span class="val">{{ a.propriedade.nome|default:"—"|title }}</span></div>
+  <div class="par"><span class="rot">Peso atual</span>
+    <span class="val">{% if a.peso_atual_kg %}{{ a.peso_atual_kg|numero }} kg · {{ a.peso_arrobas|arrobas }}{% else %}—{% endif %}</span></div>
+  {% if a.compra %}
+  <div class="par"><span class="rot">Comprada de</span>
+    <span class="val">{{ a.compra.comprador.nome|default:"—" }}<br>
+      <small>{{ a.compra.data|date:"d/m/Y" }}</small></span></div>
+  {% endif %}
+  {% if a.valor_compra %}
+  <div class="par"><span class="rot">Custou</span><span class="val">{{ a.valor_compra|reais }}</span></div>
+  {% endif %}
+  {% if total_despesas %}
+  <div class="par"><span class="rot">Despesas</span><span class="val">{{ total_despesas|reais }}</span></div>
+  {% endif %}
+  {% if a.observacoes %}
+  <div class="par"><span class="rot">Observação</span><span class="val">{{ a.observacoes }}</span></div>
+  {% endif %}
+</div>
+
+<h2>Pesagens</h2>
+{% if pesagens %}
+<div class="rolagem"><table>
+  <thead><tr><th>Data</th><th class="num">Peso</th><th>Observação</th></tr></thead>
+  <tbody>{% for p in pesagens %}
+    <tr><td>{{ p.data|date:"d/m/Y" }}</td><td class="num">{{ p.peso_kg|numero }} kg</td>
+        <td>{{ p.observacoes|default:"" }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p class="vazio">Esse bicho ainda não foi pesado.</p>{% endif %}
+
+{% if despesas %}
+<h2>Despesas</h2>
+<div class="rolagem"><table>
+  <thead><tr><th>Data</th><th>Tipo</th><th class="num">Valor</th><th>Detalhes</th></tr></thead>
+  <tbody>{% for d in despesas %}
+    <tr><td>{{ d.data|date:"d/m/Y" }}</td><td>{{ d.get_tipo_display }}</td>
+        <td class="num">{{ d.valor|reais }}</td><td>{{ d.detalhes|default:"" }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% endif %}
+
+<p class="rodape"><a href="{% url 'gado:rebanho' %}">← voltar pra boiada</a></p>
+{% endblock %}

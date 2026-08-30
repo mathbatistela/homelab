@@ -1,0 +1,79 @@
+{% load gado_extras %}<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}Caderneta{% endblock %} — Pecuária Batistela</title>
+<style>
+/* Built for one reader: a rancher, on a phone, outdoors. Big type, strong
+   contrast, no animation, nothing to learn. Sizes are deliberately larger
+   than a normal web app -- this is read in sunlight, not at a desk. */
+:root{
+  --tinta:#1a1a1a; --fraca:#5c5c5c; --linha:#d9d5cd;
+  --fundo:#faf8f4; --cartao:#fff; --verde:#15803d; --ambar:#b45309;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fundo);color:var(--tinta);
+     font:19px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:inherit}
+header{background:var(--tinta);color:#fff;padding:14px 16px}
+header h1{margin:0;font-size:20px;letter-spacing:.02em}
+nav{display:flex;gap:6px;overflow-x:auto;background:#2b2b2b;padding:6px}
+nav a{flex:0 0 auto;padding:11px 16px;border-radius:8px;color:#e8e8e8;
+      text-decoration:none;font-size:17px;white-space:nowrap}
+nav a.ativo{background:var(--fundo);color:var(--tinta);font-weight:600}
+main{padding:16px;max-width:1100px;margin:0 auto}
+h2{font-size:22px;margin:22px 0 10px}
+.resumo{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.caixa{flex:1 1 150px;background:var(--cartao);border:1px solid var(--linha);
+       border-radius:12px;padding:13px 15px}
+.caixa .rot{font-size:14px;color:var(--fraca);text-transform:uppercase;
+            letter-spacing:.05em}
+.caixa .val{font-size:25px;font-weight:700;margin-top:3px}
+/* Wide tables scroll inside their own box; the page never scrolls sideways. */
+.rolagem{overflow-x:auto;-webkit-overflow-scrolling:touch;
+         border:1px solid var(--linha);border-radius:12px;background:var(--cartao)}
+table{border-collapse:collapse;width:100%;font-size:17px}
+th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--linha);
+      white-space:nowrap}
+th{background:#f0ece4;font-size:14px;text-transform:uppercase;
+   letter-spacing:.04em;color:var(--fraca)}
+tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.brinco{font-weight:700;font-size:19px}
+.pasto{color:var(--verde);font-weight:600}
+.vendido{color:var(--ambar);font-weight:600}
+.filtros{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.filtros a{padding:9px 15px;border:1px solid var(--linha);border-radius:999px;
+           background:var(--cartao);text-decoration:none;font-size:16px}
+.filtros a.ativo{background:var(--tinta);color:#fff;border-color:var(--tinta)}
+.vazio{background:var(--cartao);border:1px dashed var(--linha);border-radius:12px;
+       padding:26px;text-align:center;color:var(--fraca);font-size:18px}
+.rodape{margin:26px 0 10px;color:var(--fraca);font-size:15px;text-align:center}
+.cartao{background:var(--cartao);border:1px solid var(--linha);border-radius:12px;
+        padding:16px;margin-bottom:14px}
+.par{display:flex;justify-content:space-between;gap:12px;padding:9px 0;
+     border-bottom:1px solid var(--linha)}
+.par:last-child{border-bottom:none}
+.par .rot{color:var(--fraca)}
+.par .val{font-weight:600;text-align:right}
+.destaque{font-size:29px;font-weight:700}
+@media (max-width:520px){
+  body{font-size:18px}
+  th,td{padding:10px 11px}
+}
+</style>
+</head>
+<body>
+<header><h1>Pecuária Batistela</h1></header>
+<nav>
+  <a href="{% url 'gado:rebanho' %}" {% if pagina == 'rebanho' %}class="ativo"{% endif %}>A boiada</a>
+  <a href="{% url 'gado:cotacao' %}" {% if pagina == 'cotacao' %}class="ativo"{% endif %}>Cotação</a>
+  <a href="{% url 'gado:negocios' %}" {% if pagina == 'negocios' %}class="ativo"{% endif %}>Compras e vendas</a>
+</nav>
+<main>
+{% block conteudo %}{% endblock %}
+<p class="rodape">Atualizado {% now "d/m/Y \à\s H:i" %}</p>
+</main>
+</body>
+</html>

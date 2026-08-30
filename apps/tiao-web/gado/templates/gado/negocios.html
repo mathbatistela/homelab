@@ -1,0 +1,48 @@
+{% extends "gado/base.html" %}{% load gado_extras %}
+{% block titulo %}Compras e vendas{% endblock %}
+{% block conteudo %}
+
+<h2>Compras</h2>
+{% if compras %}
+<div class="rolagem"><table>
+  <thead><tr><th>Data</th><th>De quem</th><th class="num">Cabeças</th>
+             <th class="num">Valor</th><th class="num">Por cabeça</th></tr></thead>
+  <tbody>{% for m in compras %}
+    <tr><td>{{ m.data|date:"d/m/Y" }}</td>
+        <td>{{ m.comprador.nome|default:"—" }}</td>
+        <td class="num">{{ m.quantidade|default:"—" }}</td>
+        <td class="num">{{ m.valor|reais }}</td>
+        <td class="num">{{ m.valor_por_cabeca|reais }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p class="vazio">Nenhuma compra registrada.</p>{% endif %}
+
+<h2>Vendas</h2>
+{% if vendas %}
+<div class="rolagem"><table>
+  <thead><tr><th>Data</th><th>Pra quem</th><th class="num">Cabeças</th>
+             <th class="num">Valor</th><th class="num">Por cabeça</th></tr></thead>
+  <tbody>{% for m in vendas %}
+    <tr><td>{{ m.data|date:"d/m/Y" }}</td>
+        <td>{{ m.comprador.nome|default:"—" }}</td>
+        <td class="num">{{ m.quantidade|default:"—" }}</td>
+        <td class="num">{{ m.valor|reais }}</td>
+        <td class="num">{{ m.valor_por_cabeca|reais }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p class="vazio">Nenhuma venda registrada ainda.</p>{% endif %}
+
+<h2>Com quem negociamos</h2>
+{% if contrapartes %}
+<div class="rolagem"><table>
+  <thead><tr><th>Nome</th><th>Cidade</th><th>Telefone</th>
+             <th class="num">Negócios</th><th>Último</th></tr></thead>
+  <tbody>{% for c in contrapartes %}
+    <tr><td>{{ c.nome }}</td><td>{{ c.cidade|default:"—" }}</td>
+        <td>{{ c.telefone|default:"—" }}</td>
+        <td class="num">{{ c.negocios }}</td>
+        <td>{% if c.ultimo %}{{ c.ultimo|date:"d/m/Y" }}{% else %}—{% endif %}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p class="vazio">Ninguém cadastrado ainda.</p>{% endif %}
+{% endblock %}

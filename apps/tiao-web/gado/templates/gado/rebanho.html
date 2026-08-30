@@ -1,0 +1,57 @@
+{% extends "gado/base.html" %}{% load gado_extras %}
+{% block titulo %}A boiada{% endblock %}
+{% block conteudo %}
+
+<div class="resumo">
+  <div class="caixa"><div class="rot">Cabeças</div><div class="val">{{ total_cabecas }}</div></div>
+  <div class="caixa"><div class="rot">Peso somado</div><div class="val">{{ peso_total|numero }} kg</div></div>
+  <div class="caixa"><div class="rot">Valor hoje</div><div class="val">{{ valor_total|reais }}</div></div>
+</div>
+
+<div class="filtros">
+  <a href="?{% if situacao_ativa %}situacao={{ situacao_ativa }}{% endif %}"
+     {% if not propriedade_ativa %}class="ativo"{% endif %}>Todo lugar</a>
+  {% for p in propriedades %}
+    <a href="?propriedade={{ p|urlencode }}{% if situacao_ativa %}&situacao={{ situacao_ativa }}{% endif %}"
+       {% if propriedade_ativa == p %}class="ativo"{% endif %}>{{ p|title }}</a>
+  {% endfor %}
+</div>
+<div class="filtros">
+  <a href="?{% if propriedade_ativa %}propriedade={{ propriedade_ativa|urlencode }}{% endif %}"
+     {% if not situacao_ativa %}class="ativo"{% endif %}>Todas</a>
+  <a href="?situacao=pasto{% if propriedade_ativa %}&propriedade={{ propriedade_ativa|urlencode }}{% endif %}"
+     {% if situacao_ativa == 'pasto' %}class="ativo"{% endif %}>No pasto</a>
+  <a href="?situacao=vendido{% if propriedade_ativa %}&propriedade={{ propriedade_ativa|urlencode }}{% endif %}"
+     {% if situacao_ativa == 'vendido' %}class="ativo"{% endif %}>Vendidas</a>
+</div>
+
+{% if animais %}
+<div class="rolagem">
+<table>
+  <thead><tr>
+    <th>Brinco</th><th>Categoria</th><th>Onde está</th>
+    <th class="num">Último peso</th><th>Pesado em</th>
+    <th class="num">Em @</th><th class="num">Vale hoje</th>
+    <th class="num">Despesas</th><th>Situação</th>
+  </tr></thead>
+  <tbody>
+  {% for a in animais %}
+    <tr>
+      <td class="brinco"><a href="{% url 'gado:animal' a.brinco %}">{{ a.brinco }}</a></td>
+      <td>{{ a.categoria|default:"—" }}</td>
+      <td>{{ a.propriedade.nome|default:"—"|title }}</td>
+      <td class="num">{% if a.peso_atual_kg %}{{ a.peso_atual_kg|numero }} kg{% else %}—{% endif %}</td>
+      <td>{% if a.ultima_pesagem %}{{ a.ultima_pesagem.data|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+      <td class="num">{{ a.peso_arrobas|arrobas }}</td>
+      <td class="num">{{ a.valor_atual|reais }}</td>
+      <td class="num">{% if a.total_despesas %}{{ a.total_despesas|reais }}{% else %}—{% endif %}</td>
+      <td>{% if a.venda_id %}<span class="vendido">vendida</span>{% else %}<span class="pasto">no pasto</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="vazio">Nenhuma cabeça com esse filtro, patrão.</p>
+{% endif %}
+{% endblock %}

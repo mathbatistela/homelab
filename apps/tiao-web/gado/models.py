@@ -157,13 +157,24 @@ class Animal(models.Model):
     # weighing or an expense is added. On the herd list the view annotates them
     # in one query; these properties serve the single-animal page.
 
+    # These sort in Python on purpose. `self.pesagens.order_by(...)` issues a
+    # fresh query even when pesagens was prefetched -- order_by discards the
+    # prefetch cache -- which is one query per animal on a 300-head list.
+    # Sorting the cached list keeps the whole page at one query.
+
+    @property
+    def _pesagens_ordenadas(self):
+        return sorted(self.pesagens.all(), key=lambda p: p.data)
+
     @property
     def primeira_pesagem(self):
-        return self.pesagens.order_by("data").first()
+        ps = self._pesagens_ordenadas
+        return ps[0] if ps else None
 
     @property
     def ultima_pesagem(self):
-        return self.pesagens.order_by("-data").first()
+        ps = self._pesagens_ordenadas
+        return ps[-1] if ps else None
 
     @property
     def peso_atual_kg(self):
@@ -203,7 +214,9 @@ class Animal(models.Model):
 
 
 class Pesagem(models.Model):
-    animal = models.ForeignKey(Animal, models.DO_NOTHING,
+    # CASCADE, not the DO_NOTHING inspectdb produced: deleting an animal in the
+    # admin with DO_NOTHING leaves orphan weighings and trips the foreign key.
+    animal = models.ForeignKey(Animal, models.CASCADE,
                                verbose_name="animal", related_name="pesagens")
     data = models.DateField("data")
     peso_kg = models.DecimalField("peso (kg)", max_digits=8, decimal_places=2)

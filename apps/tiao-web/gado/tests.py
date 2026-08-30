@@ -27,7 +27,7 @@ class BaseGado(TestCase):
     def setUpTestData(cls):
         # A migration de seed já cria os quatro pastos; get_or_create para o
         # teste não brigar com ela.
-        cls.pasto, _ = Propriedade.objects.get_or_create(nome="DOIS IPES")
+        cls.pasto, _ = Propriedade.objects.get_or_create(nome="Sítio II Ypês")
         cls.leilao = Contraparte.objects.create(nome="Leilão Sirotto",
                                                 tipo=Contraparte.VENDEDOR)
         cls.compra = Movimentacao.objects.create(
@@ -626,3 +626,28 @@ class TestEstimativaNaoEPromessa(BaseGado):
             reverse("gado:animal", args=["2031"])).content.decode()
         # o que rendeu de verdade vem antes do que valeria
         self.assertLess(corpo.index("Saiu por"), corpo.index("Valeria hoje"))
+
+
+class TestPastos(BaseGado):
+    """Only two properties exist, and their spelling is not decorative."""
+
+    def test_so_existem_os_dois_reais(self):
+        nomes = set(Propriedade.objects.values_list("nome", flat=True))
+        self.assertEqual(nomes, {"Sítio Pai e Filho", "Sítio II Ypês"})
+
+    def test_o_nome_aparece_como_foi_guardado(self):
+        """No auto-capitalisation: `|title` turns "II" into "Ii" and
+        "Pai e Filho" into "Pai E Filho"."""
+        self.vaca.propriedade = Propriedade.objects.get(nome="Sítio II Ypês")
+        self.vaca.save()
+        corpo = self.client.get("/").content.decode()
+        self.assertIn("Sítio II Ypês", corpo)
+        self.assertNotIn("Sítio Ii Ypês", corpo)
+
+    def test_pai_e_filho_nao_vira_Pai_E_Filho(self):
+        self.vaca.propriedade = Propriedade.objects.get(nome="Sítio Pai e Filho")
+        self.vaca.save()
+        corpo = self.client.get(
+            reverse("gado:animal", args=["2031"])).content.decode()
+        self.assertIn("Sítio Pai e Filho", corpo)
+        self.assertNotIn("Pai E Filho", corpo)

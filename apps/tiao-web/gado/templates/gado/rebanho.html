@@ -21,7 +21,7 @@
      {% if not propriedade_ativa %}class="ativo"{% endif %}>Todo lugar</a>
   {% for p in propriedades %}
     <a href="?propriedade={{ p|urlencode }}{% if situacao_ativa %}&situacao={{ situacao_ativa }}{% endif %}"
-       {% if propriedade_ativa == p %}class="ativo"{% endif %}>{{ p|title }}</a>
+       {% if propriedade_ativa == p %}class="ativo"{% endif %}>{{ p }}</a>
   {% endfor %}
 </div>
 <div class="filtros">
@@ -58,7 +58,7 @@
         {% else %}<a href="{% url 'gado:animal_por_id' a.pk %}" class="sem-brinco">{{ a.identificacao }}</a>
         {% endif %}</td>
       <td>{{ a.categoria|default:"—" }}</td>
-      <td>{{ a.propriedade.nome|default:"—"|title }}</td>
+      <td>{{ a.propriedade.nome|default:"—" }}</td>
       <td class="num">{% if a.peso_atual_kg %}{{ a.peso_atual_kg|numero }} kg{% else %}—{% endif %}</td>
       <td>{% if a.ultima_pesagem %}{{ a.ultima_pesagem.data|date:"d/m/Y" }}{% else %}—{% endif %}</td>
       <td class="num">{{ a.peso_arrobas|arrobas }}</td>

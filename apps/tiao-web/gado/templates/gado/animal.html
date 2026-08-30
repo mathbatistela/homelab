@@ -72,7 +72,7 @@
 <div class="cartao">
   <div class="par"><span class="rot">Categoria</span><span class="val">{{ a.categoria|default:"—" }}</span></div>
   <div class="par"><span class="rot">Sexo</span><span class="val">{{ a.sexo|default:"—" }}</span></div>
-  <div class="par"><span class="rot">Onde está</span><span class="val">{{ a.propriedade.nome|default:"—"|title }}</span></div>
+  <div class="par"><span class="rot">Onde está</span><span class="val">{{ a.propriedade.nome|default:"—" }}</span></div>
   <div class="par"><span class="rot">Peso atual</span>
     <span class="val">{% if a.peso_atual_kg %}{{ a.peso_atual_kg|numero }} kg · {{ a.peso_arrobas|arrobas }}{% else %}—{% endif %}</span></div>
   {% if a.compra %}

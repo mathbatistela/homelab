@@ -333,16 +333,14 @@ class Animal(models.Model):
 
     @property
     def cotacao_por_arroba(self):
-        """Today's quote, always per arroba.
+        """Today's quote per arroba.
 
-        Two RS praças are quoted per KILO of carcass. Comparing R$/kg against an
-        R$/arroba cost would be off by fifteen times, so normalise before any
-        comparison is shown.
+        Only SP Araçatuba is collected, and it is quoted per arroba. The two RS
+        praças that quote per kilo are refused by the scraper, so nothing here
+        ever has to convert units.
         """
         c = self.cotacao_atual
-        if c is None:
-            return None
-        return c.bruto_a_vista * Decimal(str(KG_POR_ARROBA)) if c.por_quilo else c.bruto_a_vista
+        return c.bruto_a_vista if c else None
 
     @property
     def ganho_por_arroba(self):
@@ -374,11 +372,10 @@ class Animal(models.Model):
         the quote the 19:00 cron stored, for THIS animal's category -- a cow is
         not paid the steer price.
         """
+
         arrobas, cot = self.peso_arrobas, self.cotacao_atual
         if arrobas is None or cot is None:
             return None
-        if cot.por_quilo:
-            return Decimal(str(arrobas * KG_POR_ARROBA)) * cot.bruto_a_vista
         return Decimal(str(arrobas)) * cot.bruto_a_vista
 
 
@@ -457,7 +454,6 @@ class Cotacao(models.Model):
     data_pregao = models.DateField("data do pregão")
     bruto_a_vista = models.DecimalField("bruto à vista", max_digits=10, decimal_places=2)
     bruto_30d = models.DecimalField("bruto 30 dias", max_digits=10, decimal_places=2)
-    por_quilo = models.BooleanField("cotada por quilo", default=False)
     coletado_em = models.DateTimeField("coletado em", auto_now_add=True)
 
     class Meta:
@@ -468,8 +464,7 @@ class Cotacao(models.Model):
         unique_together = (("categoria", "praca", "data_pregao"),)
 
     def __str__(self):
-        unidade = "o quilo" if self.por_quilo else "a arroba"
-        return f"{self.get_categoria_display()} — R$ {self.bruto_a_vista} {unidade}"
+        return f"{self.get_categoria_display()} — R$ {self.bruto_a_vista} a arroba"
 
     # A female that is not a novilha is priced off the vaca gorda page -- the
     # closest female quote the market publishes. Same mapping the bot uses.

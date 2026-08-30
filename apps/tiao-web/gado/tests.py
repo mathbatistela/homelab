@@ -78,17 +78,6 @@ class TestValorAtual(BaseGado):
         self.assertIsNone(novo.peso_arrobas)
         self.assertIsNone(novo.valor_atual)
 
-    def test_praca_por_quilo_nao_multiplica_por_arroba(self):
-        Cotacao.objects.filter(categoria="vaca").delete()
-        Cotacao.objects.create(categoria="vaca", praca="RS Pelotas (kg)",
-                               data_pregao=datetime.date(2026, 8, 28),
-                               bruto_a_vista=Decimal("12.70"),
-                               bruto_30d=Decimal("12.85"), por_quilo=True)
-        from django.core.cache import cache
-        cache.clear()
-        # 174,15 kg de carcaça x R$ 12,70 = R$ 2211,70. Tratar como arroba
-        # daria R$ 147 -- quinze vezes menos.
-        self.assertAlmostEqual(float(self.vaca.valor_atual), 2211.705, places=3)
 
 
 class TestProxies(BaseGado):
@@ -296,16 +285,14 @@ class TestContaDaArroba(BaseGado):
         # cotação da vaca 318,00 menos os 257,29 pagos
         self.assertAlmostEqual(float(self.vaca.ganho_por_arroba), 60.71, places=2)
 
-    def test_cotacao_por_arroba_normaliza_praca_por_quilo(self):
-        """R$/kg against an R$/@ cost would be fifteen times wrong."""
-        Cotacao.objects.filter(categoria="vaca").delete()
-        Cotacao.objects.create(categoria="vaca", praca="RS Pelotas (kg)",
-                               data_pregao=datetime.date(2026, 8, 28),
-                               bruto_a_vista=Decimal("12.70"),
-                               bruto_30d=Decimal("12.85"), por_quilo=True)
-        from django.core.cache import cache
-        cache.clear()
-        self.assertAlmostEqual(float(self.vaca.cotacao_por_arroba), 190.50, places=2)
+    def test_cotacao_por_arroba_e_o_bruto_a_vista(self):
+        """Only SP Araçatuba is collected, and it is quoted per arroba.
+
+        The per-kilo praças are refused by the scraper, so no unit conversion
+        can reach this far -- and a conversion that never runs is a branch that
+        can only rot.
+        """
+        self.assertEqual(self.vaca.cotacao_por_arroba, Decimal("318.00"))
 
     def test_custo_soma_despesas(self):
         Despesa.objects.create(animal=self.vaca, valor=Decimal("100.00"),

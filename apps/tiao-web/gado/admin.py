@@ -187,11 +187,11 @@ class CotacaoAdmin(ModelAdmin):
 
     @admin.display(description="bruto à vista", ordering="bruto_a_vista")
     def avista_display(self, obj):
-        return _reais(obj.bruto_a_vista) + ("/kg" if obj.por_quilo else "/@")
+        return _reais(obj.bruto_a_vista) + "/@"
 
     @admin.display(description="bruto 30 dias", ordering="bruto_30d")
     def trinta_display(self, obj):
-        return _reais(obj.bruto_30d) + ("/kg" if obj.por_quilo else "/@")
+        return _reais(obj.bruto_30d) + "/@"
 
 
 # Movimentacao and Contraparte must be registered for autocomplete_fields to

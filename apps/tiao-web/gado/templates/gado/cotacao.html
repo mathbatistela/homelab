@@ -9,8 +9,7 @@
   <div class="caixa">
     <div class="rot">{{ rotulo }}</div>
     <div class="val">{{ c.bruto_a_vista|reais }}</div>
-    <div class="rot">{% if c.por_quilo %}o quilo{% else %}a arroba{% endif %}
-      · {{ c.data_pregao|date:"d/m" }}</div>
+    <div class="rot">a arroba · {{ c.data_pregao|date:"d/m" }}</div>
   </div>
   {% endfor %}
 </div>

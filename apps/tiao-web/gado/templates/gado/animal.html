@@ -33,7 +33,7 @@
   {% if a.cotacao_atual %}
   <div class="par"><span class="rot">Pela cotação de</span>
     <span class="val">{{ a.cotacao_atual.get_categoria_display }},
-      {{ a.cotacao_atual.bruto_a_vista|reais }}{% if a.cotacao_atual.por_quilo %} o quilo{% else %} a arroba{% endif %}
+      {{ a.cotacao_atual.bruto_a_vista|reais }} a arroba
       <br><small>{{ a.cotacao_atual.data_pregao|date:"d/m/Y" }}</small></span></div>
   <div class="par"><span class="rot">Contando rendimento de</span>
     <span class="val">{{ a.rendimento|floatformat:0 }}%</span></div>

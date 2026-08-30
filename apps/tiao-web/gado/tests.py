@@ -264,3 +264,68 @@ class TestEnums(BaseGado):
         from .models import SEXO_DA_CATEGORIA
         for cat in Categoria.values:
             self.assertIn(cat, SEXO_DA_CATEGORIA, f"{cat} sem sexo definido")
+
+
+class TestContaDaArroba(BaseGado):
+    """The calculation Jader does on paper every time he weighs an animal."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.vaca.valor_compra = Decimal("2987.14")
+        cls.vaca.save()
+
+    def test_pagou_por_arroba(self):
+        # 387 kg x 45% / 15 = 11,61 @; 2987,14 / 11,61 = 257,29
+        self.assertAlmostEqual(float(self.vaca.pago_por_arroba), 257.29, places=2)
+
+    def test_usa_o_peso_de_ENTRADA_nao_o_de_hoje(self):
+        """Dividing by today's weight would understate what he paid.
+
+        The animal put on 100 kg since purchase. Using the current weight makes
+        the purchase look cheaper per arroba than it was -- flattering, and wrong.
+        """
+        Pesagem.objects.create(animal=self.vaca, data=datetime.date(2026, 9, 30),
+                               peso_kg=Decimal("487.00"))
+        self.assertAlmostEqual(float(self.vaca.arrobas_na_compra), 11.61, places=2)
+        self.assertAlmostEqual(float(self.vaca.pago_por_arroba), 257.29, places=2)
+        # já o peso de hoje é outro, e é o que vale a venda
+        self.assertAlmostEqual(self.vaca.peso_arrobas, 14.61, places=2)
+
+    def test_ganho_por_arroba(self):
+        # cotação da vaca 318,00 menos os 257,29 pagos
+        self.assertAlmostEqual(float(self.vaca.ganho_por_arroba), 60.71, places=2)
+
+    def test_cotacao_por_arroba_normaliza_praca_por_quilo(self):
+        """R$/kg against an R$/@ cost would be fifteen times wrong."""
+        Cotacao.objects.filter(categoria="vaca").delete()
+        Cotacao.objects.create(categoria="vaca", praca="RS Pelotas (kg)",
+                               data_pregao=datetime.date(2026, 8, 28),
+                               bruto_a_vista=Decimal("12.70"),
+                               bruto_30d=Decimal("12.85"), por_quilo=True)
+        from django.core.cache import cache
+        cache.clear()
+        self.assertAlmostEqual(float(self.vaca.cotacao_por_arroba), 190.50, places=2)
+
+    def test_custo_soma_despesas(self):
+        Despesa.objects.create(animal=self.vaca, valor=Decimal("100.00"),
+                               data=datetime.date(2026, 8, 30), tipo=Despesa.VETERINARIA)
+        self.assertEqual(self.vaca.custo_total, Decimal("3087.14"))
+        self.assertAlmostEqual(float(self.vaca.ganho), 3691.98 - 3087.14, places=2)
+
+    def test_sem_valor_de_compra_nao_inventa(self):
+        self.assertIsNone(self.boi.pago_por_arroba)
+        self.assertIsNone(self.boi.custo_total)
+        self.assertIsNone(self.boi.ganho)
+
+    def test_a_conta_aparece_na_ficha(self):
+        corpo = self.client.get(
+            reverse("gado:animal", args=["2031"])).content.decode()
+        self.assertIn("Pagou na arroba", corpo)
+        self.assertIn("R$ 257,29", corpo)
+        self.assertIn("+R$ 60,71", corpo)
+
+    def test_a_conta_aparece_na_lista(self):
+        corpo = self.client.get("/").content.decode()
+        self.assertIn("Pagou na @", corpo)
+        self.assertIn("R$ 257,29", corpo)

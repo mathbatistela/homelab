@@ -29,3 +29,20 @@ def arrobas(v):
     if v is None:
         return "—"
     return f"{v:.2f} @".replace(".", ",")
+
+
+@register.filter
+def reais_sinal(v):
+    """Signed money: gains and losses must be told apart at a glance."""
+    if v is None:
+        return "—"
+    sinal = "+" if v > 0 else ("-" if v < 0 else "")
+    corpo = f"{abs(v):,.2f}".translate(str.maketrans(",.", ".,"))
+    return f"{sinal}R$ {corpo}"
+
+
+@register.filter
+def classe_ganho(v):
+    if v is None or v == 0:
+        return ""
+    return "ganho" if v > 0 else "perda"

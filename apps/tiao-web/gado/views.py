@@ -36,10 +36,14 @@ def rebanho(request):
     animais = list(animais)
 
     valores = [a.valor_atual for a in animais if a.valor_atual is not None]
+    custos = [a.custo_total for a in animais if a.custo_total is not None]
+    ganhos = [a.ganho for a in animais if a.ganho is not None]
     return render(request, "gado/rebanho.html", {
         "animais": animais,
         "total_cabecas": len(animais),
         "valor_total": sum(valores) if valores else None,
+        "custo_total": sum(custos) if custos else None,
+        "ganho_total": sum(ganhos) if ganhos else None,
         "peso_total": sum(a.peso_atual_kg or 0 for a in animais),
         "propriedades": (Animal.objects.exclude(propriedade=None)
                          .values_list("propriedade__nome", flat=True)

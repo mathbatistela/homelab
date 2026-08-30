@@ -6,6 +6,11 @@
   <div class="caixa"><div class="rot">Cabeças</div><div class="val">{{ total_cabecas }}</div></div>
   <div class="caixa"><div class="rot">Peso somado</div><div class="val">{{ peso_total|numero }} kg</div></div>
   <div class="caixa"><div class="rot">Valor hoje</div><div class="val">{{ valor_total|reais }}</div></div>
+  {% if custo_total %}
+  <div class="caixa"><div class="rot">Custou</div><div class="val">{{ custo_total|reais }}</div></div>
+  <div class="caixa"><div class="rot">Ganho</div>
+    <div class="val {{ ganho_total|classe_ganho }}">{{ ganho_total|reais_sinal }}</div></div>
+  {% endif %}
 </div>
 
 <div class="filtros">
@@ -31,7 +36,9 @@
   <thead><tr>
     <th>Brinco</th><th>Categoria</th><th>Onde está</th>
     <th class="num">Último peso</th><th>Pesado em</th>
-    <th class="num">Em @</th><th class="num">Vale hoje</th>
+    <th class="num">Em @</th>
+    <th class="num">Pagou na @</th><th class="num">Vale a @</th><th class="num">Dif. na @</th>
+    <th class="num">Vale hoje</th>
     <th class="num">Despesas</th><th>Situação</th>
   </tr></thead>
   <tbody>
@@ -43,6 +50,9 @@
       <td class="num">{% if a.peso_atual_kg %}{{ a.peso_atual_kg|numero }} kg{% else %}—{% endif %}</td>
       <td>{% if a.ultima_pesagem %}{{ a.ultima_pesagem.data|date:"d/m/Y" }}{% else %}—{% endif %}</td>
       <td class="num">{{ a.peso_arrobas|arrobas }}</td>
+      <td class="num">{{ a.pago_por_arroba|reais }}</td>
+      <td class="num">{{ a.cotacao_por_arroba|reais }}</td>
+      <td class="num {{ a.ganho_por_arroba|classe_ganho }}">{{ a.ganho_por_arroba|reais_sinal }}</td>
       <td class="num">{{ a.valor_atual|reais }}</td>
       <td class="num">{% if a.total_despesas %}{{ a.total_despesas|reais }}{% else %}—{% endif %}</td>
       <td>{% if a.venda_id %}<span class="vendido">vendida</span>{% else %}<span class="pasto">no pasto</span>{% endif %}</td>

@@ -307,6 +307,65 @@ class Animal(models.Model):
     def cotacao_atual(self):
         return Cotacao.mais_recente(self.categoria or self.sexo)
 
+    # --- O que ele calcula de cabeça toda vez que pesa -----------------------
+    # "Paguei quanto na arroba?" é a pergunta da engorda: você compra a X a
+    # arroba e vende a Y, e ganha nos dois lados -- no preço e no peso que o
+    # bicho pôs. Sem isso ele faz a divisão no papel toda vez.
+
+    @property
+    def arrobas_na_compra(self):
+        """Arrobas pela PRIMEIRA pesagem -- o peso de entrada do animal.
+
+        Usar o peso de hoje diluiria o preço pago pelo que o bicho engordou
+        depois, e faria parecer que ele comprou mais barato do que comprou.
+        """
+        p = self.primeira_pesagem
+        if p is None:
+            return None
+        return float(p.peso_kg) * (self.rendimento / 100.0) / KG_POR_ARROBA
+
+    @property
+    def pago_por_arroba(self):
+        arrobas = self.arrobas_na_compra
+        if not self.valor_compra or not arrobas:
+            return None
+        return self.valor_compra / Decimal(str(arrobas))
+
+    @property
+    def cotacao_por_arroba(self):
+        """Today's quote, always per arroba.
+
+        Two RS praças are quoted per KILO of carcass. Comparing R$/kg against an
+        R$/arroba cost would be off by fifteen times, so normalise before any
+        comparison is shown.
+        """
+        c = self.cotacao_atual
+        if c is None:
+            return None
+        return c.bruto_a_vista * Decimal(str(KG_POR_ARROBA)) if c.por_quilo else c.bruto_a_vista
+
+    @property
+    def ganho_por_arroba(self):
+        pago, vale = self.pago_por_arroba, self.cotacao_por_arroba
+        if pago is None or vale is None:
+            return None
+        return vale - pago
+
+    @property
+    def custo_total(self):
+        """Purchase plus everything spent on the animal since."""
+        if self.valor_compra is None:
+            return None
+        return self.valor_compra + self.total_despesas
+
+    @property
+    def ganho(self):
+        """What the animal is worth today minus what it has cost."""
+        vale, custo = self.valor_atual, self.custo_total
+        if vale is None or custo is None:
+            return None
+        return vale - custo
+
     @property
     def valor_atual(self):
         """Live market value of this head.

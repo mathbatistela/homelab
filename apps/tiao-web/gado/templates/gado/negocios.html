@@ -21,15 +21,21 @@
 {% if vendas %}
 <div class="rolagem"><table>
   <thead><tr><th>Data</th><th>Pra quem</th><th class="num">Cabeças</th>
-             <th class="num">Valor</th><th class="num">Por cabeça</th></tr></thead>
+             <th class="num">A arroba</th><th class="num">Total</th>
+             <th class="num">Somando as cabeças</th><th class="num">Diferença</th></tr></thead>
   <tbody>{% for m in vendas %}
     <tr><td>{{ m.data|date:"d/m/Y" }}</td>
         <td>{{ m.comprador.nome|default:"—" }}</td>
         <td class="num">{{ m.quantidade|default:"—" }}</td>
+        <td class="num">{% if m.preco_arroba %}{{ m.preco_arroba|reais }}{% else %}—{% endif %}</td>
         <td class="num">{{ m.valor|reais }}</td>
-        <td class="num">{{ m.valor_por_cabeca|reais }}</td></tr>
+        <td class="num">{{ m.total_apurado|reais }}</td>
+        <td class="num {{ m.diferenca_do_total|classe_ganho }}">
+          {% if m.diferenca_do_total %}{{ m.diferenca_do_total|reais_sinal }}{% else %}—{% endif %}</td></tr>
   {% endfor %}</tbody>
 </table></div>
+<p class="rodape">"Somando as cabeças" é o que cada bicho rendeu, um por um. Se der
+diferença do total, é porque o negócio fechou num número redondo.</p>
 {% else %}<p class="vazio">Nenhuma venda registrada ainda.</p>{% endif %}
 
 <h2>Com quem negociamos</h2>

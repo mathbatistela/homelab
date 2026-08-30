@@ -440,7 +440,7 @@ class TestVendido(BaseGado):
         cls.vaca.save()
 
     def test_resultado_e_o_que_rendeu_de_verdade(self):
-        self.assertEqual(self.vaca.valor_venda, Decimal("5225.00"))
+        self.assertEqual(self.vaca.valor_venda_apurado, Decimal("5225.00"))
         self.assertAlmostEqual(float(self.vaca.resultado), 5225.00 - 2987.14, places=2)
 
     def test_resumo_nao_conta_vendido_no_valor_da_boiada(self):
@@ -463,3 +463,108 @@ class TestVendido(BaseGado):
             reverse("gado:animal", args=["7001"])).content.decode()
         self.assertNotIn("Saiu por", corpo)
         self.assertIn("Vale hoje", corpo)
+
+
+class TestTresJeitosDeVender(BaseGado):
+    """He prices a sale in whichever way the buyer works.
+
+    A frigorífico buys by the arroba; a neighbour buys the lot for a round
+    number; sometimes he simply knows what each head fetched. All three must be
+    recordable, and any of them editable afterwards without the others quietly
+    overwriting the correction.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        for a in (cls.vaca, cls.boi):
+            a.valor_compra = Decimal("2987.14")
+            a.save()
+
+    def _vender(self, **kwargs):
+        v = Venda.objects.create(data=datetime.date(2026, 8, 25),
+                                 quantidade=2, **kwargs)
+        for a in (self.vaca, self.boi):
+            a.venda = v
+            a.save()
+        return v
+
+    # --- caso 1: por arroba -------------------------------------------------
+    def test_venda_por_arroba_da_valor_diferente_por_cabeca(self):
+        """The whole point: the heavier head is worth more.
+
+        Both weigh 387 kg here but differ in yield (45% vs 55%), so the arroba
+        price alone must still separate them.
+        """
+        self._vender(preco_arroba=Decimal("320.00"))
+        # vaca: 387 x 45% / 15 = 11,61 @ x 320 = 3715,20
+        self.assertAlmostEqual(float(self.vaca.valor_venda_apurado), 3715.20, places=2)
+        # boi: 387 x 55% / 15 = 14,19 @ x 320 = 4540,80
+        self.assertAlmostEqual(float(self.boi.valor_venda_apurado), 4540.80, places=2)
+        self.assertNotEqual(self.vaca.valor_venda_apurado, self.boi.valor_venda_apurado)
+
+    def test_peso_da_venda_pode_ser_diferente_do_ultimo(self):
+        """He weighs at the scale on sale day; the last weighing may be months old."""
+        self._vender(preco_arroba=Decimal("320.00"))
+        self.vaca.peso_venda = Decimal("430.00")
+        self.vaca.save()
+        self.assertEqual(self.vaca.peso_na_venda, 430.0)
+        # 430 x 45% / 15 = 12,90 @ x 320 = 4128,00
+        self.assertAlmostEqual(float(self.vaca.valor_venda_apurado), 4128.00, places=2)
+
+    # --- caso 2: valor por cabeça ------------------------------------------
+    def test_valor_por_cabeca_informado_ganha_de_tudo(self):
+        """What he typed wins. This is what makes a later correction stick."""
+        self._vender(preco_arroba=Decimal("320.00"), valor=Decimal("8256.00"))
+        self.vaca.valor_venda = Decimal("3900.00")   # ele corrigiu
+        self.vaca.save()
+        self.assertEqual(self.vaca.valor_venda_apurado, Decimal("3900.00"))
+        self.assertEqual(self.vaca.origem_valor_venda, "valor por cabeça")
+        # e o outro segue pela arroba, sem ser afetado
+        self.assertAlmostEqual(float(self.boi.valor_venda_apurado), 4540.80, places=2)
+
+    # --- caso 3: total do negócio ------------------------------------------
+    def test_total_da_venda_rateia_quando_nao_ha_mais_nada(self):
+        self._vender(valor=Decimal("10450.00"))
+        self.assertEqual(self.vaca.valor_venda_apurado, Decimal("5225.00"))
+        self.assertEqual(self.vaca.origem_valor_venda, "rateio do total da venda")
+
+    def test_a_ordem_de_precedencia(self):
+        v = self._vender(preco_arroba=Decimal("320.00"), valor=Decimal("10450.00"))
+        # com os três presentes, vence o por-cabeça
+        self.vaca.valor_venda = Decimal("3900.00"); self.vaca.save()
+        self.assertEqual(self.vaca.valor_venda_apurado, Decimal("3900.00"))
+        # tirando o por-cabeça, vence a arroba (não o rateio)
+        self.vaca.valor_venda = None; self.vaca.save()
+        self.assertAlmostEqual(float(self.vaca.valor_venda_apurado), 3715.20, places=2)
+        # tirando a arroba, sobra o rateio
+        v.preco_arroba = None; v.save()
+        self.assertEqual(Animal.objects.get(pk=self.vaca.pk).valor_venda_apurado,
+                         Decimal("5225.00"))
+
+    # --- totais da venda ----------------------------------------------------
+    def test_total_apurado_soma_as_cabecas(self):
+        self._vender(preco_arroba=Decimal("320.00"))
+        v = self.vaca.venda
+        self.assertAlmostEqual(float(v.total_apurado), 3715.20 + 4540.80, places=2)
+
+    def test_diferenca_aponta_o_numero_redondo(self):
+        """He closed at a round 8.000 when the arrobas added to 8.256."""
+        v = self._vender(preco_arroba=Decimal("320.00"), valor=Decimal("8000.00"))
+        self.assertAlmostEqual(float(v.total_apurado), 8256.00, places=2)
+        self.assertAlmostEqual(float(v.diferenca_do_total), -256.00, places=2)
+
+    def test_sem_total_informado_nao_inventa_diferenca(self):
+        v = self._vender(preco_arroba=Decimal("320.00"))
+        self.assertIsNone(v.diferenca_do_total)
+
+    def test_resultado_usa_o_valor_apurado(self):
+        self._vender(preco_arroba=Decimal("320.00"))
+        self.assertAlmostEqual(float(self.vaca.resultado), 3715.20 - 2987.14, places=2)
+
+    def test_ficha_mostra_de_onde_veio_o_numero(self):
+        self._vender(preco_arroba=Decimal("320.00"))
+        corpo = self.client.get(reverse("gado:animal", args=["2031"])).content.decode()
+        self.assertIn("R$ 3.715,20", corpo)
+        self.assertIn("11,61 @", corpo)     # a conta aparece
+        self.assertIn("320", corpo)

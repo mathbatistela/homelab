@@ -158,6 +158,12 @@ class Movimentacao(models.Model):
         Contraparte, models.DO_NOTHING, blank=True, null=True,
         verbose_name="contraparte", related_name="movimentacoes")
     quantidade = models.IntegerField("quantidade", blank=True, null=True)
+    # A deal is priced in one of three ways, and which one depends on who is on
+    # the other side. A frigorífico buys by the arroba; a neighbour buys the lot
+    # for a round number. Whichever he knows goes in; the rest is derived.
+    preco_arroba = models.DecimalField(
+        "preço da arroba", max_digits=10, decimal_places=2, blank=True, null=True,
+        help_text="Quando o negócio foi fechado por arroba")
     observacoes = models.TextField("observações", blank=True, null=True)
     criado_em = models.DateTimeField("criado em", auto_now_add=True)
 
@@ -173,9 +179,43 @@ class Movimentacao(models.Model):
 
     @property
     def valor_por_cabeca(self):
+        """The flat split -- total divided by head count.
+
+        The crudest of the three ways to price a head, and the only one that is
+        wrong per animal: it gives the 563 kg cow and the 343 kg cow the same
+        money. Used only when nothing better was recorded.
+        """
         if not self.valor or not self.quantidade:
             return None
         return self.valor / self.quantidade
+
+    @property
+    def animais(self):
+        """The heads on this deal, whichever side it is."""
+        return (self.animais_vendidos if self.tipo == self.VENDA
+                else self.animais_comprados)
+
+    @property
+    def total_apurado(self):
+        """What the individual heads add up to.
+
+        May differ from `valor`: he might record the deal total AND a per-head
+        price, or an arroba price whose sum lands a few reais off the round
+        number that was actually paid. Both are worth keeping -- the difference
+        is information, not an error to hide.
+        """
+        vals = [a.valor_venda_apurado if self.tipo == self.VENDA else a.valor_compra
+                for a in self.animais.all()]
+        vals = [v for v in vals if v is not None]
+        return sum(vals) if vals else None
+
+    @property
+    def diferenca_do_total(self):
+        """Recorded total minus what the heads add up to. None when either is missing."""
+        apurado = self.total_apurado
+        if self.valor is None or apurado is None:
+            return None
+        return self.valor - apurado
 
 
 class Animal(models.Model):
@@ -216,6 +256,15 @@ class Animal(models.Model):
     venda = models.ForeignKey(
         "Movimentacao", models.SET_NULL, blank=True, null=True,
         verbose_name="venda", related_name="animais_vendidos")
+    # What THIS head fetched, when he knows it per head. Left empty when the
+    # deal was closed by the arroba or as a single lot price -- then it is
+    # derived. Storing it never overwrites what he typed.
+    valor_venda = models.DecimalField(
+        "valor de venda", max_digits=12, decimal_places=2, blank=True, null=True,
+        help_text="Quanto esta cabeça saiu, quando ele sabe o valor por cabeça")
+    peso_venda = models.DecimalField(
+        "peso na venda", max_digits=8, decimal_places=2, blank=True, null=True,
+        help_text="Peso no dia da venda, se diferente da última pesagem")
 
     class Meta:
         db_table = "animais"
@@ -440,9 +489,57 @@ class Animal(models.Model):
         return self.venda_id is not None
 
     @property
-    def valor_venda(self):
-        """What this head fetched -- the deal's total split by head count."""
-        return self.venda.valor_por_cabeca if self.venda_id else None
+    def peso_na_venda(self):
+        """Weight the sale was priced on: the recorded one, else the last weighing."""
+        if self.peso_venda is not None:
+            return float(self.peso_venda)
+        return self.peso_atual_kg
+
+    @property
+    def arrobas_na_venda(self):
+        kg = self.peso_na_venda
+        if kg is None:
+            return None
+        return kg * (self.rendimento / 100.0) / KG_POR_ARROBA
+
+    @property
+    def valor_venda_apurado(self):
+        """What this head fetched, from whichever fact he actually has.
+
+        He prices a sale in one of three ways, depending on the buyer:
+
+          1. per head -- "essa saiu por 5.200"
+          2. by the arroba -- the frigorífico's way: R$/@ times the head's arrobas
+          3. one number for the lot -- selling to a neighbour
+
+        They are tried in that order, most specific first. What he typed always
+        wins over anything derived, so editing a single head later does not get
+        silently recomputed away.
+        """
+        if not self.vendido:
+            return None
+        if self.valor_venda is not None:
+            return self.valor_venda
+        if self.venda.preco_arroba is not None:
+            arrobas = self.arrobas_na_venda
+            if arrobas is not None:
+                return Decimal(str(round(arrobas, 4))) * self.venda.preco_arroba
+        return self.venda.valor_por_cabeca
+
+    @property
+    def origem_valor_venda(self):
+        """Where the sale value came from -- shown so a derived number is never
+        mistaken for a recorded one."""
+        if not self.vendido:
+            return None
+        if self.valor_venda is not None:
+            return "valor por cabeça"
+        if self.venda.preco_arroba is not None and self.arrobas_na_venda is not None:
+            return (f"{self.arrobas_na_venda:.2f} @ × R$ {self.venda.preco_arroba}"
+                    .replace(".", ","))
+        if self.venda.valor_por_cabeca is not None:
+            return "rateio do total da venda"
+        return None
 
     @property
     def resultado(self):
@@ -452,7 +549,7 @@ class Animal(models.Model):
         one he no longer owns is a hypothetical -- what it would be worth if he
         had kept it -- and showing that as its value overstates the herd.
         """
-        venda, custo = self.valor_venda, self.custo_total
+        venda, custo = self.valor_venda_apurado, self.custo_total
         if venda is None or custo is None:
             return None
         return venda - custo

@@ -98,7 +98,9 @@ class AnimalAdmin(ModelAdmin):
                                       "raca", "pelagem", "data_nascimento")}),
         ("Onde está", {"fields": ("propriedade",)}),
         ("Compra", {"fields": ("compra", "valor_compra")}),
-        ("Venda", {"fields": ("venda",)}),
+        ("Venda", {"fields": ("venda", "valor_venda", "peso_venda"),
+                   "description": "Deixe em branco para calcular pelo preço da "
+                                  "arroba da venda, ou pelo rateio do total."}),
         ("Outros", {"fields": ("observacoes",)}),
     )
 
@@ -180,8 +182,8 @@ class DespesaAdmin(ModelAdmin):
 
 
 class MovimentacaoAdminBase(ModelAdmin):
-    list_display = ("data", "comprador", "quantidade", "valor_display",
-                    "por_cabeca_display", "observacoes")
+    list_display = ("data", "comprador", "quantidade", "preco_arroba",
+                    "valor_display", "apurado_display", "diferenca_display")
     list_filter = ("data",)
     search_fields = ("comprador__nome", "observacoes")
     autocomplete_fields = ("comprador",)
@@ -197,6 +199,18 @@ class MovimentacaoAdminBase(ModelAdmin):
     @admin.display(description="por cabeça")
     def por_cabeca_display(self, obj):
         return _reais(obj.valor_por_cabeca)
+
+    @admin.display(description="somando as cabeças")
+    def apurado_display(self, obj):
+        return _reais(obj.total_apurado)
+
+    @admin.display(description="diferença")
+    def diferenca_display(self, obj):
+        d = obj.diferenca_do_total
+        if d is None:
+            return "—"
+        cor = "#5c5c5c" if d == 0 else "#b45309"
+        return format_html('<span style="color:{}">{}</span>', cor, _reais(d))
 
 
 @admin.register(Compra)

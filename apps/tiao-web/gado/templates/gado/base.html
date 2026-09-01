@@ -45,6 +45,14 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .brinco{font-weight:700;font-size:19px}
 /* An animal known only by a phrase reads as a phrase, not as a tag number. */
 .sem-brinco{font-weight:400;font-size:17px;font-style:italic}
+/* O caminho de volta pro Tião. Grande e claro: quando ele vê algo errado na
+   tabela, o conserto é falar com o bot -- a tela é só de leitura. */
+.falar{display:flex;align-items:center;justify-content:center;gap:10px;
+  margin:22px 0 6px;padding:16px 20px;background:#229ED9;color:#fff;
+  text-decoration:none;border-radius:14px;font-size:19px;font-weight:600;
+  box-shadow:0 2px 10px rgba(34,158,217,.3)}
+.falar:active{background:#1b87ba}
+.falar small{display:block;font-weight:400;font-size:15px;opacity:.9;margin-top:2px}
 .aviso{margin:12px 0 0;padding-top:11px;border-top:1px solid var(--linha);
   color:var(--fraca);font-size:15px;line-height:1.45}
 .falta{border-color:var(--ambar)}
@@ -143,6 +151,16 @@ body.expandido .botao{background:var(--tinta);color:#fff;border-color:var(--tint
 </nav>
 <main>
 {% block conteudo %}{% endblock %}
+{% comment %}
+Um botão só, aqui. A página que quiser personalizar manda `mensagem_tiao` e
+`sobre_tiao` no contexto. Bloco aninhado dentro de `conteudo` renderiza duas
+vezes -- nos dois lugares onde ficou definido -- e foi o que aconteceu antes.
+{% endcomment %}
+<a class="falar" target="_blank" rel="noopener"
+   href="https://t.me/{{ bot_telegram }}?text={{ mensagem_tiao|default:"Tião, "|urlencode }}">
+  <span>💬</span>
+  <span>Falar com o Tião<small>{{ sobre_tiao|default:"pra mudar ou anotar qualquer coisa" }}</small></span>
+</a>
 <p class="rodape">Atualizado {% now "d/m/Y \à\s H:i" %}</p>
 </main>
 <script>

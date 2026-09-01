@@ -651,3 +651,32 @@ class TestPastos(BaseGado):
             reverse("gado:animal", args=["2031"])).content.decode()
         self.assertIn("Sítio Pai e Filho", corpo)
         self.assertNotIn("Pai E Filho", corpo)
+
+
+class TestFalarComTiao(BaseGado):
+    """The way back. The pages are read-only, so fixing anything means the bot."""
+
+    def test_toda_pagina_tem_o_link(self):
+        for url in ["/", reverse("gado:cotacao"), reverse("gado:negocios")]:
+            corpo = self.client.get(url).content.decode()
+            self.assertIn("t.me/tiao_mhb_bot", corpo, url)
+            self.assertIn("Falar com o Tião", corpo, url)
+
+    def test_a_ficha_ja_manda_o_brinco_escrito(self):
+        """He should not have to explain which animal he is talking about."""
+        corpo = self.client.get(
+            reverse("gado:animal", args=["2031"])).content.decode()
+        self.assertIn("sobre%20o%20brinco%202031", corpo)
+
+    def test_bicho_sem_brinco_vai_pela_referencia(self):
+        a = Animal.objects.create(referencia="a vaca do chifre quebrado")
+        corpo = self.client.get(
+            reverse("gado:animal_por_id", args=[a.pk])).content.decode()
+        self.assertIn("chifre", corpo)
+        self.assertIn("t.me/tiao_mhb_bot", corpo)
+
+    def test_abre_fora_da_pagina(self):
+        """Opening in place would trap him inside the PIN-gated tab."""
+        corpo = self.client.get("/").content.decode()
+        self.assertIn('target="_blank"', corpo)
+        self.assertIn('rel="noopener"', corpo)

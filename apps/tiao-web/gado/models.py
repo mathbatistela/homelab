@@ -310,6 +310,11 @@ class Animal(models.Model):
         return f"sem brinco #{self.pk}"
 
     @property
+    def como_falar(self):
+        """How to name this animal inside a sentence."""
+        return f"o brinco {self.brinco}" if self.brinco else self.identificacao
+
+    @property
     def faltando(self):
         """Which useful facts this record still lacks.
 

@@ -94,6 +94,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'gado.context.tiao',
             ],
         },
     },
@@ -242,3 +243,9 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+
+
+# O bot com quem o Seu Jader fala. Vive no ambiente e não no código porque é a
+# mesma identidade que o gateway do Hermes usa -- se um dia o bot mudar, muda
+# num lugar só.
+TELEGRAM_BOT = _env("TELEGRAM_BOT_USERNAME", "tiao_mhb_bot")

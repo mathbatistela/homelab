@@ -74,6 +74,9 @@ def _ficha(request, bicho):
     despesas = list(bicho.despesas.all())
     return render(request, "gado/animal.html", {
         "a": bicho,
+        # Vai pronto no campo do Telegram, faltando só o que ele quer dizer.
+        "mensagem_tiao": f"Tião, sobre {bicho.como_falar}: ",
+        "sobre_tiao": f"sobre {bicho.como_falar}",
         "pesagens": list(reversed(bicho._pesagens_ordenadas)),
         "despesas": sorted(despesas, key=lambda d: d.data, reverse=True),
         "total_despesas": sum(d.valor for d in despesas) if despesas else None,

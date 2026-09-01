@@ -59,6 +59,43 @@ def rebanho(request):
     })
 
 
+def _acoes_tiao(a):
+    """The handful of things he actually does to an animal, ready to send.
+
+    An empty message box asks a 70-year-old to compose a sentence on a phone
+    keyboard. These leave him a number to type instead. The wording is his, not
+    the system's -- "pesei", "mudei de pasto", "vendi".
+
+    Gaps come first when there are any: the page already knows what the record
+    is missing, so it may as well offer to fill it.
+    """
+    quem = a.como_falar
+    acoes = []
+
+    # O que falta vem primeiro -- é o que o sistema sabe que precisa.
+    if not a.categoria:
+        acoes.append(("Dizer o que ele é", "novilha, boi, bezerro…",
+                      f"Tião, {quem} é "))
+    if a.valor_compra is None:
+        acoes.append(("Dizer quanto custou", "o valor que pagou na cabeça",
+                      f"Tião, paguei em {quem} "))
+    if a.ultima_pesagem is None:
+        acoes.append(("Dizer o peso", "nunca foi pesado",
+                      f"Tião, {quem} pesou "))
+
+    # E o que ele faz no dia a dia.
+    if a.ultima_pesagem is not None:
+        acoes.append(("Pesei hoje", "anotar peso novo",
+                      f"Tião, pesei {quem} hoje: "))
+    acoes.append(("Mudou de pasto", "Sítio Pai e Filho ou Sítio II Ypês",
+                  f"Tião, {quem} mudou de pasto pro "))
+    if not a.vendido:
+        acoes.append(("Vendi", "por quanto e pra quem",
+                      f"Tião, vendi {quem} por "))
+    acoes.append(("Outra coisa", "falar o que quiser", f"Tião, sobre {quem}: "))
+    return acoes
+
+
 def animal(request, brinco):
     """One animal's card: what it is, what it weighs, what it cost, what it's worth."""
     return _ficha(request, get_object_or_404(_rebanho_base(), brinco=brinco))
@@ -75,8 +112,10 @@ def _ficha(request, bicho):
     return render(request, "gado/animal.html", {
         "a": bicho,
         # Vai pronto no campo do Telegram, faltando só o que ele quer dizer.
-        "mensagem_tiao": f"Tião, sobre {bicho.como_falar}: ",
-        "sobre_tiao": f"sobre {bicho.como_falar}",
+        "acoes_tiao": _acoes_tiao(bicho),
+        # As pendências vêm primeiro na lista; o template destaca essas.
+        "pendentes": sum(1 for f in (not bicho.categoria, bicho.valor_compra is None,
+                                     bicho.ultima_pesagem is None) if f),
         "pesagens": list(reversed(bicho._pesagens_ordenadas)),
         "despesas": sorted(despesas, key=lambda d: d.data, reverse=True),
         "total_despesas": sum(d.valor for d in despesas) if despesas else None,

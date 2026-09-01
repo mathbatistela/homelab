@@ -53,6 +53,21 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
   box-shadow:0 2px 10px rgba(34,158,217,.3)}
 .falar:active{background:#1b87ba}
 .falar small{display:block;font-weight:400;font-size:15px;opacity:.9;margin-top:2px}
+
+/* Ações prontas. Cada uma abre o Telegram com a frase quase inteira escrita,
+   deixando pra ele só o número ou o nome -- que é a parte que ele sabe de
+   cabeça e a parte que uma caixa vazia torna trabalhosa. */
+.acoes{margin:22px 0 6px}
+.acoes h2{margin:0 0 10px}
+.acao{display:flex;align-items:center;gap:14px;padding:15px 17px;margin-bottom:9px;
+  background:var(--cartao);border:1px solid var(--linha);border-radius:13px;
+  text-decoration:none;color:var(--tinta)}
+.acao:active{background:#efeae1}
+.acao .seta{margin-left:auto;color:#229ED9;font-size:22px;flex:0 0 auto}
+.acao b{display:block;font-size:18px}
+.acao span.sub{display:block;color:var(--fraca);font-size:15px;margin-top:2px}
+.acao.pendente{border-color:var(--ambar);border-width:2px}
+.acao.pendente b::after{content:" · falta";color:var(--ambar);font-weight:400;font-size:15px}
 .aviso{margin:12px 0 0;padding-top:11px;border-top:1px solid var(--linha);
   color:var(--fraca);font-size:15px;line-height:1.45}
 .falta{border-color:var(--ambar)}
@@ -156,11 +171,13 @@ Um botão só, aqui. A página que quiser personalizar manda `mensagem_tiao` e
 `sobre_tiao` no contexto. Bloco aninhado dentro de `conteudo` renderiza duas
 vezes -- nos dois lugares onde ficou definido -- e foi o que aconteceu antes.
 {% endcomment %}
+{% if not acoes_tiao %}
 <a class="falar" target="_blank" rel="noopener"
-   href="https://t.me/{{ bot_telegram }}?text={{ mensagem_tiao|default:"Tião, "|urlencode }}">
+   href="https://t.me/{{ bot_telegram }}?text={{ "Tião, "|urlencode }}">
   <span>💬</span>
-  <span>Falar com o Tião<small>{{ sobre_tiao|default:"pra mudar ou anotar qualquer coisa" }}</small></span>
+  <span>Falar com o Tião<small>pra mudar ou anotar qualquer coisa</small></span>
 </a>
+{% endif %}
 <p class="rodape">Atualizado {% now "d/m/Y \à\s H:i" %}</p>
 </main>
 <script>

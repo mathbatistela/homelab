@@ -666,7 +666,7 @@ class TestFalarComTiao(BaseGado):
         """He should not have to explain which animal he is talking about."""
         corpo = self.client.get(
             reverse("gado:animal", args=["2031"])).content.decode()
-        self.assertIn("sobre%20o%20brinco%202031", corpo)
+        self.assertIn("o%20brinco%202031", corpo)
 
     def test_bicho_sem_brinco_vai_pela_referencia(self):
         a = Animal.objects.create(referencia="a vaca do chifre quebrado")
@@ -680,3 +680,67 @@ class TestFalarComTiao(BaseGado):
         corpo = self.client.get("/").content.decode()
         self.assertIn('target="_blank"', corpo)
         self.assertIn('rel="noopener"', corpo)
+
+
+class TestAcoesProntas(BaseGado):
+    """The animal page offers what he DOES, not an empty message box.
+
+    Typing a sentence on a phone is the friction. Each action leaves him a
+    number or a name -- the part he knows by heart.
+    """
+
+    def _acoes(self, brinco="2031"):
+        from .views import _acoes_tiao
+        return _acoes_tiao(Animal.objects.get(brinco=brinco))
+
+    def test_oferece_o_que_ele_faz(self):
+        titulos = [t for t, _, _ in self._acoes()]
+        for esperado in ("Pesei hoje", "Mudou de pasto", "Vendi", "Outra coisa"):
+            self.assertIn(esperado, titulos)
+
+    def test_a_frase_ja_vem_quase_pronta(self):
+        msgs = {t: m for t, _, m in self._acoes()}
+        self.assertEqual(msgs["Pesei hoje"], "Tião, pesei o brinco 2031 hoje: ")
+        self.assertEqual(msgs["Vendi"], "Tião, vendi o brinco 2031 por ")
+
+    def test_o_que_falta_vem_primeiro(self):
+        """The page knows what the record lacks; it may as well offer to fill it."""
+        novo = Animal.objects.create(brinco="T500")   # sem categoria, peso nem valor
+        titulos = [t for t, _, _ in self._acoes("T500")]
+        self.assertEqual(titulos[:3],
+                         ["Dizer o que ele é", "Dizer quanto custou", "Dizer o peso"])
+
+    def test_bicho_completo_nao_pede_nada(self):
+        self.vaca.valor_compra = Decimal("2987.14")
+        self.vaca.save()
+        titulos = [t for t, _, _ in self._acoes()]
+        self.assertNotIn("Dizer o que ele é", titulos)
+        self.assertNotIn("Dizer quanto custou", titulos)
+
+    def test_vendido_nao_oferece_vender_de_novo(self):
+        v = Venda.objects.create(data=datetime.date(2026, 8, 25), quantidade=1)
+        self.vaca.venda = v
+        self.vaca.save()
+        self.assertNotIn("Vendi", [t for t, _, _ in self._acoes()])
+
+    def test_nunca_pesado_pede_peso_e_nao_oferece_pesei_hoje(self):
+        Animal.objects.create(brinco="T501", categoria="boi",
+                              valor_compra=Decimal("100"))
+        titulos = [t for t, _, _ in self._acoes("T501")]
+        self.assertIn("Dizer o peso", titulos)
+        self.assertNotIn("Pesei hoje", titulos)
+
+    def test_tudo_vira_link_de_telegram_na_pagina(self):
+        corpo = self.client.get(
+            reverse("gado:animal", args=["2031"])).content.decode()
+        self.assertEqual(corpo.count("t.me/tiao_mhb_bot"), len(self._acoes()))
+        self.assertIn("pesei%20o%20brinco%202031%20hoje", corpo)
+
+    def test_bicho_sem_brinco_fala_pela_referencia(self):
+        a = Animal.objects.create(referencia="a vaca do chifre quebrado")
+        msgs = [m for _, _, m in self._acoes_por_id(a)]
+        self.assertTrue(all("chifre quebrado" in m for m in msgs), msgs)
+
+    def _acoes_por_id(self, a):
+        from .views import _acoes_tiao
+        return _acoes_tiao(a)

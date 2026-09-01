@@ -113,5 +113,18 @@
 </table></div>
 {% endif %}
 
+<div class="acoes">
+  <h2>Falar com o Tião</h2>
+  {% for titulo, sub, msg in acoes_tiao %}
+  <a class="acao{% if forloop.counter0 < pendentes %} pendente{% endif %}"
+     target="_blank" rel="noopener"
+     href="https://t.me/{{ bot_telegram }}?text={{ msg|urlencode }}">
+    <span>💬</span>
+    <span><b>{{ titulo }}</b><span class="sub">{{ sub }}</span></span>
+    <span class="seta">›</span>
+  </a>
+  {% endfor %}
+</div>
+
 <p class="rodape"><a href="{% url 'gado:rebanho' %}">← voltar pra boiada</a></p>
 {% endblock %}

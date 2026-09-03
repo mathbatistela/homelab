@@ -1,0 +1,19 @@
+pangolin_fragment_resources:
+  tiao:
+    name: Tião — Caderneta
+    protocol: http
+    full-domain: "tiao.{{ pangolin_base_domain }}"
+    auth:
+      pincode: 240810
+    targets:
+      - site: "{{ pangolin_site_nice_id }}"
+        hostname: "{{ hostvars['hermes'].ansible_host }}"
+        port: 8790
+        method: http
+        healthcheck:
+          hostname: "{{ hostvars['hermes'].ansible_host }}"
+          port: 8790
+          enabled: true
+          path: /saude
+          scheme: http
+          interval: 5

@@ -3,8 +3,10 @@ pangolin_fragment_resources:
     name: Wedding RSVP (Staging)
     protocol: http
     full-domain: "casamento-gi-jorge.staging.{{ pangolin_base_domain }}"
-    auth:
-      pincode: 212026
+    # No pincode: the Asaas sandbox posts payment webhooks straight to
+    # /api/webhooks/asaas, and an auth gate answers those with a 302 to the
+    # login page instead of handing them to the app. The route authenticates
+    # callers itself via the asaas-access-token header.
     targets:
       - site: "{{ pangolin_site_nice_id }}"
         hostname: "{{ hostvars['tools'].ansible_host }}"

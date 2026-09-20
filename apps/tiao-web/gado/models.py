@@ -27,13 +27,16 @@ class Sexo(models.TextChoices):
 
 
 class Categoria(models.TextChoices):
+    DESMAMA = "desmama", "desmama"
     BEZERRO = "bezerro", "bezerro"
     GARROTE = "garrote", "garrote"
     NOVILHO = "novilho", "novilho"
+    BOI_MAGRO = "boi magro", "boi magro"
     BOI = "boi", "boi"
     TOURO = "touro", "touro"
     BEZERRA = "bezerra", "bezerra"
     NOVILHA = "novilha", "novilha"
+    VACA_MAGRA = "vaca magra", "vaca magra"
     VACA = "vaca", "vaca"
 
 
@@ -41,16 +44,27 @@ class Categoria(models.TextChoices):
 # the derivation and the coherence check cannot drift apart. This matters in
 # money: sex picks the carcass yield (55% vs 45%), so an animal recorded as a
 # vaca but flagged macho would be priced about R$ 1.100 too high, quietly.
+#
+# `desmama` is deliberately OUT of this map: it serves both sexes -- a macho
+# weans at 180 kg, a fêmea at 165 kg -- so no category alone tells you which.
+# It lives in CATEGORIAS_AMBIGUAS below, where the sex is required instead of
+# derived.
 SEXO_DA_CATEGORIA = {
     Categoria.BEZERRO: Sexo.MACHO,
     Categoria.GARROTE: Sexo.MACHO,
     Categoria.NOVILHO: Sexo.MACHO,
+    Categoria.BOI_MAGRO: Sexo.MACHO,
     Categoria.BOI: Sexo.MACHO,
     Categoria.TOURO: Sexo.MACHO,
     Categoria.BEZERRA: Sexo.FEMEA,
     Categoria.NOVILHA: Sexo.FEMEA,
+    Categoria.VACA_MAGRA: Sexo.FEMEA,
     Categoria.VACA: Sexo.FEMEA,
 }
+
+# Categorias que existem nas duas escadas de preço: o sexo não é dedutível
+# delas, e por isso passa a ser exigido em vez de preenchido.
+CATEGORIAS_AMBIGUAS = {Categoria.DESMAMA}
 
 
 def _sem_acento(s):
@@ -346,8 +360,17 @@ class Animal(models.Model):
         super().clean_fields(exclude=exclude)
 
     def clean(self):
-        """Fills in the sex from the category, and refuses a contradiction."""
+        """Preenche o sexo a partir da categoria, e recusa contradição.
+
+        Exceção: as categorias ambíguas (hoje só `desmama`) servem aos dois
+        sexos. Nelas o sexo é EXIGIDO, porque é ele que escolhe a escada de
+        preço -- e uma desmama sem sexo não tem preço.
+        """
         super().clean()
+        if self.categoria in CATEGORIAS_AMBIGUAS and not self.sexo:
+            raise ValidationError({"sexo": (
+                f"{self.get_categoria_display()} pode ser macho ou fêmea; "
+                "diga qual, que é o sexo que decide o preço")})
         esperado = SEXO_DA_CATEGORIA.get(self.categoria) if self.categoria else None
         if not esperado:
             return

@@ -18,7 +18,7 @@ from django.db import IntegrityError, transaction
 
 from .models import (
     Animal, Categoria, Compra, Comprador, Contraparte, Cotacao, Despesa,
-    Fornecedor, Movimentacao, Pesagem, Propriedade, Sexo, Venda,
+    Fornecedor, Movimentacao, Pesagem, Propriedade, Sexo, Venda, e_femea,
 )
 
 
@@ -242,9 +242,14 @@ class TestEnums(BaseGado):
         self.assertEqual(boi.rendimento, 55.0)
 
     def test_todas_as_categorias_tem_sexo_e_rendimento(self):
-        """A new category added without a sex would silently price as male."""
-        from .models import SEXO_DA_CATEGORIA
+        """A new category added without a sex would silently price as male --
+        exceto as ambíguas, que EXIGEM o sexo em vez de derivá-lo."""
+        from .models import CATEGORIAS_AMBIGUAS, SEXO_DA_CATEGORIA
         for cat in Categoria.values:
+            if cat in CATEGORIAS_AMBIGUAS:
+                self.assertNotIn(cat, SEXO_DA_CATEGORIA,
+                                 f"{cat} é ambígua; não deveria estar no mapa")
+                continue
             self.assertIn(cat, SEXO_DA_CATEGORIA, f"{cat} sem sexo definido")
 
 
@@ -827,3 +832,55 @@ class TestCotacaoReposicao(TestCase):
             rs_kg=Decimal("13.20"), rs_cabeca=Decimal("2178.00"),
             peso_ref_kg=Decimal("165.00"))
         self.assertEqual(Cotacao.objects.filter(categoria="desmama").count(), 2)
+
+
+class TestCategoriasDeReposicao(TestCase):
+    """desmama, boi magro e vaca magra entram no enum de Animal.
+
+    desmama quebra a invariante "toda categoria diz o sexo": ela vale para
+    macho de 180 kg e fêmea de 165 kg. Por isso ela é a única categoria
+    AMBÍGUA, e nela o sexo passa a ser exigido -- é ele que escolhe a escada
+    de preço, não mais a categoria.
+    """
+
+    def test_desmama_pode_ser_macho(self):
+        a = Animal.objects.create(referencia="cria nova", categoria="desmama",
+                                  sexo="macho")
+        self.assertEqual(a.sexo, "macho")
+
+    def test_desmama_pode_ser_femea(self):
+        a = Animal.objects.create(referencia="cria nova 2", categoria="desmama",
+                                  sexo="femea")
+        self.assertEqual(a.sexo, "femea")
+
+    def test_desmama_sem_sexo_e_recusada(self):
+        """desmama não diz o sexo -- e sem sexo não há escada de preço."""
+        with self.assertRaises(ValidationError):
+            Animal(referencia="cria sem sexo", categoria="desmama").full_clean()
+
+    def test_boi_magro_continua_sendo_macho(self):
+        a = Animal.objects.create(brinco="9001", categoria="boi magro")
+        self.assertEqual(a.sexo, "macho")
+
+    def test_vaca_magra_continua_sendo_femea(self):
+        a = Animal.objects.create(brinco="9002", categoria="vaca magra")
+        self.assertEqual(a.sexo, "femea")
+
+    def test_contradicao_continua_recusada(self):
+        with self.assertRaises(ValidationError):
+            Animal(brinco="9003", categoria="boi magro", sexo="femea").full_clean()
+
+    def test_e_femea_de_desmama_sozinha_e_falso_em_silencio(self):
+        """Documenta uma armadilha, não um comportamento correto.
+
+        `e_femea()` não tem como dizer "não sei": sem sexo dito, ela normaliza
+        "desmama" para None e `None == Sexo.FEMEA` é False, ou seja, MACHO. Uma
+        cria fêmea tratada assim iria para a escada de preço errada -- 17% a
+        mais (R$ 15,50/kg em vez de R$ 13,20/kg). Quem evita isso na prática é
+        a exigência de sexo em `Animal.clean()` acima: nenhuma desmama chega a
+        `e_femea()` sem que o sexo já esteja preenchido. Este teste existe para
+        que essa lacuna não seja redescoberta por acidente -- a correção certa
+        é a chamadora nunca invocar `e_femea()` com uma categoria ambígua
+        sozinha, não consertar a função.
+        """
+        self.assertFalse(e_femea("desmama"))

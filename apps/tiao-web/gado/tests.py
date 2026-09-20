@@ -10,6 +10,7 @@ asserts the number or the text a human would look for.
 import datetime
 from decimal import Decimal
 
+from django.contrib import admin
 from django.test import TestCase
 from django.urls import reverse
 
@@ -942,6 +943,54 @@ class TestCotacaoReposicao(TestCase):
             rs_kg=Decimal("13.20"), rs_cabeca=Decimal("2178.00"),
             peso_ref_kg=Decimal("165.00"))
         self.assertEqual(Cotacao.objects.filter(categoria="desmama").count(), 2)
+
+
+class TestCotacaoAdmin(TestCase):
+    """A tela que o Matheus usa pra conferir o que o cron gravou.
+
+    `CotacaoAdmin` nasceu quando só existia abate: `avista_display` e
+    `trinta_display` liam `bruto_a_vista`/`bruto_30d` direto, sem olhar a
+    unidade da linha. Numa linha de reposição os dois campos são None (o
+    CHECK constraint do model garante isso), e o resultado era "—/@" nas
+    duas colunas -- indistinguível de linha quebrada, sem filtro que
+    separe os mercados. Depois que o cron passar a gravar 11 linhas por
+    dia, 8 delas de reposição, essa tela vira ruído sem este teste.
+    """
+
+    def setUp(self):
+        from .admin import CotacaoAdmin
+        self.admin = CotacaoAdmin(Cotacao, admin.site)
+
+    def test_lista_mostra_mercado_unidade_e_peso_de_referencia(self):
+        self.assertIn("mercado", self.admin.list_display)
+        self.assertIn("unidade", self.admin.list_display)
+        self.assertIn("peso_ref_kg", self.admin.list_display)
+
+    def test_mercado_e_unidade_sao_filtraveis(self):
+        self.assertIn("mercado", self.admin.list_filter)
+        self.assertIn("unidade", self.admin.list_filter)
+
+    def test_abate_mostra_bruto_a_vista_na_arroba(self):
+        c = Cotacao.objects.create(
+            mercado=Cotacao.ABATE, unidade=Cotacao.ARROBA, categoria="boi",
+            praca="SP Araçatuba", data_pregao=datetime.date(2026, 9, 18),
+            bruto_a_vista=Decimal("341.00"), bruto_30d=Decimal("345.00"))
+        self.assertEqual(self.admin.avista_display(c), "R$ 341,00/@")
+        self.assertEqual(self.admin.trinta_display(c), "R$ 345,00/@")
+
+    def test_reposicao_mostra_rs_kg_no_quilo_sem_arroba_falsa(self):
+        c = Cotacao.objects.create(
+            mercado=Cotacao.REPOSICAO, unidade=Cotacao.KG, categoria="bezerro",
+            praca="SP", data_pregao=datetime.date(2026, 9, 18),
+            rs_kg=Decimal("15.31"), rs_cabeca=Decimal("3138.88"),
+            peso_ref_kg=Decimal("205.00"))
+        # Antes desta tarefa isto vinha "—/@" -- bruto_a_vista é None numa
+        # linha de reposição, e o "/@" ficava colado mesmo assim.
+        self.assertEqual(self.admin.avista_display(c), "R$ 15,31/kg")
+        # Reposição não coleta 30 dias -- não é campo vazio, é mercado sem
+        # essa coluna. "—" puro, nunca "—/@": isso pareceria um número em
+        # arroba que não existe.
+        self.assertEqual(self.admin.trinta_display(c), "—")
 
 
 class TestCategoriasDeReposicao(TestCase):

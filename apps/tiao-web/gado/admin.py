@@ -260,19 +260,36 @@ class PropriedadeAdmin(ModelAdmin):
 
 @admin.register(Cotacao)
 class CotacaoAdmin(ModelAdmin):
-    """Written by the 19:00 cron. Editable, but you should not need to."""
+    """Written by the 19:00 cron. Editable, but you should not need to.
 
-    list_display = ("data_pregao", "categoria", "praca", "avista_display",
-                    "trinta_display")
-    list_filter = ("categoria", "praca")
+    Abate e reposição não são a mesma escada de preço: abate é R$/@ de
+    carcaça e traz bruto_30d; reposição é R$/kg de peso vivo e nunca
+    preenche bruto_30d. Um `list_display` que sempre lê `bruto_a_vista`
+    (herdado de quando só existia abate) mostra "—/@" nas duas colunas de
+    toda linha de reposição -- 8 das 11 que o cron grava por dia -- e não
+    dá como saber, de olho, se aquilo é uma linha quebrada ou é reposição
+    de verdade. `mercado` e `unidade` ficam visíveis e filtráveis, e cada
+    coluna de preço lê o campo certo pela unidade DA LINHA.
+    """
+
+    list_display = ("data_pregao", "mercado", "categoria", "praca", "unidade",
+                    "avista_display", "trinta_display", "peso_ref_kg")
+    list_filter = ("mercado", "unidade", "categoria", "praca")
     date_hierarchy = "data_pregao"
 
-    @admin.display(description="bruto à vista", ordering="bruto_a_vista")
+    @admin.display(description="preço à vista")
     def avista_display(self, obj):
+        if obj.unidade == Cotacao.KG:
+            return _reais(obj.rs_kg) + "/kg"
         return _reais(obj.bruto_a_vista) + "/@"
 
-    @admin.display(description="bruto 30 dias", ordering="bruto_30d")
+    @admin.display(description="preço 30 dias")
     def trinta_display(self, obj):
+        # Reposição não coleta 30 dias -- não é campo vazio, é mercado que
+        # não tem essa coluna. "—" simples, sem "/kg" que sugeriria um
+        # número que não existe.
+        if obj.unidade == Cotacao.KG:
+            return "—"
         return _reais(obj.bruto_30d) + "/@"
 
 

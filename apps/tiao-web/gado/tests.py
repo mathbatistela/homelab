@@ -16,6 +16,7 @@ from django.urls import reverse
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
+from . import precificacao as pr
 from .models import (
     Animal, Categoria, Compra, Comprador, Contraparte, Cotacao, Despesa,
     Fornecedor, Movimentacao, Pesagem, Propriedade, Sexo, Venda, e_femea,
@@ -884,3 +885,54 @@ class TestCategoriasDeReposicao(TestCase):
         sozinha, não consertar a função.
         """
         self.assertFalse(e_femea("desmama"))
+
+
+MACHO = [(180.0, 2790.00), (205.0, 3138.88), (255.0, 3527.50), (345.0, 4137.53)]
+
+
+class TestCurvaDePreco(TestCase):
+    """A curva é o que impede engordar de diminuir o valor."""
+
+    def test_coincide_com_a_tabela_nos_pontos_publicados(self):
+        for kg, esperado in MACHO:
+            self.assertAlmostEqual(pr.valor_reposicao(kg, MACHO), esperado, places=2)
+
+    def test_e_monotona_crescente(self):
+        """Um bicho 1 kg mais pesado NUNCA vale menos. É o defeito que originou tudo."""
+        anterior = None
+        for g in range(1390, 3451):          # 139,0 kg a 345,0 kg, de 100 g em 100 g
+            v = pr.valor_reposicao(g / 10, MACHO)
+            if anterior is not None:
+                self.assertGreaterEqual(v, anterior, f"caiu em {g/10} kg")
+            anterior = v
+
+    def test_nao_ha_degrau_nas_fronteiras_antigas(self):
+        """230 e 300 kg eram quedas de R$ 340 e R$ 552 com faixas discretas."""
+        for kg in (230.0, 300.0):
+            antes = pr.valor_reposicao(kg - 0.1, MACHO)
+            depois = pr.valor_reposicao(kg + 0.1, MACHO)
+            self.assertLess(abs(depois - antes), 5.00)
+
+    def test_abaixo_do_ponto_mais_leve_extrapola_pelo_primeiro_rs_kg(self):
+        # 139 kg está abaixo dos 180 kg do desmama. R$/kg do ponto = 2790/180.
+        self.assertAlmostEqual(pr.valor_reposicao(139.0, MACHO),
+                               139.0 * (2790.00 / 180.0), places=2)
+
+    def test_acima_do_ponto_mais_pesado_devolve_none(self):
+        """Acima do boi magro quem manda é o abate, não uma extrapolação."""
+        self.assertIsNone(pr.valor_reposicao(400.0, MACHO))
+
+
+class TestTrocaDeRegime(TestCase):
+    def test_cruzamento_bate_com_o_medido(self):
+        # Pregão de 18/09/2026: boi gordo R$ 346,00, rendimento macho 55%.
+        self.assertAlmostEqual(pr.cruzamento(MACHO, 55.0, 346.00), 304.4, delta=0.5)
+
+    def test_no_cruzamento_os_dois_mercados_pagam_igual(self):
+        kg = pr.cruzamento(MACHO, 55.0, 346.00)
+        self.assertAlmostEqual(pr.valor_reposicao(kg, MACHO),
+                               pr.valor_abate(kg, 55.0, 346.00), delta=1.00)
+
+    def test_piso_protege_contra_cotacao_absurda(self):
+        """Boi gordo altíssimo empurraria bezerro novo para o regime de abate."""
+        self.assertEqual(pr.cruzamento(MACHO, 55.0, 900.00), pr.PISO_CRUZAMENTO)

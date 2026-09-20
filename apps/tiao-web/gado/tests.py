@@ -155,6 +155,19 @@ class TestPaginasDoPai(BaseGado):
         self.assertIn("Nenhuma cabeça", corpo)
 
 
+class TestTelaCotacao(BaseGado):
+    def test_mostra_reposicao_com_peso_de_referencia(self):
+        Cotacao.objects.create(
+            mercado=Cotacao.REPOSICAO, unidade=Cotacao.KG, categoria="bezerro",
+            praca="SP", data_pregao=datetime.date(2026, 9, 18),
+            rs_kg=Decimal("15.31"), rs_cabeca=Decimal("3138.88"),
+            peso_ref_kg=Decimal("205.00"))
+        corpo = self.client.get(reverse("gado:cotacao")).content.decode()
+        self.assertIn("15,31", corpo)
+        self.assertIn("205", corpo)          # o peso de referência, sem o qual a escada engana
+        self.assertIn("por quilo", corpo)
+
+
 class TestDespesas(BaseGado):
     def test_total_de_despesas_soma_por_animal(self):
         for valor in ("86.00", "19.00"):

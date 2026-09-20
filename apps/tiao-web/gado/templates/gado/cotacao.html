@@ -2,28 +2,48 @@
 {% block titulo %}Cotação{% endblock %}
 {% block conteudo %}
 
-<h2>Cotação do gado</h2>
-{% if ultimas %}
+{% if abate or reposicao %}
+<h2>Gado pra abate</h2>
+<p class="nota">Preço por arroba de carcaça.</p>
 <div class="resumo">
-  {% for rotulo, c in ultimas.items %}
+  {% for rotulo, c in abate.items %}
   <div class="caixa">
     <div class="rot">{{ rotulo }}</div>
-    <div class="val">{{ c.bruto_a_vista|reais }}</div>
-    <div class="rot">a arroba · {{ c.data_pregao|date:"d/m" }}</div>
+    <div class="val">{{ c.ultima.bruto_a_vista|reais }}</div>
+    <div class="rot">a arroba · {{ c.ultima.data_pregao|date:"d/m" }}</div>
   </div>
   {% endfor %}
 </div>
 
-{% for rotulo, linhas in historico.items %}
-<h2>{{ rotulo|title }}</h2>
+{% for rotulo, c in abate.items %}
+<h3>{{ rotulo|title }}</h3>
 <div class="rolagem"><table>
   <thead><tr><th>Pregão</th><th class="num">À vista</th><th class="num">30 dias</th><th>Praça</th></tr></thead>
+  <tbody>{% for linha in c.historico %}
+    <tr>
+      <td>{{ linha.data_pregao|date:"d/m/Y" }}</td>
+      <td class="num">{{ linha.bruto_a_vista|reais }}</td>
+      <td class="num">{{ linha.bruto_30d|reais }}</td>
+      <td>{{ linha.praca }}</td>
+    </tr>
+  {% endfor %}</tbody>
+</table></div>
+{% endfor %}
+
+<h2>Gado pra repor</h2>
+<p class="nota">Preço por quilo de peso vivo. O quilo fica mais barato conforme
+o bicho cresce — o ganho está nos quilos que ele põe, não no preço do quilo.</p>
+{% for rotulo, linhas in reposicao.items %}
+<h3>{{ rotulo|title }}</h3>
+<div class="rolagem"><table>
+  <thead><tr><th>Categoria</th><th class="num">Peso de referência</th>
+             <th class="num">Por quilo</th><th class="num">Por cabeça</th></tr></thead>
   <tbody>{% for c in linhas %}
     <tr>
-      <td>{{ c.data_pregao|date:"d/m/Y" }}</td>
-      <td class="num">{{ c.bruto_a_vista|reais }}</td>
-      <td class="num">{{ c.bruto_30d|reais }}</td>
-      <td>{{ c.praca }}</td>
+      <td>{{ c.get_categoria_display }}</td>
+      <td class="num">{{ c.peso_ref_kg|numero }} kg</td>
+      <td class="num">{{ c.rs_kg|reais }}</td>
+      <td class="num">{{ c.rs_cabeca|reais }}</td>
     </tr>
   {% endfor %}</tbody>
 </table></div>

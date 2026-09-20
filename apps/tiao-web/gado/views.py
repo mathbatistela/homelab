@@ -124,19 +124,26 @@ def _ficha(request, bicho):
 
 
 def cotacao(request):
-    """Today's price for the three categories, plus what it has been doing."""
-    ultimas, historico = {}, {}
-    for chave, rotulo in Cotacao.CATEGORIAS:
-        linhas = list(Cotacao.objects.filter(categoria=chave)
+    """Os dois mercados, lado a lado: abate por arroba, reposição por quilo."""
+    abate = {}
+    for chave, rotulo in Cotacao.CATEGORIAS_ABATE:
+        linhas = list(Cotacao.objects.filter(mercado=Cotacao.ABATE, categoria=chave)
                       .order_by("-data_pregao")[:15])
         if linhas:
-            ultimas[rotulo] = linhas[0]
-            historico[rotulo] = linhas
+            abate[rotulo] = {"ultima": linhas[0], "historico": linhas}
+    reposicao = {}
+    for sexo, rotulo in (("macho", "machos"), ("femea", "fêmeas")):
+        praca = Cotacao.PRACA_REPOSICAO[sexo]
+        cats = Cotacao.ESCADA_FEMEA if sexo == "femea" else Cotacao.ESCADA_MACHO
+        linhas = [Cotacao.objects.filter(mercado=Cotacao.REPOSICAO, categoria=c,
+                                         praca=praca).order_by("-data_pregao").first()
+                  for c in cats]
+        linhas = [c for c in linhas if c]
+        if linhas:
+            reposicao[rotulo] = linhas
     return render(request, "gado/cotacao.html", {
-        "ultimas": ultimas,
-        "historico": historico,
-        "hoje": timezone.localdate(),
-        "pagina": "cotacao",
+        "abate": abate, "reposicao": reposicao,
+        "hoje": timezone.localdate(), "pagina": "cotacao",
     })
 
 

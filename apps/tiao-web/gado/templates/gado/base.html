@@ -11,6 +11,12 @@
 :root{
   --tinta:#1a1a1a; --fraca:#5c5c5c; --linha:#d9d5cd;
   --fundo:#faf8f4; --cartao:#fff; --verde:#15803d; --ambar:#b45309;
+  /* A listra da linha par. Fica ENTRE o branco do --cartao e o #f0ece4 do
+     cabeçalho, e mais perto do branco: se ela chegar no tom do th, a linha
+     alternada compete com o cabeçalho e a tabela fica confusa. Forte demais
+     também cansa -- são 29 linhas de boiada -- e fraca demais some no sol,
+     que é onde esta tela é lida. */
+  --listra:#f6f3ec;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--fundo);color:var(--tinta);
@@ -24,6 +30,23 @@ nav a{flex:0 0 auto;padding:11px 16px;border-radius:8px;color:#e8e8e8;
 nav a.ativo{background:var(--fundo);color:var(--tinta);font-weight:600}
 main{padding:16px;max-width:1100px;margin:0 auto}
 h2{font-size:22px;margin:22px 0 10px}
+h3{font-size:19px;margin:18px 0 8px}
+h4{font-size:15px;margin:14px 0 6px;color:var(--fraca);text-transform:uppercase;
+   letter-spacing:.05em}
+/* Dois blocos que ficam lado a lado onde couber e empilham no celular. Serve
+   pra manter os dois mercados juntos: o problema da tela de cotação era
+   ordem vertical, com a reposição no fim de três tabelas de histórico. */
+.lado-a-lado{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start}
+.lado-a-lado>.painel{flex:1 1 320px;min-width:0}
+.lado-a-lado>.painel>h3:first-child{margin-top:0}
+/* O gráfico vem desenhado do servidor (gado/grafico.py). O CSS aqui só
+   segura a folha: o SVG escala junto com a largura, TEXTO INCLUÍDO, então
+   sem um teto os rótulos viram cartaz no desktop. */
+.grafico{background:var(--cartao);border:1px solid var(--linha);border-radius:12px;
+         padding:12px}
+.grafico svg{display:block;width:100%;height:auto;max-width:560px;margin:0 auto}
+/* A notícia do dia: quanto a boiada se moveu de um pregão pro outro. */
+.variacao{font-size:21px;font-weight:700;margin-top:4px}
 .resumo{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
 .caixa{flex:1 1 150px;background:var(--cartao);border:1px solid var(--linha);
        border-radius:12px;padding:13px 15px}
@@ -104,6 +127,41 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 th:first-child,td:first-child{position:sticky;left:0;z-index:2;
   background:var(--cartao);box-shadow:3px 0 5px -2px rgba(0,0,0,.18)}
 th:first-child{background:#f0ece4;z-index:3}
+/* Linha sim, linha não: sem isso o olho perde a linha a meio caminho numa
+   tabela de doze colunas que ainda rola pro lado.
+
+   Depois da regra da coluna fixa, e com especificidade maior de propósito: a
+   primeira célula pinta --cartao para não deixar o resto da linha aparecer
+   por baixo dela enquanto rola, e sem este seletor ganhar dela o brinco
+   ficaria branco no meio de uma linha listrada. */
+tbody tr:nth-child(even) td{background:var(--listra)}
+/* `cursor:pointer` não é enfeite de desktop aqui, e não pode sair: o Safari
+   do iPhone só entrega o clique de um elemento que ele considere clicável, e
+   uma <tr> sem href, sem onclick e sem cursor não entra nessa conta -- o
+   toque simplesmente não chegaria no ouvinte lá embaixo. E é honesto: desde
+   esta mudança a linha responde ao toque de verdade. */
+tbody tr{cursor:pointer}
+/* A linha que ele está seguindo. Duas réguas escuras, em cima e embaixo, e
+   uma barra grossa na coluna do brinco.
+
+   RÉGUA, E NÃO FUNDO MAIS ESCURO, de propósito: escurecer a linha derrubaria
+   o contraste do verde e do vermelho da coluna de ganho -- medido, o
+   #b91c1c cai de 6,8:1 no branco para 5,1:1 num fundo que se note, e o verde
+   para 3,9:1 -- e esse é o número que ele mais olha. Linha quase preta sobre
+   claro não custa contraste nenhum a texto nenhum, e é o que se enxerga no
+   sol. De quebra, é muito mais forte que a listra, que é de propósito fraca.
+
+   As réguas atravessam a linha inteira, então acompanham a rolagem lateral; a
+   barra fica na coluna do brinco, que é a que não sai da tela. Por mais que
+   ele arraste a tabela pro lado, a marca continua à vista. */
+tbody tr.marcada td{box-shadow:inset 0 2px 0 var(--tinta),inset 0 -2px 0 var(--tinta)}
+/* A primeira célula reescreve a sombra inteira porque a regra da coluna fixa
+   usa box-shadow pra separar a coluna do resto -- e box-shadow não soma entre
+   regras. As quatro camadas: as duas réguas, a barra da marca, e a sombra de
+   separação que já existia. */
+tbody tr.marcada td:first-child{box-shadow:inset 0 2px 0 var(--tinta),
+  inset 0 -2px 0 var(--tinta),inset 6px 0 0 var(--tinta),
+  3px 0 5px -2px rgba(0,0,0,.18)}
 
 .barra-tabela{display:flex;justify-content:space-between;align-items:center;
   gap:10px;margin-bottom:8px}
@@ -239,6 +297,33 @@ vezes -- nos dois lugares onde ficou definido -- e foi o que aconteceu antes.
     if (e.key === "Escape" && estaExpandido()) fechar();
   });
   rotulo();
+})();
+
+// Marcar a linha que ele está seguindo. O problema é a boiada: doze colunas
+// que rolam pro lado, e no meio do arrasto ele perde de vista qual linha
+// estava lendo. A listra ajuda; em 29 linhas não resolve sozinha.
+//
+// `click`, nunca `touchstart` nem `pointerdown`: arrastar pra rolar não
+// produz clique, então o gesto de rolagem continua inteiro. E nada de
+// preventDefault -- o brinco é um link e tem de continuar abrindo a ficha.
+//
+// CLASSE, e não `tr:focus`, que seria CSS puro e sairia de graça no teclado:
+// o foco morre assim que ele toca em qualquer outra coisa, e a primeira
+// outra coisa é o botão de tela cheia -- justamente o que se aperta numa
+// tabela larga. O pedido é que a linha fique marcada até ele marcar outra,
+// e só uma classe faz isso.
+(function () {
+  document.addEventListener("click", function (e) {
+    var alvo = e.target;
+    if (!alvo || !alvo.closest) return;
+    var linha = alvo.closest("tbody tr");
+    if (!linha) return;
+    // Uma marca por tabela: a ficha do animal tem duas (pesagens e despesas)
+    // e marcar numa não pode apagar a da outra.
+    var marcadas = linha.closest("table").querySelectorAll("tr.marcada");
+    for (var i = 0; i < marcadas.length; i++) marcadas[i].classList.remove("marcada");
+    linha.classList.add("marcada");
+  });
 })();
 </script>
 </body>

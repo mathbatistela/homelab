@@ -21,13 +21,13 @@
 {% if vendas %}
 <div class="rolagem"><table>
   <thead><tr><th>Data</th><th>Pra quem</th><th class="num">Cabeças</th>
-             <th class="num">A arroba</th><th class="num">Total</th>
+             <th class="num">Preço</th><th class="num">Total</th>
              <th class="num">Somando as cabeças</th><th class="num">Diferença</th></tr></thead>
   <tbody>{% for m in vendas %}
     <tr><td>{{ m.data|date:"d/m/Y" }}</td>
         <td>{{ m.comprador.nome|default:"—" }}</td>
         <td class="num">{{ m.quantidade|default:"—" }}</td>
-        <td class="num">{% if m.preco_arroba %}{{ m.preco_arroba|reais }}{% else %}—{% endif %}</td>
+        <td class="num">{% if m.preco_arroba %}{{ m.preco_arroba|reais }}/@{% elif m.preco_kg %}{{ m.preco_kg|reais }}/kg{% else %}—{% endif %}</td>
         <td class="num">{{ m.valor|reais }}</td>
         <td class="num">{{ m.total_apurado|reais }}</td>
         <td class="num {{ m.diferenca_do_total|classe_ganho }}">

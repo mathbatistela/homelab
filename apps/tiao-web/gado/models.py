@@ -14,6 +14,8 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from . import precificacao
+
 # Carcass yield, the numbers Seu Jader uses. The arroba the market pays is of
 # CARCASS, not live weight: dividing live weight by 15 nearly doubles an
 # animal's value. Same constants as the tiao-cotacao skill.
@@ -27,13 +29,16 @@ class Sexo(models.TextChoices):
 
 
 class Categoria(models.TextChoices):
+    DESMAMA = "desmama", "desmama"
     BEZERRO = "bezerro", "bezerro"
     GARROTE = "garrote", "garrote"
     NOVILHO = "novilho", "novilho"
+    BOI_MAGRO = "boi magro", "boi magro"
     BOI = "boi", "boi"
     TOURO = "touro", "touro"
     BEZERRA = "bezerra", "bezerra"
     NOVILHA = "novilha", "novilha"
+    VACA_MAGRA = "vaca magra", "vaca magra"
     VACA = "vaca", "vaca"
 
 
@@ -41,16 +46,27 @@ class Categoria(models.TextChoices):
 # the derivation and the coherence check cannot drift apart. This matters in
 # money: sex picks the carcass yield (55% vs 45%), so an animal recorded as a
 # vaca but flagged macho would be priced about R$ 1.100 too high, quietly.
+#
+# `desmama` is deliberately OUT of this map: it serves both sexes -- a macho
+# weans at 180 kg, a fêmea at 165 kg -- so no category alone tells you which.
+# It lives in CATEGORIAS_AMBIGUAS below, where the sex is required instead of
+# derived.
 SEXO_DA_CATEGORIA = {
     Categoria.BEZERRO: Sexo.MACHO,
     Categoria.GARROTE: Sexo.MACHO,
     Categoria.NOVILHO: Sexo.MACHO,
+    Categoria.BOI_MAGRO: Sexo.MACHO,
     Categoria.BOI: Sexo.MACHO,
     Categoria.TOURO: Sexo.MACHO,
     Categoria.BEZERRA: Sexo.FEMEA,
     Categoria.NOVILHA: Sexo.FEMEA,
+    Categoria.VACA_MAGRA: Sexo.FEMEA,
     Categoria.VACA: Sexo.FEMEA,
 }
+
+# Categorias que existem nas duas escadas de preço: o sexo não é dedutível
+# delas, e por isso passa a ser exigido em vez de preenchido.
+CATEGORIAS_AMBIGUAS = {Categoria.DESMAMA}
 
 
 def _sem_acento(s):
@@ -158,12 +174,17 @@ class Movimentacao(models.Model):
         Contraparte, models.DO_NOTHING, blank=True, null=True,
         verbose_name="contraparte", related_name="movimentacoes")
     quantidade = models.IntegerField("quantidade", blank=True, null=True)
-    # A deal is priced in one of three ways, and which one depends on who is on
-    # the other side. A frigorífico buys by the arroba; a neighbour buys the lot
-    # for a round number. Whichever he knows goes in; the rest is derived.
+    # A deal is priced in one of the ways below, and which one depends on who
+    # is on the other side. A frigorífico buys ready cattle by the arroba;
+    # someone buying calves for reposição buys by the quilo vivo; a neighbour
+    # buys the lot for a round number. Whichever he knows goes in; the rest is
+    # derived.
     preco_arroba = models.DecimalField(
         "preço da arroba", max_digits=10, decimal_places=2, blank=True, null=True,
         help_text="Quando o negócio foi fechado por arroba")
+    preco_kg = models.DecimalField(
+        "preço do quilo", max_digits=10, decimal_places=2, blank=True, null=True,
+        help_text="Quando o negócio foi fechado por quilo vivo (reposição)")
     observacoes = models.TextField("observações", blank=True, null=True)
     criado_em = models.DateTimeField("criado em", auto_now_add=True)
 
@@ -274,6 +295,17 @@ class Animal(models.Model):
         "preço da arroba desta cabeça", max_digits=10, decimal_places=2,
         blank=True, null=True,
         help_text="Quando esta cabeça saiu por arroba diferente da do negócio")
+    preco_kg_venda = models.DecimalField(
+        "preço do quilo desta cabeça", max_digits=10, decimal_places=2,
+        blank=True, null=True,
+        help_text="Quando esta cabeça saiu por quilo diferente do negócio")
+    # O que ele digitou sobre a venda -- nunca recalculado depois. A Tarefa 10
+    # vai propor correção automática de categoria pelo peso; esse campo fica
+    # de fora disso, porque descreve o que de fato aconteceu, não uma
+    # estimativa.
+    categoria_venda = models.CharField(
+        "categoria na venda", max_length=16, choices=Categoria, blank=True, null=True,
+        help_text="Como o bicho saiu — fato histórico, nunca recalculado")
 
     class Meta:
         db_table = "animais"
@@ -295,6 +327,10 @@ class Animal(models.Model):
                 condition=models.Q(categoria__in=Categoria.values)
                 | models.Q(categoria__isnull=True),
                 name="animais_categoria_valida"),
+            models.CheckConstraint(
+                condition=models.Q(categoria_venda__in=Categoria.values)
+                | models.Q(categoria_venda__isnull=True),
+                name="animais_categoria_venda_valida"),
         ]
 
     def __str__(self):
@@ -325,6 +361,12 @@ class Animal(models.Model):
         faltas = []
         if not self.brinco:
             faltas.append("brinco")
+        # O SEXO vem antes da categoria de propósito: é ele que decide a escada
+        # de reposição e o rendimento, e sem ele `mercado` devolve ABATE em
+        # silêncio -- um bezerro precificado pelo boi gordo, o defeito original.
+        # A categoria, essa, o `Pesagem.save()` deriva sozinho do peso depois.
+        if not self.sexo:
+            faltas.append("sexo (é ele que decide o preço do bicho)")
         if not self.categoria:
             faltas.append("categoria (sem ela não dá pra saber o valor)")
         if self.ultima_pesagem is None:
@@ -346,8 +388,17 @@ class Animal(models.Model):
         super().clean_fields(exclude=exclude)
 
     def clean(self):
-        """Fills in the sex from the category, and refuses a contradiction."""
+        """Preenche o sexo a partir da categoria, e recusa contradição.
+
+        Exceção: as categorias ambíguas (hoje só `desmama`) servem aos dois
+        sexos. Nelas o sexo é EXIGIDO, porque é ele que escolhe a escada de
+        preço -- e uma desmama sem sexo não tem preço.
+        """
         super().clean()
+        if self.categoria in CATEGORIAS_AMBIGUAS and not self.sexo:
+            raise ValidationError({"sexo": (
+                f"{self.get_categoria_display()} pode ser macho ou fêmea; "
+                "diga qual, que é o sexo que decide o preço")})
         esperado = SEXO_DA_CATEGORIA.get(self.categoria) if self.categoria else None
         if not esperado:
             return
@@ -424,18 +475,153 @@ class Animal(models.Model):
             return self._cotacoes.get(cat)
         return Cotacao.mais_recente(cat)
 
+    def _escada_reposicao(self):
+        # Mesmo padrão de `cotacao_atual`: usa o que `com_cotacoes` já
+        # carregou para a lista inteira, e só consulta o banco sozinho quando
+        # ninguém carregou por ela -- a página de um único animal.
+        if hasattr(self, "_escadas"):
+            return self._escadas["femea" if e_femea(self.sexo) else "macho"]
+        return Cotacao.escada_reposicao(self.sexo)
+
     @staticmethod
-    def com_cotacoes(animais):
+    def base_de_cotacoes(ate=None):
+        """As cotações de um pregão: (abate por categoria, escadas por sexo).
+
+        `ate=None` é o pregão de hoje. Com uma data, é o mercado como ele
+        estava naquele dia -- é o que a tela de cotação usa para dizer quanto
+        a boiada mudou desde o pregão anterior, sem reavaliar bicho a bicho.
+        """
+        return (Cotacao.ultimas_por_categoria(ate=ate),
+                {"macho": Cotacao.escada_reposicao("macho", ate=ate),
+                 "femea": Cotacao.escada_reposicao("femea", ate=ate)})
+
+    @staticmethod
+    def com_cotacoes(animais, ate=None, base=None):
         """Hands one quote lookup to a whole list of animals.
 
         Use it whenever you iterate more than one animal: the alternative is a
         query per head.
+
+        Chamar de novo com outra data reaproveita as MESMAS cabeças, trocando
+        só a base: os valores são propriedades calculadas na hora, então o
+        segundo passe devolve o que o rebanho valia naquele pregão. Quem já
+        tem a base na mão -- porque precisa olhar para ela, e não só usá-la --
+        passa em `base` em vez de mandar buscar de novo.
         """
-        cotacoes = Cotacao.ultimas_por_categoria()
+        cotacoes, escadas = base or Animal.base_de_cotacoes(ate)
         animais = list(animais)
         for a in animais:
             a._cotacoes = cotacoes
+            a._escadas = escadas
         return animais
+
+    @property
+    def mercado(self):
+        """Em que mercado este bicho é vendido HOJE, pelo peso dele.
+
+        A troca acontece no cruzamento das duas curvas, não num peso fixo.
+        Fêmea segue no abate por decisão do dono: as matrizes dele pesam de
+        343 a 563 kg, todas acima do cruzamento feminino de qualquer forma.
+        """
+        # `self.sexo`, NUNCA `self.sexo or self.categoria`: `desmama` serve aos
+        # dois sexos e ficou fora de SEXO_DA_CATEGORIA, então e_femea() de uma
+        # categoria ambígua devolve False -- isto é, MACHO -- em silêncio. Uma
+        # cria fêmea iria para a escada masculina, R$ 15,50/kg em vez de
+        # R$ 13,20/kg. Sem sexo não há escada: devolve ABATE, que não estima.
+        kg = self.peso_atual_kg
+        if kg is None or not self.sexo or e_femea(self.sexo):
+            return Cotacao.ABATE
+        pontos = self._escada_reposicao()
+        # `cotacao_atual`, não `Cotacao.mais_recente_abate` direto: sexo já
+        # está garantido macho aqui, e `categoria_de` de qualquer categoria
+        # masculina cai em BOI -- exatamente a cotação que `cotacao_atual` já
+        # busca, e via `self._cotacoes` quando `com_cotacoes` carregou a
+        # lista. Chamar o classmethod aqui reabriria o N+1: uma query de
+        # abate por animal, o mesmo defeito que a escada já evitava.
+        abate = self.cotacao_atual
+        # len < 2, não "vazio": escada() levanta com menos de dois pontos, e
+        # uma coleta interrompida pela metade devolve um ponto só.
+        if len(pontos) < 2 or not abate or abate.bruto_a_vista is None:
+            return Cotacao.ABATE
+        limite = precificacao.cruzamento(pontos, self.rendimento,
+                                         float(abate.bruto_a_vista))
+        return Cotacao.ABATE if kg >= limite else Cotacao.REPOSICAO
+
+    @property
+    def unidade(self):
+        return Cotacao.KG if self.mercado == Cotacao.REPOSICAO else Cotacao.ARROBA
+
+    @property
+    def troca_de_mercado_pelo_peso(self):
+        """Este bicho pode ver a conta trocar de unidade sozinha?
+
+        Só macho: `mercado` devolve ABATE para fêmea e para quem não tem sexo,
+        sempre. A ficha usa isto para só explicar a troca a quem ela pode
+        acontecer -- prometer a uma vaca que a conta dela já foi por quilo
+        seria mentira.
+        """
+        return bool(self.sexo) and not e_femea(self.sexo)
+
+    @property
+    def pago_por_kg(self):
+        """Quanto ele pagou por quilo vivo, pelo peso de ENTRADA do animal."""
+        p = self.primeira_pesagem
+        if not self.valor_compra or p is None or not p.peso_kg:
+            return None
+        return self.valor_compra / Decimal(str(p.peso_kg))
+
+    @property
+    def cotacao_por_kg(self):
+        """O R$/kg que a curva paga no peso de HOJE.
+
+        Fato isolado e verdadeiro -- é o que a ficha mostra em "Pela cotação de
+        reposição, R$ X o quilo vivo". NÃO serve para comparar com o que ele
+        pagou: ver `cotacao_por_kg_na_compra`.
+        """
+        return self._curva_por_kg(self.peso_atual_kg)
+
+    @property
+    def cotacao_por_kg_na_compra(self):
+        """O R$/kg que a curva paga por um bicho do peso de ENTRADA dele.
+
+        É este, e não o do peso de hoje, que pode ser comparado com
+        `pago_por_kg`. Na reposição o R$/kg é FUNÇÃO DO PESO -- é a escada
+        inteira: R$ 15,50 no desmama de 180 kg, R$ 11,99 no boi magro de 345.
+        Avaliar a curva no peso de hoje e o preço pago no peso de entrada
+        compara o quilo de um bezerro com o quilo de um garrote, e como a
+        escada CAI conforme o bicho cresce, a diferença fica mais negativa a
+        cada pesagem nova -- isto é, o número piora justamente quando ele faz
+        o trabalho dele. Não é margem; é a inclinação da escada disfarçada de
+        margem, e a spec §5.1 proíbe contar essa história ao contrário.
+
+        Com os dois lados no peso de entrada a conta vira o análogo fiel do
+        cartão da arroba, cuja solidez vem de o R$/@ não depender do peso:
+        "comprei bem ou mal?". O quanto ele ganhou engordando é outra conta, a
+        da cabeça (`ganho`), e essa já aparece logo abaixo na ficha.
+        """
+        p = self.primeira_pesagem
+        return None if p is None else self._curva_por_kg(float(p.peso_kg))
+
+    def _curva_por_kg(self, kg):
+        # O mercado é o de HOJE nos dois casos, de propósito: quem decide se
+        # este bicho tem conta por quilo é o peso atual dele (é o mesmo teste
+        # que escolhe qual cartão a ficha mostra). O peso que muda entre as
+        # duas propriedades é só o ponto em que a curva é lida.
+        if kg is None or self.mercado != Cotacao.REPOSICAO:
+            return None
+        v = precificacao.valor_reposicao(kg, self._escada_reposicao())
+        return Decimal(str(round(v / kg, 2))) if v is not None else None
+
+    @property
+    def ganho_por_kg(self):
+        """Quanto ele pagou acima (negativo) ou abaixo (positivo) do mercado.
+
+        É uma conta sobre a COMPRA, não sobre perda: os dois lados descrevem o
+        mesmo animal, no peso em que ele entrou. Só se move quando o mercado se
+        move -- nunca porque o bicho engordou.
+        """
+        pago, vale = self.pago_por_kg, self.cotacao_por_kg_na_compra
+        return None if pago is None or vale is None else vale - pago
 
     # --- O que ele calcula de cabeça toda vez que pesa -----------------------
     # "Paguei quanto na arroba?" é a pergunta da engorda: você compra a X a
@@ -516,32 +702,61 @@ class Animal(models.Model):
             return None
         return kg * (self.rendimento / 100.0) / KG_POR_ARROBA
 
+    def _venda_por_preco_unitario(self):
+        """Níveis 2 e 3 de `valor_venda_apurado`: um preço por quilo ou por
+        arroba, da cabeça ou do negócio.
+
+        Devolve `(valor, rótulo)`, ou `(None, None)` quando nenhum dos dois
+        níveis tem preço. Uma única conta serve `valor_venda_apurado` e
+        `origem_valor_venda` de propósito -- as duas jamais podem discordar
+        sobre de onde o número veio.
+        """
+        peso = self.peso_na_venda
+        arrobas = self.arrobas_na_venda
+        # Nível 2 -- o que ele disse sobre ESTA cabeça.
+        if self.preco_kg_venda is not None and peso is not None:
+            valor = Decimal(str(peso)) * self.preco_kg_venda
+            rotulo = f"{peso:.0f} kg × R$ {self.preco_kg_venda} (quilo desta cabeça)"
+            return valor, rotulo.replace(".", ",")
+        if self.preco_arroba_venda is not None and arrobas is not None:
+            valor = Decimal(str(round(arrobas, 4))) * self.preco_arroba_venda
+            rotulo = f"{arrobas:.2f} @ × R$ {self.preco_arroba_venda} (arroba desta cabeça)"
+            return valor, rotulo.replace(".", ",")
+        # Nível 3 -- o que ele disse sobre o NEGÓCIO inteiro.
+        if self.venda.preco_kg is not None and peso is not None:
+            valor = Decimal(str(peso)) * self.venda.preco_kg
+            rotulo = f"{peso:.0f} kg × R$ {self.venda.preco_kg} o quilo"
+            return valor, rotulo.replace(".", ",")
+        if self.venda.preco_arroba is not None and arrobas is not None:
+            valor = Decimal(str(round(arrobas, 4))) * self.venda.preco_arroba
+            rotulo = f"{arrobas:.2f} @ × R$ {self.venda.preco_arroba}"
+            return valor, rotulo.replace(".", ",")
+        return None, None
+
     @property
     def valor_venda_apurado(self):
         """What this head fetched, from whichever fact he actually has.
 
-        He prices a sale in one of four ways, depending on the buyer and on the
-        animal:
+        He prices a sale at one of four levels of specificity, from what he
+        said about THIS head to what he said about the whole lot:
 
-          1. per head -- "essa saiu por 5.200"
-          2. by THIS head's arroba -- heads in the same deal can go at
-             different prices, decided one by one
-          3. by the deal's arroba -- one R$/@ for everything
-          4. one number for the lot -- selling to a neighbour
+          1. per head, an absolute value -- "essa saiu por 5.200"
+          2. per head, a unit price -- kg vivo or arroba, decided one by one
+          3. per deal, a unit price -- one R$/kg or R$/@ for everything
+          4. per deal, one number for the lot -- selling to a neighbour
 
-        They are tried in that order, most specific first. What he typed always
-        wins over anything derived, so editing a single head later does not get
-        silently recomputed away.
+        They are tried in that order, most specific first, regardless of
+        unit: a head priced by arroba still beats a deal priced by the kilo.
+        What he typed always wins over anything derived, so editing a single
+        head later does not get silently recomputed away.
         """
         if not self.vendido:
             return None
         if self.valor_venda is not None:
             return self.valor_venda
-        preco = self.preco_arroba_venda or self.venda.preco_arroba
-        if preco is not None:
-            arrobas = self.arrobas_na_venda
-            if arrobas is not None:
-                return Decimal(str(round(arrobas, 4))) * preco
+        valor, _ = self._venda_por_preco_unitario()
+        if valor is not None:
+            return valor
         return self.venda.valor_por_cabeca
 
     @property
@@ -552,11 +767,9 @@ class Animal(models.Model):
             return None
         if self.valor_venda is not None:
             return "valor por cabeça"
-        preco = self.preco_arroba_venda or self.venda.preco_arroba
-        if preco is not None and self.arrobas_na_venda is not None:
-            propria = " (arroba desta cabeça)" if self.preco_arroba_venda else ""
-            return (f"{self.arrobas_na_venda:.2f} @ × R$ {preco}{propria}"
-                    .replace(".", ","))
+        _, rotulo = self._venda_por_preco_unitario()
+        if rotulo is not None:
+            return rotulo
         if self.venda.valor_por_cabeca is not None:
             return "rateio do total da venda"
         return None
@@ -576,21 +789,61 @@ class Animal(models.Model):
 
     @property
     def valor_atual(self):
-        """ESTIMATE of what this head would fetch, at the reference quote.
+        """ESTIMATIVA do que esta cabeça renderia, na cotação de referência.
 
-        Not a promise, and the screens must not read like one. The quote is SP
-        Araçatuba's published average; what he is actually paid is whatever the
-        buyer offers, and it varies by buyer and by animal -- two heads in the
-        same lot can go at different prices per arroba. This number is for
-        deciding whether to sell, never for what he will receive.
+        Não é promessa, e as telas não podem soar como uma. No abate a
+        cotação é a média publicada de SP Araçatuba; o que ele recebe de
+        fato é o que o comprador oferece, e varia por comprador e por
+        animal -- duas cabeças do mesmo lote podem sair por arrobas
+        diferentes. Na reposição vem da curva interpolada, não do R$/kg da
+        faixa. Serve para decidir se vende, nunca para o que ele vai
+        receber.
 
-        A sold animal has a real number instead: `valor_venda_apurado`.
+        Um animal vendido tem um número real em vez deste: `valor_venda_apurado`.
         """
-
-        arrobas, cot = self.peso_arrobas, self.cotacao_atual
-        if arrobas is None or cot is None:
+        kg = self.peso_atual_kg
+        if kg is None:
             return None
-        return Decimal(str(arrobas)) * cot.bruto_a_vista
+        if self.mercado == Cotacao.REPOSICAO:
+            v = precificacao.valor_reposicao(kg, self._escada_reposicao())
+            return Decimal(str(round(v, 2))) if v is not None else None
+        cot = self.cotacao_atual
+        if cot is None or cot.bruto_a_vista is None:
+            return None
+        return Decimal(str(round(
+            precificacao.valor_abate(kg, self.rendimento, float(cot.bruto_a_vista)), 2)))
+
+    @property
+    def categoria_pelo_peso(self):
+        """A categoria que a ÚLTIMA pesagem implica, pela referência mais próxima.
+
+        Sempre a última POR DATA, nunca a recém-inserida: o Seu Jader dita papel
+        antigo da caderneta, e recalcular a partir de uma pesagem de seis meses
+        atrás rebaixaria um garrote de volta a bezerro.
+
+        Só o RÓTULO sai da faixa. O valor sai da curva (ver precificacao.py),
+        então uma categoria momentaneamente defasada não custa nada em reais.
+
+        ARMADILHA 2 (Tarefa 10, decisão consciente): a escada de reposição
+        para em "boi magro" (345 kg) / "vaca magra" (315 kg). Um bicho mais
+        pesado do que isso continua rotulado pela ponta de reposição e nunca
+        vira "boi"/"vaca" por aqui -- hoje o mais pesado do rebanho tem 296
+        kg, então não acontece, mas o primeiro que passar do cruzamento
+        herda o rótulo errado. Não corrigido nesta tarefa: o parágrafo acima
+        já garante que o rótulo é cosmético, e corrigir direito repetiria
+        aqui o cálculo de cruzamento que `mercado` já faz -- cotação de
+        abate incluída -- dentro de uma property hoje sem rede. Dívida
+        registrada no relatório da Tarefa 10.
+        """
+        kg = self.peso_atual_kg
+        if kg is None or not self.sexo:
+            return None
+        femea = e_femea(self.sexo)
+        cats = Cotacao.ESCADA_FEMEA if femea else Cotacao.ESCADA_MACHO
+        pontos = Cotacao.escada_reposicao(self.sexo)
+        if len(pontos) != len(cats):
+            return None
+        return min(zip(cats, pontos), key=lambda par: abs(par[1][0] - kg))[0]
 
 
 class Pesagem(models.Model):
@@ -614,6 +867,29 @@ class Pesagem(models.Model):
 
     def __str__(self):
         return f"{self.animal.brinco} — {self.peso_kg} kg em {self.data:%d/%m/%Y}"
+
+    def save(self, *args, **kwargs):
+        """Grava o peso e, se ele mudar a categoria do bicho, corrige o rótulo.
+
+        Aqui e não num signal: precisa valer para qualquer caminho de escrita,
+        inclusive o admin. E aqui e não com Telegram junto -- o aviso é do bot,
+        que é quem está na conversa. Ver spec §7.3.
+
+        Recarrega o animal do banco em vez de usar `self.animal` direto:
+        quem chamou pode ter vindo de uma consulta com
+        `prefetch_related("pesagens")` -- `_rebanho_base()` faz isso, e o
+        admin também -- e nesse caso `self.animal.pesagens` está em cache e
+        NÃO inclui a pesagem que acabamos de gravar. Medido em réplica: pelo
+        bot (sem prefetch) a categoria corrige; pelo admin (com prefetch),
+        sem este refetch, não corrigia nada, e o defeito some de qualquer
+        teste que faça `refresh_from_db()` depois de gravar.
+        """
+        super().save(*args, **kwargs)
+        animal = Animal.objects.get(pk=self.animal_id)
+        nova = animal.categoria_pelo_peso
+        if nova and nova != animal.categoria:
+            animal.categoria = nova
+            animal.save(update_fields=["categoria"])
 
 
 class Despesa(models.Model):
@@ -658,39 +934,120 @@ class Cotacao(models.Model):
     misalign you, and the three category pages don't share a column count.
     """
 
+    ABATE = "abate"
+    REPOSICAO = "reposicao"
+    MERCADOS = [(ABATE, "abate"), (REPOSICAO, "reposição")]
+
+    ARROBA = "arroba"
+    KG = "kg"
+    UNIDADES = [(ARROBA, "R$ por arroba de carcaça"), (KG, "R$ por quilo vivo")]
+
     BOI = "boi"
     NOVILHA = "novilha"
     VACA = "vaca"
-    CATEGORIAS = [(BOI, "boi gordo"), (NOVILHA, "novilha"), (VACA, "vaca gorda")]
+    DESMAMA = "desmama"
+    BEZERRO = "bezerro"
+    GARROTE = "garrote"
+    BOI_MAGRO = "boi magro"
+    BEZERRA = "bezerra"
+    VACA_MAGRA = "vaca magra"
 
+    # Lista COMPLETA, nunca delta: ao redigir a spec a versao em delta perdeu
+    # 'bezerro', que e' exatamente a categoria que motivou este trabalho.
+    CATEGORIAS = [
+        (BOI, "boi gordo"), (NOVILHA, "novilha"), (VACA, "vaca gorda"),
+        (DESMAMA, "desmama"), (BEZERRO, "bezerro"), (GARROTE, "garrote"),
+        (BOI_MAGRO, "boi magro"), (BEZERRA, "bezerra"), (VACA_MAGRA, "vaca magra"),
+    ]
+
+    CATEGORIAS_ABATE = [(BOI, "boi gordo"), (NOVILHA, "novilha"), (VACA, "vaca gorda")]
+
+    mercado = models.CharField("mercado", max_length=16, choices=MERCADOS, default=ABATE)
+    unidade = models.CharField("unidade", max_length=8, choices=UNIDADES, default=ARROBA)
     categoria = models.CharField("categoria", max_length=16, choices=CATEGORIAS)
     praca = models.TextField("praça")
     data_pregao = models.DateField("data do pregão")
-    bruto_a_vista = models.DecimalField("bruto à vista", max_digits=10, decimal_places=2)
-    bruto_30d = models.DecimalField("bruto 30 dias", max_digits=10, decimal_places=2)
+    bruto_a_vista = models.DecimalField("bruto à vista", max_digits=10,
+                                        decimal_places=2, blank=True, null=True)
+    bruto_30d = models.DecimalField("bruto 30 dias", max_digits=10,
+                                    decimal_places=2, blank=True, null=True)
+    rs_kg = models.DecimalField("R$ por quilo vivo", max_digits=10,
+                                decimal_places=2, blank=True, null=True)
+    rs_cabeca = models.DecimalField("R$ por cabeça", max_digits=12,
+                                    decimal_places=2, blank=True, null=True)
+    peso_ref_kg = models.DecimalField("peso de referência", max_digits=8,
+                                      decimal_places=2, blank=True, null=True)
     coletado_em = models.DateTimeField("coletado em", auto_now_add=True)
 
     class Meta:
         db_table = "cotacoes"
         verbose_name = "cotação"
         verbose_name_plural = "cotações"
-        ordering = ["-data_pregao", "categoria"]
-        unique_together = (("categoria", "praca", "data_pregao"),)
+        ordering = ["-data_pregao", "mercado", "categoria"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["mercado", "categoria", "praca", "data_pregao"],
+                name="cotacoes_unica_por_pregao"),
+            # choices= é só validação de formulário -- quem grava pelo ORM sem
+            # full_clean() passa direto. Lista POR EXTENSO, nunca como delta
+            # de CATEGORIAS: é a mesma armadilha que já mordeu esta tarefa
+            # uma vez (a spec original tinha perdido 'bezerro' assim).
+            models.CheckConstraint(
+                condition=models.Q(categoria__in=[
+                    "boi", "novilha", "vaca", "desmama", "bezerro", "garrote",
+                    "boi magro", "bezerra", "vaca magra",
+                ]),
+                name="cotacoes_categoria_valida"),
+            # Cada mercado preenche o seu lado e deixa o outro vazio. Sem isto
+            # uma linha de reposicao sem rs_kg entra e vira preco None na tela.
+            models.CheckConstraint(
+                condition=(
+                    models.Q(mercado="abate", unidade="arroba",
+                             bruto_a_vista__isnull=False, rs_kg__isnull=True)
+                    | models.Q(mercado="reposicao", unidade="kg",
+                               rs_kg__isnull=False, peso_ref_kg__isnull=False,
+                               bruto_a_vista__isnull=True)),
+                name="cotacoes_unidade_coerente"),
+        ]
 
     def __str__(self):
+        # Cada mercado tem a SUA unidade. Antes daqui havia um f-string só, com
+        # "a arroba" fixo, e as 8 linhas de reposição que o cron grava por dia
+        # viravam "bezerro — R$ None a arroba" no título do change form, na
+        # confirmação de exclusão e no histórico do admin.
+        if self.mercado == self.REPOSICAO:
+            return f"{self.get_categoria_display()} — R$ {self.rs_kg} o quilo"
         return f"{self.get_categoria_display()} — R$ {self.bruto_a_vista} a arroba"
 
     # A female that is not a novilha is priced off the vaca gorda page -- the
     # closest female quote the market publishes. Same mapping the bot uses.
     PAGINA = {"novilha": NOVILHA, "vaca": VACA, "bezerra": VACA, "femea": VACA}
 
+    ESCADA_MACHO = ("desmama", "bezerro", "garrote", "boi magro")
+    ESCADA_FEMEA = ("desmama", "bezerra", "novilha", "vaca magra")
+    # Mesmas strings que cotacao_diaria.PRACA_REPOSICAO grava (Tarefa 3). É a
+    # praça que separa a desmama macho da desmama fêmea, porque a chave única
+    # não tem sexo. As duas pontas têm de concordar literalmente.
+    PRACA_REPOSICAO = {"macho": "SP", "femea": "SP-F"}
+
     @classmethod
     def categoria_de(cls, categoria_ou_sexo):
+        """Página de abate correspondente. Só serve ao ABATE.
+
+        A reposição não é endereçável por categoria sozinha -- veja
+        `escada_reposicao` e `ultimas_por_categoria`.
+        """
         return cls.PAGINA.get(_sem_acento(categoria_ou_sexo), cls.BOI)
 
     @classmethod
     def mais_recente(cls, categoria_ou_sexo):
-        """Latest quote for one category. Always current -- never memoised.
+        """Latest ABATE quote for one category. Always current -- never memoised.
+
+        Só abate, mesmo motivo de `ultimas_por_categoria`: `categoria_de`
+        devolve `novilha` pra novilha e pra fêmea sem categoria, e `novilha`
+        existe nos dois mercados. Sem o filtro, uma linha de reposição mais
+        recente ganha da de abate -- e ela não tem `bruto_a_vista`
+        (CheckConstraint), o que vira campo em branco em `animal.html`.
 
         There WAS a five-minute memo here, to stop the herd list running one
         query per animal. It was wrong twice over. Gunicorn runs three workers
@@ -703,14 +1060,45 @@ class Cotacao(models.Model):
         queries once per request, handed to every animal on the page.
         """
         return cls.objects.filter(
-            categoria=cls.categoria_de(categoria_ou_sexo)
+            mercado=cls.ABATE, categoria=cls.categoria_de(categoria_ou_sexo)
         ).order_by("-data_pregao").first()
 
     @classmethod
-    def ultimas_por_categoria(cls):
-        """{categoria: última cotação} in three queries, whatever the herd size."""
-        return {c: cls.objects.filter(categoria=c).order_by("-data_pregao").first()
-                for c, _ in cls.CATEGORIAS}
+    def ultimas_por_categoria(cls, ate=None):
+        """{categoria: última cotação de ABATE} em três queries.
+
+        Só abate: a reposição não é endereçável por categoria sozinha -- a
+        mesma `novilha` existe nos dois mercados, e `desmama` existe nos dois
+        sexos. Para reposição use `escada_reposicao`.
+
+        `ate` corta o histórico numa data: a cotação mais recente ATÉ aquele
+        pregão, que é como se avalia o rebanho no dia anterior.
+        """
+        qs = cls.objects.filter(mercado=cls.ABATE)
+        if ate is not None:
+            qs = qs.filter(data_pregao__lte=ate)
+        return {c: qs.filter(categoria=c).order_by("-data_pregao").first()
+                for c, _ in cls.CATEGORIAS_ABATE}
+
+    @classmethod
+    def escada_reposicao(cls, sexo, ate=None):
+        """Os pontos (peso_ref_kg, rs_cabeca) do último pregão, para um sexo.
+
+        `ate` tem o mesmo sentido de `ultimas_por_categoria`: a escada como
+        ela estava naquele dia.
+        """
+        femea = e_femea(sexo)
+        cats = cls.ESCADA_FEMEA if femea else cls.ESCADA_MACHO
+        praca = cls.PRACA_REPOSICAO["femea" if femea else "macho"]
+        qs = cls.objects.filter(mercado=cls.REPOSICAO, praca=praca)
+        if ate is not None:
+            qs = qs.filter(data_pregao__lte=ate)
+        pontos = []
+        for cat in cats:
+            c = qs.filter(categoria=cat).order_by("-data_pregao").first()
+            if c and c.peso_ref_kg and c.rs_cabeca:
+                pontos.append((float(c.peso_ref_kg), float(c.rs_cabeca)))
+        return pontos
 
 
 # --- Proxy models -------------------------------------------------------------

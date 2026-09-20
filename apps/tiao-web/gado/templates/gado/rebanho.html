@@ -2,6 +2,11 @@
 {% block titulo %}A boiada{% endblock %}
 {% block conteudo %}
 
+{% comment %}
+O resumo sai da MESMA lista que a tabela, já filtrada. É o que faz o filtro
+de categoria mexer em "No pasto", "Peso somado" e "Deve dar": um filtro que
+muda a tabela e deixa o resumo parado mente sobre o que está na tela.
+{% endcomment %}
 <div class="resumo">
   <div class="caixa"><div class="rot">No pasto</div><div class="val">{{ total_cabecas }}</div></div>
   {% if total_vendidas %}
@@ -17,19 +22,33 @@
 </div>
 
 <div class="filtros">
-  <a href="?{% if situacao_ativa %}situacao={{ situacao_ativa }}{% endif %}"
+  <a href="{% filtro 'propriedade' %}"
      {% if not propriedade_ativa %}class="ativo"{% endif %}>Todo lugar</a>
   {% for p in propriedades %}
-    <a href="?propriedade={{ p|urlencode }}{% if situacao_ativa %}&situacao={{ situacao_ativa }}{% endif %}"
+    <a href="{% filtro 'propriedade' p %}"
        {% if propriedade_ativa == p %}class="ativo"{% endif %}>{{ p }}</a>
   {% endfor %}
 </div>
+{% comment %}
+Só as categorias que existem no rebanho, e só quando há mais de uma: uma
+barra com um botão só é linha gasta na tela de quem lê no sol.
+{% endcomment %}
+{% if categorias|length > 1 %}
 <div class="filtros">
-  <a href="?{% if propriedade_ativa %}propriedade={{ propriedade_ativa|urlencode }}{% endif %}"
+  <a href="{% filtro 'categoria' %}"
+     {% if not categoria_ativa %}class="ativo"{% endif %}>Todo bicho</a>
+  {% for c in categorias %}
+    <a href="{% filtro 'categoria' c %}"
+       {% if categoria_ativa == c %}class="ativo"{% endif %}>{{ c }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+<div class="filtros">
+  <a href="{% filtro 'situacao' %}"
      {% if not situacao_ativa %}class="ativo"{% endif %}>Todas</a>
-  <a href="?situacao=pasto{% if propriedade_ativa %}&propriedade={{ propriedade_ativa|urlencode }}{% endif %}"
+  <a href="{% filtro 'situacao' 'pasto' %}"
      {% if situacao_ativa == 'pasto' %}class="ativo"{% endif %}>No pasto</a>
-  <a href="?situacao=vendido{% if propriedade_ativa %}&propriedade={{ propriedade_ativa|urlencode }}{% endif %}"
+  <a href="{% filtro 'situacao' 'vendido' %}"
      {% if situacao_ativa == 'vendido' %}class="ativo"{% endif %}>Vendidas</a>
 </div>
 
@@ -42,11 +61,20 @@
 </div>
 <div class="rolagem">
 <table>
+  {% comment %}
+  "Em @" para TODO bicho, bezerro incluído: o quilo já está na coluna ao
+  lado, e repeti-lo aqui não dizia nada novo.
+
+  As três colunas de DINHEIRO continuam cada uma no mercado do seu bicho --
+  R$/kg no de reposição, R$/@ no de abate -- e isso não é descuido: ninguém
+  compra bezerro por arroba, e é ali que mora a conta certa. Cada célula se
+  rotula com /kg ou /@ justamente por isso.
+  {% endcomment %}
   <thead><tr>
     <th>Brinco</th><th>Categoria</th><th>Onde está</th>
     <th class="num">Último peso</th><th>Pesado em</th>
     <th class="num">Em @</th>
-    <th class="num">Pagou na @</th><th class="num">@ de referência</th><th class="num">Dif. na @</th>
+    <th class="num">Pagou na unidade</th><th class="num">Referência na compra</th><th class="num">Diferença</th>
     <th class="num">Deve dar</th>
     <th class="num">Despesas</th><th>Situação</th>
   </tr></thead>
@@ -62,9 +90,10 @@
       <td class="num">{% if a.peso_atual_kg %}{{ a.peso_atual_kg|numero }} kg{% else %}—{% endif %}</td>
       <td>{% if a.ultima_pesagem %}{{ a.ultima_pesagem.data|date:"d/m/Y" }}{% else %}—{% endif %}</td>
       <td class="num">{{ a.peso_arrobas|arrobas }}</td>
-      <td class="num">{{ a.pago_por_arroba|reais }}</td>
-      <td class="num">{{ a.cotacao_por_arroba|reais }}</td>
-      <td class="num {{ a.ganho_por_arroba|classe_ganho }}">{{ a.ganho_por_arroba|reais_sinal }}</td>
+      <td class="num">{% if a.unidade == 'kg' %}{{ a.pago_por_kg|reais }}/kg{% else %}{{ a.pago_por_arroba|reais }}/@{% endif %}</td>
+      <td class="num">{% if a.unidade == 'kg' %}{{ a.cotacao_por_kg_na_compra|reais }}/kg{% else %}{{ a.cotacao_por_arroba|reais }}/@{% endif %}</td>
+      <td class="num {% if a.unidade == 'kg' %}{{ a.ganho_por_kg|classe_ganho }}{% else %}{{ a.ganho_por_arroba|classe_ganho }}{% endif %}">
+        {% if a.unidade == 'kg' %}{{ a.ganho_por_kg|reais_sinal }}{% else %}{{ a.ganho_por_arroba|reais_sinal }}{% endif %}</td>
       <td class="num">{{ a.valor_atual|reais }}</td>
       <td class="num">{% if a.total_despesas %}{{ a.total_despesas|reais }}{% else %}—{% endif %}</td>
       <td>{% if a.venda_id %}<span class="vendido">vendida</span>{% else %}<span class="pasto">no pasto</span>{% endif %}</td>
@@ -74,9 +103,9 @@
 </table>
 </div>
 </div>
-<p class="rodape">Os valores são estimativa pela cotação de Araçatuba, que é média
-de mercado. O que o comprador paga é outra conversa, e pode ser diferente de uma
-cabeça pra outra.</p>
+<p class="rodape">Os valores são estimativa de mercado: gado pronto pela arroba de
+Araçatuba, gado de reposição pela curva por quilo. O que o comprador paga é
+outra conversa, e pode ser diferente de uma cabeça pra outra.</p>
 {% else %}
 <p class="vazio">Nenhuma cabeça com esse filtro, patrão.</p>
 {% endif %}

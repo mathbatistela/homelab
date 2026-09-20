@@ -58,6 +58,9 @@ class FaltandoFilter(admin.SimpleListFilter):
     def lookups(self, request, model_admin):
         return [
             ("brinco", "sem brinco"),
+            # Sem sexo, `Animal.mercado` devolve ABATE em silêncio e o bicho é
+            # precificado pelo boi gordo. É o buraco mais caro da lista.
+            ("sexo", "sem sexo (é ele que decide o preço)"),
             ("categoria", "sem categoria (não dá pra valorar)"),
             ("pesagem", "nunca foi pesado"),
             ("valor", "sem valor de compra"),
@@ -69,6 +72,8 @@ class FaltandoFilter(admin.SimpleListFilter):
         escolha = self.value()
         if escolha == "brinco":
             return qs.filter(brinco__isnull=True)
+        if escolha == "sexo":
+            return qs.filter(sexo__isnull=True)
         if escolha == "categoria":
             return qs.filter(categoria__isnull=True)
         if escolha == "pesagem":
@@ -78,7 +83,8 @@ class FaltandoFilter(admin.SimpleListFilter):
         if escolha == "pasto":
             return qs.filter(propriedade__isnull=True, venda__isnull=True)
         if escolha == "nada":
-            return qs.exclude(brinco__isnull=True).exclude(categoria__isnull=True) \
+            return qs.exclude(brinco__isnull=True).exclude(sexo__isnull=True) \
+                     .exclude(categoria__isnull=True) \
                      .exclude(pesagens__isnull=True).exclude(valor_compra__isnull=True)
         return qs
 
@@ -99,11 +105,12 @@ class AnimalAdmin(ModelAdmin):
         ("Onde está", {"fields": ("propriedade",)}),
         ("Compra", {"fields": ("compra", "valor_compra")}),
         ("Venda", {"fields": ("venda", "valor_venda", "preco_arroba_venda",
-                              "peso_venda"),
+                              "preco_kg_venda", "categoria_venda", "peso_venda"),
                    "description": "Preenchidos do mais específico ao menos: valor "
-                                  "por cabeça vence tudo; depois a arroba desta "
-                                  "cabeça, quando ela saiu por preço próprio; "
-                                  "depois a arroba do negócio; por último o rateio "
+                                  "por cabeça vence tudo; depois o preço desta "
+                                  "cabeça, por arroba ou por quilo, quando ela saiu "
+                                  "por preço próprio; depois o preço do negócio, "
+                                  "por arroba ou por quilo; por último o rateio "
                                   "do total. Deixe em branco o que não souber."}),
         ("Outros", {"fields": ("observacoes",)}),
     )
@@ -186,7 +193,7 @@ class DespesaAdmin(ModelAdmin):
 
 
 class MovimentacaoAdminBase(ModelAdmin):
-    list_display = ("data", "comprador", "quantidade", "preco_arroba",
+    list_display = ("data", "comprador", "quantidade", "preco_arroba", "preco_kg",
                     "valor_display", "apurado_display", "diferenca_display")
     list_filter = ("data",)
     search_fields = ("comprador__nome", "observacoes")
@@ -259,19 +266,36 @@ class PropriedadeAdmin(ModelAdmin):
 
 @admin.register(Cotacao)
 class CotacaoAdmin(ModelAdmin):
-    """Written by the 19:00 cron. Editable, but you should not need to."""
+    """Written by the 19:00 cron. Editable, but you should not need to.
 
-    list_display = ("data_pregao", "categoria", "praca", "avista_display",
-                    "trinta_display")
-    list_filter = ("categoria", "praca")
+    Abate e reposição não são a mesma escada de preço: abate é R$/@ de
+    carcaça e traz bruto_30d; reposição é R$/kg de peso vivo e nunca
+    preenche bruto_30d. Um `list_display` que sempre lê `bruto_a_vista`
+    (herdado de quando só existia abate) mostra "—/@" nas duas colunas de
+    toda linha de reposição -- 8 das 11 que o cron grava por dia -- e não
+    dá como saber, de olho, se aquilo é uma linha quebrada ou é reposição
+    de verdade. `mercado` e `unidade` ficam visíveis e filtráveis, e cada
+    coluna de preço lê o campo certo pela unidade DA LINHA.
+    """
+
+    list_display = ("data_pregao", "mercado", "categoria", "praca", "unidade",
+                    "avista_display", "trinta_display", "peso_ref_kg")
+    list_filter = ("mercado", "unidade", "categoria", "praca")
     date_hierarchy = "data_pregao"
 
-    @admin.display(description="bruto à vista", ordering="bruto_a_vista")
+    @admin.display(description="preço à vista")
     def avista_display(self, obj):
+        if obj.unidade == Cotacao.KG:
+            return _reais(obj.rs_kg) + "/kg"
         return _reais(obj.bruto_a_vista) + "/@"
 
-    @admin.display(description="bruto 30 dias", ordering="bruto_30d")
+    @admin.display(description="preço 30 dias")
     def trinta_display(self, obj):
+        # Reposição não coleta 30 dias -- não é campo vazio, é mercado que
+        # não tem essa coluna. "—" simples, sem "/kg" que sugeriria um
+        # número que não existe.
+        if obj.unidade == Cotacao.KG:
+            return "—"
         return _reais(obj.bruto_30d) + "/@"
 
 

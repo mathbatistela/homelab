@@ -631,7 +631,10 @@ class TestEstimativaNaoEPromessa(BaseGado):
 
     def test_a_lista_diz_que_e_estimativa(self):
         corpo = self.client.get("/").content.decode()
-        self.assertIn("estimativa pela cotação de Araçatuba", corpo)
+        # "estimativa pela cotação de Araçatuba" virou "estimativa de mercado"
+        # -- a frase antiga tratava Araçatuba como única fonte, e isso é falso
+        # pra bicho de reposição desde a Tarefa 8 (TestRodapeDoRebanho abaixo).
+        self.assertIn("Os valores são estimativa de mercado", corpo)
         # Trecho curto de propósito: a frase quebra linha no template, e uma
         # asserção que atravessa a quebra falha por formatação, não por conteúdo.
         self.assertIn("pode ser diferente de uma", corpo)
@@ -1070,3 +1073,23 @@ class TestFichaExplicaOMercadoCerto(BaseBezerro):
         self.assertIn("Araçatuba", corpo)
         self.assertNotIn("Pela cotação de reposição", corpo)
         self.assertNotIn("o quilo vivo", corpo)
+
+
+class TestRodapeDoRebanhoFalaOsDoisMercados(BaseBezerro):
+    """Mesma família de defeito da ficha, agora no rodapé da lista (a home, `/`).
+
+    O rodapé dizia que TODO valor vem da cotação de Araçatuba -- verdade
+    antes da Tarefa 8, falso agora que a lista mistura os dois mercados na
+    mesma tabela: bicho de reposição é precificado pela curva por quilo, não
+    por Araçatuba.
+    """
+
+    def test_rodape_nao_trata_aracatuba_como_fonte_unica(self):
+        corpo = self.client.get("/").content.decode()
+        # A frase antiga, que tratava Araçatuba como a única fonte.
+        self.assertNotIn("estimativa pela cotação de Araçatuba", corpo)
+        # A frase nova fala dos dois mercados presentes na lista (o bezerro
+        # 632 é de reposição, vaca e boi são de abate) -- nenhum dos dois
+        # escondido.
+        self.assertIn("Araçatuba", corpo)
+        self.assertIn("curva", corpo)

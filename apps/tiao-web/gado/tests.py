@@ -1158,3 +1158,80 @@ class TestRodapeDoRebanhoFalaOsDoisMercados(BaseBezerro):
         # escondido.
         self.assertIn("Araçatuba", corpo)
         self.assertIn("curva", corpo)
+
+
+class TestCategoriaPeloPeso(BaseBezerro):
+    """A categoria acompanha o peso: bezerro que engorda vira garrote sozinho."""
+
+    def test_pesagem_nova_promove_a_categoria(self):
+        Pesagem.objects.create(animal=self.bezerro, data=datetime.date(2026, 12, 1),
+                               peso_kg=Decimal("260.00"))
+        self.bezerro.refresh_from_db()
+        self.assertEqual(self.bezerro.categoria, "garrote")
+
+    def test_pesagem_retroativa_NAO_rebaixa(self):
+        """Papel antigo da caderneta não pode rebaixar um garrote a bezerro.
+
+        A derivação usa a ÚLTIMA pesagem por data, nunca a recém-inserida.
+        """
+        Pesagem.objects.create(animal=self.bezerro, data=datetime.date(2026, 12, 1),
+                               peso_kg=Decimal("260.00"))
+        Pesagem.objects.create(animal=self.bezerro, data=datetime.date(2026, 3, 1),
+                               peso_kg=Decimal("120.00"))
+        self.bezerro.refresh_from_db()
+        self.assertEqual(self.bezerro.categoria, "garrote")
+
+    def test_animal_sem_pesagem_mantem_a_categoria_ditada(self):
+        a = Animal.objects.create(referencia="bezerro da vaca 599",
+                                  categoria="bezerro", sexo="macho")
+        a.refresh_from_db()
+        self.assertEqual(a.categoria, "bezerro")
+
+    def test_femea_usa_a_escada_feminina(self):
+        for cat, kg, cab, ref in (("desmama", "13.20", "2178.00", "165.00"),
+                                  ("bezerra", "12.33", "2404.35", "195.00"),
+                                  ("novilha", "11.52", "2937.60", "255.00"),
+                                  ("vaca magra", "9.66", "3042.90", "315.00")):
+            Cotacao.objects.create(
+                mercado=Cotacao.REPOSICAO, unidade=Cotacao.KG, categoria=cat,
+                praca="SP-F", data_pregao=datetime.date(2026, 9, 18),
+                rs_kg=Decimal(kg), rs_cabeca=Decimal(cab),
+                peso_ref_kg=Decimal(ref))
+        b = Animal.objects.create(brinco="800", categoria="bezerra", sexo="femea")
+        Pesagem.objects.create(animal=b, data=datetime.date(2026, 9, 19),
+                               peso_kg=Decimal("250.00"))
+        b.refresh_from_db()
+        self.assertEqual(b.categoria, "novilha")
+
+    def test_correcao_enxerga_pesagem_nova_mesmo_com_animal_prefetched(self):
+        """Armadilha 1, medida em réplica: `_rebanho_base()` (e provavelmente
+        o admin) busca o animal com `prefetch_related("pesagens")`. Se
+        `Pesagem.save()` calculasse a partir de `self.animal` direto, a lista
+        de pesagens em cache não incluiria a que acabou de ser gravada --
+        funcionaria pelo bot (sem prefetch) e falharia em silêncio pelo
+        admin. A correção tem de ler o animal de novo, sem cache.
+        """
+        animal_com_prefetch = Animal.objects.prefetch_related("pesagens").get(
+            pk=self.bezerro.pk)
+        Pesagem.objects.create(animal=animal_com_prefetch,
+                               data=datetime.date(2026, 12, 1),
+                               peso_kg=Decimal("260.00"))
+        self.bezerro.refresh_from_db()
+        self.assertEqual(self.bezerro.categoria, "garrote")
+
+    def test_macho_alem_do_boi_magro_fica_com_o_rotulo_da_reposicao(self):
+        """Armadilha 2, decisão registrada no relatório da Tarefa 10: a escada
+        de reposição para em 'boi magro' (345 kg), então um macho mais pesado
+        do que isso continua rotulado 'boi magro' e nunca vira 'boi' por
+        aqui. Hoje nenhum bicho do rebanho passa disso -- o mais pesado tem
+        296 kg -- e o rótulo é sabidamente cosmético: o valor sempre sai da
+        curva (`precificacao.py`), nunca do rótulo. Corrigir direito exigiria
+        repetir aqui o cálculo de cruzamento que `Animal.mercado` já faz,
+        cotação de abate incluída. Dívida consciente, não corrigida nesta
+        tarefa -- este teste fixa o comportamento atual para que não vire
+        regressão silenciosa se alguém decidir pagá-la depois.
+        """
+        Pesagem.objects.create(animal=self.bezerro, data=datetime.date(2026, 12, 1),
+                               peso_kg=Decimal("400.00"))
+        self.bezerro.refresh_from_db()
+        self.assertEqual(self.bezerro.categoria, "boi magro")

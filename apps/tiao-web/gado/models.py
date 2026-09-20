@@ -741,6 +741,38 @@ class Animal(models.Model):
         return Decimal(str(round(
             precificacao.valor_abate(kg, self.rendimento, float(cot.bruto_a_vista)), 2)))
 
+    @property
+    def categoria_pelo_peso(self):
+        """A categoria que a ÚLTIMA pesagem implica, pela referência mais próxima.
+
+        Sempre a última POR DATA, nunca a recém-inserida: o Seu Jader dita papel
+        antigo da caderneta, e recalcular a partir de uma pesagem de seis meses
+        atrás rebaixaria um garrote de volta a bezerro.
+
+        Só o RÓTULO sai da faixa. O valor sai da curva (ver precificacao.py),
+        então uma categoria momentaneamente defasada não custa nada em reais.
+
+        ARMADILHA 2 (Tarefa 10, decisão consciente): a escada de reposição
+        para em "boi magro" (345 kg) / "vaca magra" (315 kg). Um bicho mais
+        pesado do que isso continua rotulado pela ponta de reposição e nunca
+        vira "boi"/"vaca" por aqui -- hoje o mais pesado do rebanho tem 296
+        kg, então não acontece, mas o primeiro que passar do cruzamento
+        herda o rótulo errado. Não corrigido nesta tarefa: o parágrafo acima
+        já garante que o rótulo é cosmético, e corrigir direito repetiria
+        aqui o cálculo de cruzamento que `mercado` já faz -- cotação de
+        abate incluída -- dentro de uma property hoje sem rede. Dívida
+        registrada no relatório da Tarefa 10.
+        """
+        kg = self.peso_atual_kg
+        if kg is None or not self.sexo:
+            return None
+        femea = e_femea(self.sexo)
+        cats = Cotacao.ESCADA_FEMEA if femea else Cotacao.ESCADA_MACHO
+        pontos = Cotacao.escada_reposicao(self.sexo)
+        if len(pontos) != len(cats):
+            return None
+        return min(zip(cats, pontos), key=lambda par: abs(par[1][0] - kg))[0]
+
 
 class Pesagem(models.Model):
     # CASCADE, not the DO_NOTHING inspectdb produced: deleting an animal in the
@@ -763,6 +795,29 @@ class Pesagem(models.Model):
 
     def __str__(self):
         return f"{self.animal.brinco} — {self.peso_kg} kg em {self.data:%d/%m/%Y}"
+
+    def save(self, *args, **kwargs):
+        """Grava o peso e, se ele mudar a categoria do bicho, corrige o rótulo.
+
+        Aqui e não num signal: precisa valer para qualquer caminho de escrita,
+        inclusive o admin. E aqui e não com Telegram junto -- o aviso é do bot,
+        que é quem está na conversa. Ver spec §7.3.
+
+        Recarrega o animal do banco em vez de usar `self.animal` direto:
+        quem chamou pode ter vindo de uma consulta com
+        `prefetch_related("pesagens")` -- `_rebanho_base()` faz isso, e o
+        admin também -- e nesse caso `self.animal.pesagens` está em cache e
+        NÃO inclui a pesagem que acabamos de gravar. Medido em réplica: pelo
+        bot (sem prefetch) a categoria corrige; pelo admin (com prefetch),
+        sem este refetch, não corrigia nada, e o defeito some de qualquer
+        teste que faça `refresh_from_db()` depois de gravar.
+        """
+        super().save(*args, **kwargs)
+        animal = Animal.objects.get(pk=self.animal_id)
+        nova = animal.categoria_pelo_peso
+        if nova and nova != animal.categoria:
+            animal.categoria = nova
+            animal.save(update_fields=["categoria"])
 
 
 class Despesa(models.Model):

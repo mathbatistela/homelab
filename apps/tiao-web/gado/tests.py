@@ -331,7 +331,9 @@ class TestContaDaArroba(BaseGado):
 
     def test_a_conta_aparece_na_lista(self):
         corpo = self.client.get("/").content.decode()
-        self.assertIn("Pagou na @", corpo)
+        # "Pagou na @" virou "Pagou na unidade" -- a coluna agora também
+        # atende bicho de reposição, que paga no quilo, não na arroba.
+        self.assertIn("Pagou na unidade", corpo)
         self.assertIn("R$ 257,29", corpo)
 
 
@@ -1003,3 +1005,16 @@ class TestBezerroUsaReposicao(BaseBezerro):
     def test_margem_por_quilo(self):
         # pagou 2.820 por 168 kg = R$ 16,79/kg; a curva paga 15,50/kg no ponto.
         self.assertAlmostEqual(float(self.bezerro.pago_por_kg), 16.79, places=2)
+
+
+class TestTelaRebanhoUnidades(BaseBezerro):
+    def test_bezerro_aparece_em_quilo_e_vaca_em_arroba(self):
+        corpo = self.client.get(reverse("gado:rebanho")).content.decode()
+        self.assertIn("por quilo", corpo)
+        self.assertIn("a arroba", corpo)
+
+    def test_ficha_do_bezerro_traz_a_conta_do_quilo(self):
+        corpo = self.client.get(
+            reverse("gado:animal", args=["632"])).content.decode()
+        self.assertIn("A conta do quilo", corpo)
+        self.assertNotIn("A conta da arroba", corpo)

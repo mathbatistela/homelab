@@ -10,7 +10,23 @@
 </div>
 {% endif %}
 
-{% if a.pago_por_arroba %}
+{% if a.unidade == 'kg' and a.pago_por_kg %}
+<div class="conta">
+  <div class="titulo">A conta do quilo</div>
+  <div class="par"><span class="rot">Pagou no quilo</span>
+    <span class="val destaque">{{ a.pago_por_kg|reais }}</span></div>
+  <div class="par"><span class="rot">O quilo de referência</span>
+    <span class="val destaque">{{ a.cotacao_por_kg|reais }}</span></div>
+  <div class="par"><span class="rot">{% if a.ganho_por_kg > 0 %}Ganhou{% else %}Perdeu{% endif %} no quilo</span>
+    <span class="val destaque {{ a.ganho_por_kg|classe_ganho }}">{{ a.ganho_por_kg|reais_sinal }}</span></div>
+  {% if a.primeira_pesagem %}
+  <div class="par"><span class="rot">Pelo peso de entrada</span>
+    <span class="val">{{ a.primeira_pesagem.peso_kg|numero }} kg
+      <br><small>pesado em {{ a.primeira_pesagem.data|date:"d/m/Y" }}</small></span></div>
+  {% endif %}
+  <p class="nota">Bicho pra repor é vendido por quilo vivo, não por arroba de carcaça.</p>
+</div>
+{% elif a.pago_por_arroba %}
 <div class="conta">
   <div class="titulo">A conta da arroba</div>
   <div class="par"><span class="rot">Pagou na arroba</span>
@@ -56,7 +72,7 @@
   <div class="par"><span class="rot">{% if a.ganho > 0 %}Ganho{% else %}Prejuízo{% endif %}</span>
     <span class="val destaque {{ a.ganho|classe_ganho }}">{{ a.ganho|reais_sinal }}</span></div>
   {% endif %}
-  {% if a.cotacao_atual %}
+  {% if a.cotacao_atual and a.cotacao_atual.bruto_a_vista %}
   <div class="par"><span class="rot">Pela cotação de</span>
     <span class="val">{{ a.cotacao_atual.get_categoria_display }},
       {{ a.cotacao_atual.bruto_a_vista|reais }} a arroba

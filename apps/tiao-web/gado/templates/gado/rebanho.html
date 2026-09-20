@@ -34,6 +34,8 @@
 </div>
 
 {% if animais %}
+<p class="nota">Bicho pra repor entra por quilo vivo; bicho pronto pra abate,
+a arroba de carcaça — a coluna troca sozinha, animal por animal.</p>
 <div id="painel-boiada">
 <div class="barra-tabela">
   <span class="dica">Arraste a tabela para o lado para ver o resto</span>
@@ -45,8 +47,8 @@
   <thead><tr>
     <th>Brinco</th><th>Categoria</th><th>Onde está</th>
     <th class="num">Último peso</th><th>Pesado em</th>
-    <th class="num">Em @</th>
-    <th class="num">Pagou na @</th><th class="num">@ de referência</th><th class="num">Dif. na @</th>
+    <th class="num">Em @ / kg</th>
+    <th class="num">Pagou na unidade</th><th class="num">Referência</th><th class="num">Diferença</th>
     <th class="num">Deve dar</th>
     <th class="num">Despesas</th><th>Situação</th>
   </tr></thead>
@@ -61,10 +63,11 @@
       <td>{{ a.propriedade.nome|default:"—" }}</td>
       <td class="num">{% if a.peso_atual_kg %}{{ a.peso_atual_kg|numero }} kg{% else %}—{% endif %}</td>
       <td>{% if a.ultima_pesagem %}{{ a.ultima_pesagem.data|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-      <td class="num">{{ a.peso_arrobas|arrobas }}</td>
-      <td class="num">{{ a.pago_por_arroba|reais }}</td>
-      <td class="num">{{ a.cotacao_por_arroba|reais }}</td>
-      <td class="num {{ a.ganho_por_arroba|classe_ganho }}">{{ a.ganho_por_arroba|reais_sinal }}</td>
+      <td class="num">{% if a.unidade == 'kg' %}{{ a.peso_atual_kg|numero }} kg{% else %}{{ a.peso_arrobas|arrobas }}{% endif %}</td>
+      <td class="num">{% if a.unidade == 'kg' %}{{ a.pago_por_kg|reais }}/kg{% else %}{{ a.pago_por_arroba|reais }}/@{% endif %}</td>
+      <td class="num">{% if a.unidade == 'kg' %}{{ a.cotacao_por_kg|reais }}/kg{% else %}{{ a.cotacao_por_arroba|reais }}/@{% endif %}</td>
+      <td class="num {% if a.unidade == 'kg' %}{{ a.ganho_por_kg|classe_ganho }}{% else %}{{ a.ganho_por_arroba|classe_ganho }}{% endif %}">
+        {% if a.unidade == 'kg' %}{{ a.ganho_por_kg|reais_sinal }}{% else %}{{ a.ganho_por_arroba|reais_sinal }}{% endif %}</td>
       <td class="num">{{ a.valor_atual|reais }}</td>
       <td class="num">{% if a.total_despesas %}{{ a.total_despesas|reais }}{% else %}—{% endif %}</td>
       <td>{% if a.venda_id %}<span class="vendido">vendida</span>{% else %}<span class="pasto">no pasto</span>{% endif %}</td>

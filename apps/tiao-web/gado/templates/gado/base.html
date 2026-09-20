@@ -1,0 +1,245 @@
+{% load gado_extras %}<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}Caderneta{% endblock %} — Pecuária Batistela</title>
+<style>
+/* Built for one reader: a rancher, on a phone, outdoors. Big type, strong
+   contrast, no animation, nothing to learn. Sizes are deliberately larger
+   than a normal web app -- this is read in sunlight, not at a desk. */
+:root{
+  --tinta:#1a1a1a; --fraca:#5c5c5c; --linha:#d9d5cd;
+  --fundo:#faf8f4; --cartao:#fff; --verde:#15803d; --ambar:#b45309;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fundo);color:var(--tinta);
+     font:19px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:inherit}
+header{background:var(--tinta);color:#fff;padding:14px 16px}
+header h1{margin:0;font-size:20px;letter-spacing:.02em}
+nav{display:flex;gap:6px;overflow-x:auto;background:#2b2b2b;padding:6px}
+nav a{flex:0 0 auto;padding:11px 16px;border-radius:8px;color:#e8e8e8;
+      text-decoration:none;font-size:17px;white-space:nowrap}
+nav a.ativo{background:var(--fundo);color:var(--tinta);font-weight:600}
+main{padding:16px;max-width:1100px;margin:0 auto}
+h2{font-size:22px;margin:22px 0 10px}
+.resumo{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.caixa{flex:1 1 150px;background:var(--cartao);border:1px solid var(--linha);
+       border-radius:12px;padding:13px 15px}
+.caixa .rot{font-size:14px;color:var(--fraca);text-transform:uppercase;
+            letter-spacing:.05em}
+/* nowrap: without it "R$ 28.553,22" breaks after the R$ and the box grows a
+   line, which on a phone is what pushed the table off the screen. */
+.caixa .val{font-size:25px;font-weight:700;margin-top:3px;white-space:nowrap}
+/* Wide tables scroll inside their own box; the page never scrolls sideways. */
+.rolagem{overflow-x:auto;-webkit-overflow-scrolling:touch;
+         border:1px solid var(--linha);border-radius:12px;background:var(--cartao)}
+table{border-collapse:collapse;width:100%;font-size:17px}
+th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--linha);
+      white-space:nowrap}
+th{background:#f0ece4;font-size:14px;text-transform:uppercase;
+   letter-spacing:.04em;color:var(--fraca)}
+tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.brinco{font-weight:700;font-size:19px}
+/* An animal known only by a phrase reads as a phrase, not as a tag number. */
+.sem-brinco{font-weight:400;font-size:17px;font-style:italic}
+/* O caminho de volta pro Tião. Grande e claro: quando ele vê algo errado na
+   tabela, o conserto é falar com o bot -- a tela é só de leitura. */
+.falar{display:flex;align-items:center;justify-content:center;gap:10px;
+  margin:22px 0 6px;padding:16px 20px;background:#229ED9;color:#fff;
+  text-decoration:none;border-radius:14px;font-size:19px;font-weight:600;
+  box-shadow:0 2px 10px rgba(34,158,217,.3)}
+.falar:active{background:#1b87ba}
+.falar small{display:block;font-weight:400;font-size:15px;opacity:.9;margin-top:2px}
+
+/* Ações prontas. Cada uma abre o Telegram com a frase quase inteira escrita,
+   deixando pra ele só o número ou o nome -- que é a parte que ele sabe de
+   cabeça e a parte que uma caixa vazia torna trabalhosa. */
+.acoes{margin:22px 0 6px}
+.acoes h2{margin:0 0 10px}
+.acao{display:flex;align-items:center;gap:14px;padding:15px 17px;margin-bottom:9px;
+  background:var(--cartao);border:1px solid var(--linha);border-radius:13px;
+  text-decoration:none;color:var(--tinta)}
+.acao:active{background:#efeae1}
+.acao .seta{margin-left:auto;color:#229ED9;font-size:22px;flex:0 0 auto}
+.acao b{display:block;font-size:18px}
+.acao span.sub{display:block;color:var(--fraca);font-size:15px;margin-top:2px}
+.acao.pendente{border-color:var(--ambar);border-width:2px}
+.acao.pendente b::after{content:" · falta";color:var(--ambar);font-weight:400;font-size:15px}
+.aviso{margin:12px 0 0;padding-top:11px;border-top:1px solid var(--linha);
+  color:var(--fraca);font-size:15px;line-height:1.45}
+.falta{border-color:var(--ambar)}
+.falta .rot{font-size:14px;color:var(--ambar);text-transform:uppercase;
+            letter-spacing:.05em;font-weight:700}
+.falta ul{margin:8px 0 0;padding-left:22px}
+.falta li{padding:3px 0}
+.pasto{color:var(--verde);font-weight:600}
+.ganho{color:var(--verde);font-weight:700}
+.perda{color:#b91c1c;font-weight:700}
+/* The one number he works out on paper every time he weighs. */
+.conta{background:var(--cartao);border:2px solid var(--tinta);border-radius:12px;
+       padding:16px;margin-bottom:14px}
+.conta .titulo{font-size:14px;color:var(--fraca);text-transform:uppercase;
+               letter-spacing:.05em;margin-bottom:10px}
+.vendido{color:var(--ambar);font-weight:600}
+.filtros{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.filtros a{padding:9px 15px;border:1px solid var(--linha);border-radius:999px;
+           background:var(--cartao);text-decoration:none;font-size:16px}
+.filtros a.ativo{background:var(--tinta);color:#fff;border-color:var(--tinta)}
+.vazio{background:var(--cartao);border:1px dashed var(--linha);border-radius:12px;
+       padding:26px;text-align:center;color:var(--fraca);font-size:18px}
+.rodape{margin:26px 0 10px;color:var(--fraca);font-size:15px;text-align:center}
+.cartao{background:var(--cartao);border:1px solid var(--linha);border-radius:12px;
+        padding:16px;margin-bottom:14px}
+.par{display:flex;justify-content:space-between;gap:12px;padding:9px 0;
+     border-bottom:1px solid var(--linha)}
+.par:last-child{border-bottom:none}
+.par .rot{color:var(--fraca)}
+.par .val{font-weight:600;text-align:right}
+.destaque{font-size:29px;font-weight:700}
+/* The brinco column stays put while the rest scrolls sideways. Without it you
+   scroll two columns right and no longer know which animal the row is. */
+th:first-child,td:first-child{position:sticky;left:0;z-index:2;
+  background:var(--cartao);box-shadow:3px 0 5px -2px rgba(0,0,0,.18)}
+th:first-child{background:#f0ece4;z-index:3}
+
+.barra-tabela{display:flex;justify-content:space-between;align-items:center;
+  gap:10px;margin-bottom:8px}
+.dica{color:var(--fraca);font-size:15px}
+.botao{appearance:none;border:1px solid var(--linha);background:var(--cartao);
+  color:var(--tinta);font:inherit;font-size:17px;padding:11px 17px;
+  border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;
+  white-space:nowrap}
+.botao:active{background:#efeae1}
+
+/* Wide mode. Works on any phone because it is only CSS: the OS fullscreen and
+   the landscape lock are layered on top where they exist (Android), and simply
+   do not happen where they do not (iOS Safari supports neither). */
+body.expandido header,body.expandido nav,body.expandido .resumo,
+body.expandido .filtros,body.expandido .rodape,body.expandido h2{display:none}
+body.expandido main{padding:0;max-width:none}
+/* The element handed to requestFullscreen must CONTAIN the way out. The browser
+   renders only the fullscreen element and its descendants, so an exit button
+   that is a sibling of the table simply vanishes -- leaving the reader in a
+   full-screen table with no visible escape. */
+body.expandido #painel-boiada{position:fixed;inset:0;z-index:50;
+  background:var(--cartao);display:flex;flex-direction:column}
+body.expandido #painel-boiada .rolagem{flex:1;border:none;border-radius:0;margin:0}
+/* Kept clear of the phone's bottom furniture: Safari floats a toolbar there and
+   the home indicator takes its own strip, so a button 10px up gets covered --
+   and a wide mode with no visible way out is a trap. */
+body.expandido .barra-tabela{position:fixed;z-index:51;margin:0;width:auto;
+  right:16px;bottom:calc(22px + env(safe-area-inset-bottom, 0px))}
+body.expandido .dica{display:none}
+/* Inverted on purpose: in wide mode the whole screen is the white table, and a
+   white button on it is invisible -- which is how the way out gets lost. */
+body.expandido .botao{background:var(--tinta);color:#fff;border-color:var(--tinta);
+  box-shadow:0 3px 14px rgba(0,0,0,.35)}
+
+@media (max-width:520px){
+  body{font-size:18px}
+  th,td{padding:10px 11px}
+  main{padding:12px}
+  /* One swipeable row instead of a stack. Five boxes stacked two-per-row filled
+     the whole phone screen and pushed the table below the fold -- and the table
+     is what he opened the page for. */
+  .resumo{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+          padding-bottom:4px;gap:8px}
+  .caixa{flex:0 0 auto;min-width:132px;padding:10px 13px}
+  .caixa .val{font-size:21px}
+  .caixa .rot{font-size:13px}
+  .filtros{gap:6px;margin-bottom:10px}
+  .filtros a{padding:8px 13px;font-size:15px}
+  .barra-tabela{gap:8px}
+  .dica{font-size:14px}
+}
+</style>
+</head>
+<body>
+<header><h1>Pecuária Batistela</h1></header>
+<nav>
+  <a href="{% url 'gado:rebanho' %}" {% if pagina == 'rebanho' %}class="ativo"{% endif %}>A boiada</a>
+  <a href="{% url 'gado:cotacao' %}" {% if pagina == 'cotacao' %}class="ativo"{% endif %}>Cotação</a>
+  <a href="{% url 'gado:negocios' %}" {% if pagina == 'negocios' %}class="ativo"{% endif %}>Compras e vendas</a>
+</nav>
+<main>
+{% block conteudo %}{% endblock %}
+{% comment %}
+Um botão só, aqui. A página que quiser personalizar manda `mensagem_tiao` e
+`sobre_tiao` no contexto. Bloco aninhado dentro de `conteudo` renderiza duas
+vezes -- nos dois lugares onde ficou definido -- e foi o que aconteceu antes.
+{% endcomment %}
+{% if not acoes_tiao %}
+<a class="falar" target="_blank" rel="noopener"
+   href="https://t.me/{{ bot_telegram }}?text={{ "Tião, "|urlencode }}">
+  <span>💬</span>
+  <span>Falar com o Tião<small>pra mudar ou anotar qualquer coisa</small></span>
+</a>
+{% endif %}
+<p class="rodape">Atualizado {% now "d/m/Y \à\s H:i" %}</p>
+</main>
+<script>
+// Three things, each optional, tried in order of how widely they work:
+//   1. the CSS class -- always; this alone gives the table the whole screen
+//   2. the OS fullscreen -- Android Chrome; iOS Safari has it for video only
+//   3. the landscape lock -- Android only, and only while in fullscreen
+// Steps 2 and 3 throw when unsupported or refused, so each is caught on its
+// own: a phone that cannot lock the rotation still gets the wide table.
+(function () {
+  var corpo = document.body;
+
+  function estaExpandido() { return corpo.classList.contains("expandido"); }
+
+  function rotulo() {
+    var b = document.getElementById("btn-expandir");
+    if (b) b.textContent = estaExpandido() ? "⤡  Sair" : "⛶  Tela cheia";
+  }
+
+  async function abrir(alvo) {
+    corpo.classList.add("expandido");
+    rotulo();
+    try {
+      if (alvo.requestFullscreen) await alvo.requestFullscreen();
+      else if (alvo.webkitRequestFullscreen) alvo.webkitRequestFullscreen();
+    } catch (e) { /* iOS, ou o usuário recusou: o modo CSS já vale */ }
+    try {
+      if (screen.orientation && screen.orientation.lock)
+        await screen.orientation.lock("landscape");
+    } catch (e) { /* sem trava: o aparelho gira sozinho se não estiver travado */ }
+  }
+
+  function fechar() {
+    corpo.classList.remove("expandido");
+    rotulo();
+    try {
+      if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+    } catch (e) {}
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+    else if (document.webkitFullscreenElement && document.webkitExitFullscreen)
+      document.webkitExitFullscreen();
+  }
+
+  window.alternarTabela = function (idAlvo) {
+    var alvo = document.getElementById(idAlvo);
+    if (!alvo) return;
+    estaExpandido() ? fechar() : abrir(alvo);
+  };
+
+  // Leaving fullscreen through the system (back gesture, Esc) must also drop
+  // the CSS class, or the page stays stuck with its header hidden.
+  ["fullscreenchange", "webkitfullscreenchange"].forEach(function (ev) {
+    document.addEventListener(ev, function () {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement
+          && estaExpandido()) fechar();
+    });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && estaExpandido()) fechar();
+  });
+  rotulo();
+})();
+</script>
+</body>
+</html>

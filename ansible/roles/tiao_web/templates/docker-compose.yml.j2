@@ -1,0 +1,20 @@
+services:
+  tiao-web:
+    image: {{ tiao_web_image }}
+    container_name: tiao-web
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      # LAN only, reached by Pangolin. Never published on 0.0.0.0.
+      - "{{ tiao_web_lan_ip }}:{{ tiao_web_read_port }}:8790"
+    volumes:
+      - "{{ tiao_web_state_dir }}:/var/lib/tiao-web"
+    # The sizing apps/tiao-web/app.yml declares, actually enforced. Compose v2
+    # applies deploy.resources.limits without swarm, so these become real cgroup
+    # limits on the container. Hermes also runs a family member's Telegram bot;
+    # an unbounded viewer process must not be able to starve it.
+    deploy:
+      resources:
+        limits:
+          memory: {{ tiao_web_memory_limit }}
+          cpus: "{{ tiao_web_cpu_limit }}"

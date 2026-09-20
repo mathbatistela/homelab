@@ -1,0 +1,44 @@
+app:
+  name: tiao-web
+  description: Caderneta do gado do Seu Jader — visualização em tabelas e gráficos
+  version: 0.1.0
+
+  services:
+    app:
+      type: backend
+      port: 8790
+      image:
+        name: tiao-web
+        # Descriptive, not authoritative. The role's tiao_web_image
+        # (ansible/roles/tiao_web/defaults/main.yml) is the single source of
+        # truth for what is deployed: it is the only value the playbook renders
+        # into the compose file, so that is what the VM actually runs. This tag
+        # mirrors it for readers of the manifest. The two may legitimately
+        # differ while a pin is deliberately held back for rollback -- when they
+        # disagree, believe the role. Nothing rolls an image forward on its own,
+        # so any change under src/ needs a fresh CI build and a new pin there
+        # before it reaches the VM.
+        tag: sha-6320b16
+      healthcheck:
+        path: /saude
+        interval: 30s
+
+  homelab:
+    host: hermes
+    category: productivity
+
+    exposure:
+      local:
+        enabled: false
+        subdomain: tiao
+      public:
+        enabled: true
+        subdomain: tiao
+
+    # Enforced, not just intended: the role's compose template
+    # (ansible/roles/tiao_web/templates/docker-compose.yml.j2) applies these as
+    # deploy.resources.limits, via tiao_web_memory_limit / tiao_web_cpu_limit in
+    # that role's defaults. Changing a number here means changing it there too.
+    resources:
+      memory: 256M
+      cpus: 0.25

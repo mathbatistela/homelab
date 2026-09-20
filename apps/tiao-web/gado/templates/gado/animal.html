@@ -1,0 +1,130 @@
+{% extends "gado/base.html" %}{% load gado_extras %}
+{% block titulo %}{{ a.identificacao }}{% endblock %}
+{% block conteudo %}
+
+<h2>{% if a.brinco %}Brinco {{ a.brinco }}{% else %}{{ a.identificacao }}{% endif %}</h2>
+{% if a.faltando %}
+<div class="cartao falta">
+  <div class="rot">Falta anotar</div>
+  <ul>{% for f in a.faltando %}<li>{{ f }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% if a.pago_por_arroba %}
+<div class="conta">
+  <div class="titulo">A conta da arroba</div>
+  <div class="par"><span class="rot">Pagou na arroba</span>
+    <span class="val destaque">{{ a.pago_por_arroba|reais }}</span></div>
+  <div class="par"><span class="rot">A arroba de referência</span>
+    <span class="val destaque">{{ a.cotacao_por_arroba|reais }}</span></div>
+  <div class="par"><span class="rot">{% if a.ganho_por_arroba > 0 %}Ganhou{% else %}Perdeu{% endif %} na arroba</span>
+    <span class="val destaque {{ a.ganho_por_arroba|classe_ganho }}">{{ a.ganho_por_arroba|reais_sinal }}</span></div>
+  {% if a.primeira_pesagem %}
+  <div class="par"><span class="rot">Pelo peso de entrada</span>
+    <span class="val">{{ a.primeira_pesagem.peso_kg|numero }} kg
+      <br><small>pesado em {{ a.primeira_pesagem.data|date:"d/m/Y" }}</small></span></div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if a.vendido %}
+<div class="conta">
+  <div class="titulo">Vendida</div>
+  <div class="par"><span class="rot">Saiu por</span>
+    <span class="val destaque">{{ a.valor_venda_apurado|reais }}
+      {% if a.origem_valor_venda %}<br><small>{{ a.origem_valor_venda }}</small>{% endif %}</span></div>
+  {% if a.peso_na_venda %}
+  <div class="par"><span class="rot">Peso na venda</span>
+    <span class="val">{{ a.peso_na_venda|numero }} kg · {{ a.arrobas_na_venda|arrobas }}</span></div>
+  {% endif %}
+  <div class="par"><span class="rot">Custou até sair</span>
+    <span class="val">{{ a.custo_total|reais }}</span></div>
+  <div class="par"><span class="rot">{% if a.resultado > 0 %}Deu de lucro{% else %}Deu de prejuízo{% endif %}</span>
+    <span class="val destaque {{ a.resultado|classe_ganho }}">{{ a.resultado|reais_sinal }}</span></div>
+  <div class="par"><span class="rot">Pra quem</span>
+    <span class="val">{{ a.venda.comprador.nome|default:"—" }}
+      <br><small>{{ a.venda.data|date:"d/m/Y" }}</small></span></div>
+</div>
+{% endif %}
+
+<div class="cartao">
+  <div class="par"><span class="rot">{% if a.vendido %}Valeria hoje{% else %}Deve dar mais ou menos{% endif %}</span>
+    <span class="val destaque">{{ a.valor_atual|reais }}</span></div>
+  {% if a.custo_total and not a.vendido %}
+  <div class="par"><span class="rot">Custou até agora</span>
+    <span class="val">{{ a.custo_total|reais }}</span></div>
+  <div class="par"><span class="rot">{% if a.ganho > 0 %}Ganho{% else %}Prejuízo{% endif %}</span>
+    <span class="val destaque {{ a.ganho|classe_ganho }}">{{ a.ganho|reais_sinal }}</span></div>
+  {% endif %}
+  {% if a.cotacao_atual %}
+  <div class="par"><span class="rot">Pela cotação de</span>
+    <span class="val">{{ a.cotacao_atual.get_categoria_display }},
+      {{ a.cotacao_atual.bruto_a_vista|reais }} a arroba
+      <br><small>{{ a.cotacao_atual.data_pregao|date:"d/m/Y" }}</small></span></div>
+  <div class="par"><span class="rot">Contando rendimento de</span>
+    <span class="val">{{ a.rendimento|floatformat:0 }}%</span></div>
+  {% endif %}
+  <p class="aviso">Isso é conta pela cotação de Araçatuba, que é uma média de
+    mercado. Cada comprador paga o dele, e o preço pode mudar de uma cabeça pra
+    outra no mesmo negócio.</p>
+</div>
+
+<div class="cartao">
+  <div class="par"><span class="rot">Categoria</span><span class="val">{{ a.categoria|default:"—" }}</span></div>
+  <div class="par"><span class="rot">Sexo</span><span class="val">{{ a.sexo|default:"—" }}</span></div>
+  <div class="par"><span class="rot">Onde está</span><span class="val">{{ a.propriedade.nome|default:"—" }}</span></div>
+  <div class="par"><span class="rot">Peso atual</span>
+    <span class="val">{% if a.peso_atual_kg %}{{ a.peso_atual_kg|numero }} kg · {{ a.peso_arrobas|arrobas }}{% else %}—{% endif %}</span></div>
+  {% if a.compra %}
+  <div class="par"><span class="rot">Comprada de</span>
+    <span class="val">{{ a.compra.comprador.nome|default:"—" }}<br>
+      <small>{{ a.compra.data|date:"d/m/Y" }}</small></span></div>
+  {% endif %}
+  {% if a.valor_compra %}
+  <div class="par"><span class="rot">Custou</span><span class="val">{{ a.valor_compra|reais }}</span></div>
+  {% endif %}
+  {% if total_despesas %}
+  <div class="par"><span class="rot">Despesas</span><span class="val">{{ total_despesas|reais }}</span></div>
+  {% endif %}
+  {% if a.observacoes %}
+  <div class="par"><span class="rot">Observação</span><span class="val">{{ a.observacoes }}</span></div>
+  {% endif %}
+</div>
+
+<h2>Pesagens</h2>
+{% if pesagens %}
+<div class="rolagem"><table>
+  <thead><tr><th>Data</th><th class="num">Peso</th><th>Observação</th></tr></thead>
+  <tbody>{% for p in pesagens %}
+    <tr><td>{{ p.data|date:"d/m/Y" }}</td><td class="num">{{ p.peso_kg|numero }} kg</td>
+        <td>{{ p.observacoes|default:"" }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p class="vazio">Esse bicho ainda não foi pesado.</p>{% endif %}
+
+{% if despesas %}
+<h2>Despesas</h2>
+<div class="rolagem"><table>
+  <thead><tr><th>Data</th><th>Tipo</th><th class="num">Valor</th><th>Detalhes</th></tr></thead>
+  <tbody>{% for d in despesas %}
+    <tr><td>{{ d.data|date:"d/m/Y" }}</td><td>{{ d.get_tipo_display }}</td>
+        <td class="num">{{ d.valor|reais }}</td><td>{{ d.detalhes|default:"" }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% endif %}
+
+<div class="acoes">
+  <h2>Falar com o Tião</h2>
+  {% for titulo, sub, msg in acoes_tiao %}
+  <a class="acao{% if forloop.counter0 < pendentes %} pendente{% endif %}"
+     target="_blank" rel="noopener"
+     href="https://t.me/{{ bot_telegram }}?text={{ msg|urlencode }}">
+    <span>💬</span>
+    <span><b>{{ titulo }}</b><span class="sub">{{ sub }}</span></span>
+    <span class="seta">›</span>
+  </a>
+  {% endfor %}
+</div>
+
+<p class="rodape"><a href="{% url 'gado:rebanho' %}">← voltar pra boiada</a></p>
+{% endblock %}

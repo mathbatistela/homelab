@@ -2,52 +2,104 @@
 {% block titulo %}Cotação{% endblock %}
 {% block conteudo %}
 
-{% if abate or reposicao %}
-<h2>Gado pra abate</h2>
-<p class="nota">Preço por arroba de carcaça.</p>
-<div class="resumo">
-  {% for rotulo, c in abate.items %}
-  <div class="caixa">
-    <div class="rot">{{ rotulo }}</div>
-    <div class="val">{{ c.ultima.bruto_a_vista|reais }}</div>
-    <div class="rot">a arroba · {{ c.ultima.data_pregao|date:"d/m" }}</div>
-  </div>
-  {% endfor %}
-</div>
+{% if abate or escadas %}
 
-{% for rotulo, c in abate.items %}
-<h3>{{ rotulo|title }}</h3>
+{% comment %}
+A ordem da página é a da pergunta que ele faz. Antes era o contrário: três
+tabelas de quinze pregões entre a cotação de abate e a de reposição, o que num
+celular são três telas de rolagem até chegar no preço do bezerro.
+{% endcomment %}
+
+{% if valor_boiada %}
+<div class="conta">
+  <div class="titulo">A boiada do senhor, hoje</div>
+  <div class="destaque">{{ valor_boiada|reais }}</div>
+  {% comment %}
+  `pregao_antes` só vem preenchido quando a comparação é honesta: os dois
+  pregões têm de avaliar o rebanho pela mesma base. Ver `_mesma_base` na view.
+  {% endcomment %}
+  {% if pregao_antes %}
+  <div class="variacao {{ variacao|classe_ganho }}">
+    {% if variacao %}{{ variacao|reais_sinal }} desde o pregão de {{ pregao_antes|date:"d/m" }}
+    {% else %}o mesmo do pregão de {{ pregao_antes|date:"d/m" }}{% endif %}
+  </div>
+  {% endif %}
+  <div class="aviso">{{ cabecas_boiada }} cabeça{{ cabecas_boiada|pluralize:"s" }} no
+  pasto, pelo pregão de {{ pregao_hoje|date:"d/m/Y" }}. É estimativa de mercado,
+  não proposta de comprador.</div>
+</div>
+{% endif %}
+
+<h2>Os preços de hoje</h2>
+<div class="lado-a-lado">
+  <section class="painel">
+    <h3>Pronto pra abate</h3>
+    <p class="nota">Preço por arroba de carcaça.</p>
+    <div class="resumo">
+      {% for rotulo, c in abate %}
+      <div class="caixa">
+        <div class="rot">{{ rotulo }}</div>
+        <div class="val">{{ c.bruto_a_vista|reais }}</div>
+        <div class="rot">a arroba · {{ c.data_pregao|date:"d/m" }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="painel">
+    <h3>Pra repor</h3>
+    <p class="nota">Preço por quilo de peso vivo.</p>
+    {% for rotulo, linhas in escadas.items %}
+    <h4>{{ rotulo|title }}</h4>
+    <div class="rolagem"><table>
+      {% comment %}
+      O peso de referência fica em cada degrau, e não é decoração: sem ele
+      "bezerro R$ 15,31 / garrote R$ 13,83" parece que garrote vale menos --
+      quando o garrote de 255 kg vale R$ 3.527 contra R$ 3.139 do bezerro de
+      205 kg. O que cresce é o bicho, não o preço do quilo.
+      {% endcomment %}
+      <thead><tr><th>Categoria</th><th class="num">Peso de referência</th>
+                 <th class="num">Por quilo</th><th class="num">Por cabeça</th></tr></thead>
+      <tbody>{% for c in linhas %}
+        <tr>
+          <td>{{ c.get_categoria_display }}</td>
+          <td class="num">{{ c.peso_ref_kg|numero }} kg</td>
+          <td class="num">{{ c.rs_kg|reais }}</td>
+          <td class="num">{{ c.rs_cabeca|reais }}</td>
+        </tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% endfor %}
+  </section>
+</div>
+<p class="nota">O quilo fica mais barato conforme o bicho cresce — o ganho está
+nos quilos que ele põe, não no preço do quilo.</p>
+
+<h2>Como a arroba andou</h2>
+{% if grafico %}
+{% comment %}
+Desenhado no servidor, em `grafico.py`. Sem biblioteca de JavaScript: o site
+não tem dependência de front nenhuma e esta tela é lida no 3G do sítio.
+{% endcomment %}
+<div class="grafico">{{ grafico }}</div>
+{% elif pregoes_no_grafico %}
+<p class="nota">Tenho um pregão só guardado até agora. O desenho aparece
+quando chegar o próximo.</p>
+{% endif %}
+
+<h2>Histórico</h2>
 <div class="rolagem"><table>
-  <thead><tr><th>Pregão</th><th class="num">À vista</th><th class="num">30 dias</th><th>Praça</th></tr></thead>
-  <tbody>{% for linha in c.historico %}
+  <thead><tr><th>Pregão</th><th>Categoria</th><th class="num">À vista</th>
+             <th class="num">30 dias</th><th>Praça</th></tr></thead>
+  <tbody>{% for linha in historico %}
     <tr>
       <td>{{ linha.data_pregao|date:"d/m/Y" }}</td>
+      <td>{{ linha.get_categoria_display }}</td>
       <td class="num">{{ linha.bruto_a_vista|reais }}</td>
       <td class="num">{{ linha.bruto_30d|reais }}</td>
       <td>{{ linha.praca }}</td>
     </tr>
   {% endfor %}</tbody>
 </table></div>
-{% endfor %}
-
-<h2>Gado pra repor</h2>
-<p class="nota">Preço por quilo de peso vivo. O quilo fica mais barato conforme
-o bicho cresce — o ganho está nos quilos que ele põe, não no preço do quilo.</p>
-{% for rotulo, linhas in reposicao.items %}
-<h3>{{ rotulo|title }}</h3>
-<div class="rolagem"><table>
-  <thead><tr><th>Categoria</th><th class="num">Peso de referência</th>
-             <th class="num">Por quilo</th><th class="num">Por cabeça</th></tr></thead>
-  <tbody>{% for c in linhas %}
-    <tr>
-      <td>{{ c.get_categoria_display }}</td>
-      <td class="num">{{ c.peso_ref_kg|numero }} kg</td>
-      <td class="num">{{ c.rs_kg|reais }}</td>
-      <td class="num">{{ c.rs_cabeca|reais }}</td>
-    </tr>
-  {% endfor %}</tbody>
-</table></div>
-{% endfor %}
 
 <p class="rodape">O preço vem da Scot Consultoria e é lido todo dia às 19h.
 Fim de semana e feriado não têm pregão novo.</p>

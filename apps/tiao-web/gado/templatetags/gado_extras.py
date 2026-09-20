@@ -46,3 +46,22 @@ def classe_ganho(v):
     if v is None or v == 0:
         return ""
     return "ganho" if v > 0 else "perda"
+
+
+@register.simple_tag(takes_context=True)
+def filtro(context, chave, valor=""):
+    """A URL desta página com UM filtro trocado e os outros preservados.
+
+    Três barras de filtro que se combinam, escritas à mão, dariam um
+    querystring montado a dedo em cada link -- e um filtro novo teria de
+    entrar nos links de todos os outros, que é como se perde a combinação de
+    dois. Aqui cada link só declara o que ele muda.
+
+    Valor vazio LIMPA o filtro: é o botão "todo lugar" de cada barra.
+    """
+    params = context["request"].GET.copy()
+    if valor:
+        params[chave] = valor
+    else:
+        params.pop(chave, None)
+    return "?" + params.urlencode() if params else "?"

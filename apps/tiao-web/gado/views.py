@@ -10,9 +10,9 @@ Nothing here writes. Everything is one query per page plus prefetches.
 from django.db.models import Count, Max, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
-from django.utils import timezone
 
-from .models import Animal, Contraparte, Cotacao, Movimentacao
+from . import grafico
+from .models import Animal, Categoria, Contraparte, Cotacao, Movimentacao
 
 
 def _rebanho_base():
@@ -21,20 +21,44 @@ def _rebanho_base():
             .prefetch_related("pesagens", "despesas"))
 
 
+def _o_que_da_pra_filtrar():
+    """Os valores que as barras de filtro podem oferecer, numa query só.
+
+    Só o que EXISTE no rebanho: o enum tem onze categorias e ele tem duas, e
+    oferecer as outras nove daria nove botões que devolvem tela vazia.
+
+    Pasto e categoria saem do MESMO `values_list` de propósito. São duas
+    perguntas, mas a lista tem um teste que trava o número de queries da
+    página, e duas queries onde uma resolve é o começo de um N+1 por filtro
+    novo. O par distinto tem no máximo pastos x categorias linhas.
+    """
+    pares = set(Animal.objects.values_list("propriedade__nome", "categoria"))
+    ordem = [c for c, _ in Categoria.choices]
+    return (sorted({p for p, _ in pares if p}),
+            # Na ordem do enum, que é a do bicho crescendo -- não em ordem
+            # alfabética, que poria "vaca" antes de "bezerro".
+            sorted({c for _, c in pares if c},
+                   key=lambda c: ordem.index(c) if c in ordem else len(ordem)))
+
+
 def rebanho(request):
     """The detailed herd list -- the spreadsheet's Animais tab, kept live."""
     propriedade = request.GET.get("propriedade") or ""
     situacao = request.GET.get("situacao") or ""
+    categoria = request.GET.get("categoria") or ""
 
     animais = _rebanho_base()
     if propriedade:
         animais = animais.filter(propriedade__nome=propriedade)
+    if categoria:
+        animais = animais.filter(categoria=categoria)
     if situacao == "pasto":
         animais = animais.filter(venda__isnull=True)
     elif situacao == "vendido":
         animais = animais.filter(venda__isnull=False)
     animais = Animal.com_cotacoes(animais)
 
+    propriedades, categorias = _o_que_da_pra_filtrar()
     # Sold animals are excluded from the herd's worth: they are no longer his,
     # and counting what they "would be worth today" inflates the total with
     # cattle that left the farm.
@@ -50,11 +74,11 @@ def rebanho(request):
         "custo_total": sum(custos) if custos else None,
         "ganho_total": sum(ganhos) if ganhos else None,
         "peso_total": sum(a.peso_atual_kg or 0 for a in no_pasto),
-        "propriedades": (Animal.objects.exclude(propriedade=None)
-                         .values_list("propriedade__nome", flat=True)
-                         .distinct().order_by("propriedade__nome")),
+        "propriedades": propriedades,
+        "categorias": categorias,
         "propriedade_ativa": propriedade,
         "situacao_ativa": situacao,
+        "categoria_ativa": categoria,
         "pagina": "rebanho",
     })
 
@@ -134,15 +158,15 @@ def _ficha(request, bicho):
     })
 
 
-def cotacao(request):
-    """Os dois mercados, lado a lado: abate por arroba, reposição por quilo."""
-    abate = {}
-    for chave, rotulo in Cotacao.CATEGORIAS_ABATE:
-        linhas = list(Cotacao.objects.filter(mercado=Cotacao.ABATE, categoria=chave)
-                      .order_by("-data_pregao")[:15])
-        if linhas:
-            abate[rotulo] = {"ultima": linhas[0], "historico": linhas}
-    reposicao = {}
+def _escada_de_hoje():
+    """As oito linhas de reposição da tela: o último pregão de cada degrau.
+
+    Degrau por degrau, e não "tudo do último pregão": uma coleta interrompida
+    no meio deixaria a escada faltando justamente os degraus que não deram
+    tempo, e a tela mostraria três linhas onde há quatro. São oito queries,
+    mas oito fixas -- não crescem com nada.
+    """
+    escadas = {}
     for sexo, rotulo in (("macho", "machos"), ("femea", "fêmeas")):
         praca = Cotacao.PRACA_REPOSICAO[sexo]
         cats = Cotacao.ESCADA_FEMEA if sexo == "femea" else Cotacao.ESCADA_MACHO
@@ -151,10 +175,105 @@ def cotacao(request):
                   for c in cats]
         linhas = [c for c in linhas if c]
         if linhas:
-            reposicao[rotulo] = linhas
+            escadas[rotulo] = linhas
+    return escadas
+
+
+def _mesma_base(hoje, antes):
+    """O pregão anterior avalia o rebanho pelo MESMO caminho que o de hoje?
+
+    Esta é a guarda que decide se a comparação pode aparecer. Sem escada de
+    reposição na data anterior, `Animal.mercado` devolve abate -- ela exige
+    dois pontos publicados -- e todo bezerro passa a ser precificado pela
+    arroba do boi gordo. A diferença entre os dois dias viraria a diferença
+    entre dois MÉTODOS, não entre dois preços, e chegaria na tela com cara de
+    notícia de mercado. É exatamente o caso de hoje: o abate tem quinze
+    pregões guardados e a reposição tem um. Melhor não mostrar nada.
+    """
+    cot_hoje, esc_hoje = hoje
+    cot_antes, esc_antes = antes
+    if any(cot_hoje[c] and not cot_antes[c] for c in cot_hoje):
+        return False
+    return all(len(esc_antes[s]) >= 2 for s in esc_hoje if len(esc_hoje[s]) >= 2)
+
+
+def _boiada_no_pasto():
+    """As cabeças que ainda são dele. Enxuta: aqui só interessa o peso.
+
+    `_rebanho_base` traz pasto, compra, venda e despesas -- nada disso entra
+    na conta do valor, e prefetch que ninguém lê é query paga à toa.
+    """
+    return list(Animal.objects.filter(venda__isnull=True)
+                .prefetch_related("pesagens"))
+
+
+def _quanto_vale(animais):
+    valores = [a.valor_atual for a in animais if a.valor_atual is not None]
+    return sum(valores) if valores else None
+
+
+def cotacao(request):
+    """Os dois mercados, e o que eles significam para a boiada dele.
+
+    A ordem da página é a da pergunta que ele faz: primeiro quanto a boiada
+    vale hoje, depois todos os preços do dia juntos, depois como o preço
+    andou, e só no fim o histórico linha a linha. Antes era o contrário --
+    três tabelas de quinze pregões entre a cotação de abate e a de reposição,
+    que num celular são três telas de rolagem até chegar no preço do bezerro.
+    """
+    datas = list(Cotacao.objects.values_list("data_pregao", flat=True)
+                 .distinct().order_by("-data_pregao")[:2])
+    pregao_hoje = datas[0] if datas else None
+    pregao_antes = datas[1] if len(datas) > 1 else None
+
+    # Quinze pregões de abate, numa consulta só, e reaproveitados três vezes:
+    # as caixas do dia, o gráfico e a tabela de histórico saem todos daqui.
+    datas_abate = list(Cotacao.objects.filter(mercado=Cotacao.ABATE)
+                       .values_list("data_pregao", flat=True)
+                       .distinct().order_by("-data_pregao")[:15])
+    historico = list(Cotacao.objects.filter(mercado=Cotacao.ABATE,
+                                            data_pregao__in=datas_abate)
+                     .order_by("-data_pregao", "categoria"))
+
+    abate, serie = [], []
+    for i, (chave, rotulo) in enumerate(Cotacao.CATEGORIAS_ABATE):
+        linhas = [c for c in historico if c.categoria == chave]
+        if not linhas:
+            continue
+        abate.append((rotulo, linhas[0]))
+        pontos = [(c.data_pregao, c.bruto_a_vista) for c in linhas
+                  if c.bruto_a_vista is not None]
+        if pontos:
+            serie.append({"nome": rotulo, "cor": grafico.CORES[i], "pontos": pontos})
+
+    # Os dois passes usam AS MESMAS cabeças, e quem roda por último é quem
+    # fica anexado nelas -- por isso o pregão anterior vem primeiro e o de
+    # hoje depois, deixando a página com a base certa na mão.
+    boiada = _boiada_no_pasto()
+    base_hoje = Animal.base_de_cotacoes()
+    antes = None
+    if pregao_antes is not None:
+        base_antes = Animal.base_de_cotacoes(pregao_antes)
+        if _mesma_base(base_hoje, base_antes):
+            Animal.com_cotacoes(boiada, base=base_antes)
+            antes = _quanto_vale(boiada)
+    Animal.com_cotacoes(boiada, base=base_hoje)
+    valor_boiada = _quanto_vale(boiada)
+    variacao = (None if antes is None or valor_boiada is None
+                else valor_boiada - antes)
+
     return render(request, "gado/cotacao.html", {
-        "abate": abate, "reposicao": reposicao,
-        "hoje": timezone.localdate(), "pagina": "cotacao",
+        "abate": abate,
+        "escadas": _escada_de_hoje(),
+        "historico": historico,
+        "grafico": grafico.linha(serie, "Como a arroba andou nos últimos pregões"),
+        "pregoes_no_grafico": len(datas_abate),
+        "valor_boiada": valor_boiada,
+        "cabecas_boiada": len(boiada),
+        "variacao": variacao,
+        "pregao_hoje": pregao_hoje,
+        "pregao_antes": pregao_antes if variacao is not None else None,
+        "pagina": "cotacao",
     })
 
 

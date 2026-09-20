@@ -2,6 +2,11 @@
 {% block titulo %}A boiada{% endblock %}
 {% block conteudo %}
 
+{% comment %}
+O resumo sai da MESMA lista que a tabela, já filtrada. É o que faz o filtro
+de categoria mexer em "No pasto", "Peso somado" e "Deve dar": um filtro que
+muda a tabela e deixa o resumo parado mente sobre o que está na tela.
+{% endcomment %}
 <div class="resumo">
   <div class="caixa"><div class="rot">No pasto</div><div class="val">{{ total_cabecas }}</div></div>
   {% if total_vendidas %}
@@ -17,28 +22,37 @@
 </div>
 
 <div class="filtros">
-  <a href="?{% if situacao_ativa %}situacao={{ situacao_ativa }}{% endif %}"
+  <a href="{% filtro 'propriedade' %}"
      {% if not propriedade_ativa %}class="ativo"{% endif %}>Todo lugar</a>
   {% for p in propriedades %}
-    <a href="?propriedade={{ p|urlencode }}{% if situacao_ativa %}&situacao={{ situacao_ativa }}{% endif %}"
+    <a href="{% filtro 'propriedade' p %}"
        {% if propriedade_ativa == p %}class="ativo"{% endif %}>{{ p }}</a>
   {% endfor %}
 </div>
+{% comment %}
+Só as categorias que existem no rebanho, e só quando há mais de uma: uma
+barra com um botão só é linha gasta na tela de quem lê no sol.
+{% endcomment %}
+{% if categorias|length > 1 %}
 <div class="filtros">
-  <a href="?{% if propriedade_ativa %}propriedade={{ propriedade_ativa|urlencode }}{% endif %}"
+  <a href="{% filtro 'categoria' %}"
+     {% if not categoria_ativa %}class="ativo"{% endif %}>Todo bicho</a>
+  {% for c in categorias %}
+    <a href="{% filtro 'categoria' c %}"
+       {% if categoria_ativa == c %}class="ativo"{% endif %}>{{ c }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+<div class="filtros">
+  <a href="{% filtro 'situacao' %}"
      {% if not situacao_ativa %}class="ativo"{% endif %}>Todas</a>
-  <a href="?situacao=pasto{% if propriedade_ativa %}&propriedade={{ propriedade_ativa|urlencode }}{% endif %}"
+  <a href="{% filtro 'situacao' 'pasto' %}"
      {% if situacao_ativa == 'pasto' %}class="ativo"{% endif %}>No pasto</a>
-  <a href="?situacao=vendido{% if propriedade_ativa %}&propriedade={{ propriedade_ativa|urlencode }}{% endif %}"
+  <a href="{% filtro 'situacao' 'vendido' %}"
      {% if situacao_ativa == 'vendido' %}class="ativo"{% endif %}>Vendidas</a>
 </div>
 
 {% if animais %}
-<p class="nota">Bicho pra repor entra por quilo vivo; bicho pronto pra abate,
-a arroba de carcaça — a coluna troca sozinha, animal por animal. As três
-colunas do meio falam da compra: o que o senhor pagou, o que o mercado pagava
-por um bicho daquele tamanho, e a diferença entre os dois. Quanto a cabeça vale
-hoje, já contando o que ela engordou, é a coluna “Deve dar”.</p>
 <div id="painel-boiada">
 <div class="barra-tabela">
   <span class="dica">Arraste a tabela para o lado para ver o resto</span>
@@ -47,10 +61,19 @@ hoje, já contando o que ela engordou, é a coluna “Deve dar”.</p>
 </div>
 <div class="rolagem">
 <table>
+  {% comment %}
+  "Em @" para TODO bicho, bezerro incluído: o quilo já está na coluna ao
+  lado, e repeti-lo aqui não dizia nada novo.
+
+  As três colunas de DINHEIRO continuam cada uma no mercado do seu bicho --
+  R$/kg no de reposição, R$/@ no de abate -- e isso não é descuido: ninguém
+  compra bezerro por arroba, e é ali que mora a conta certa. Cada célula se
+  rotula com /kg ou /@ justamente por isso.
+  {% endcomment %}
   <thead><tr>
     <th>Brinco</th><th>Categoria</th><th>Onde está</th>
     <th class="num">Último peso</th><th>Pesado em</th>
-    <th class="num">Em @ / kg</th>
+    <th class="num">Em @</th>
     <th class="num">Pagou na unidade</th><th class="num">Referência na compra</th><th class="num">Diferença</th>
     <th class="num">Deve dar</th>
     <th class="num">Despesas</th><th>Situação</th>
@@ -66,7 +89,7 @@ hoje, já contando o que ela engordou, é a coluna “Deve dar”.</p>
       <td>{{ a.propriedade.nome|default:"—" }}</td>
       <td class="num">{% if a.peso_atual_kg %}{{ a.peso_atual_kg|numero }} kg{% else %}—{% endif %}</td>
       <td>{% if a.ultima_pesagem %}{{ a.ultima_pesagem.data|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-      <td class="num">{% if a.unidade == 'kg' %}{{ a.peso_atual_kg|numero }} kg{% else %}{{ a.peso_arrobas|arrobas }}{% endif %}</td>
+      <td class="num">{{ a.peso_arrobas|arrobas }}</td>
       <td class="num">{% if a.unidade == 'kg' %}{{ a.pago_por_kg|reais }}/kg{% else %}{{ a.pago_por_arroba|reais }}/@{% endif %}</td>
       <td class="num">{% if a.unidade == 'kg' %}{{ a.cotacao_por_kg_na_compra|reais }}/kg{% else %}{{ a.cotacao_por_arroba|reais }}/@{% endif %}</td>
       <td class="num {% if a.unidade == 'kg' %}{{ a.ganho_por_kg|classe_ganho }}{% else %}{{ a.ganho_por_arroba|classe_ganho }}{% endif %}">

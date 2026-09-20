@@ -484,15 +484,31 @@ class Animal(models.Model):
         return Cotacao.escada_reposicao(self.sexo)
 
     @staticmethod
-    def com_cotacoes(animais):
+    def base_de_cotacoes(ate=None):
+        """As cotações de um pregão: (abate por categoria, escadas por sexo).
+
+        `ate=None` é o pregão de hoje. Com uma data, é o mercado como ele
+        estava naquele dia -- é o que a tela de cotação usa para dizer quanto
+        a boiada mudou desde o pregão anterior, sem reavaliar bicho a bicho.
+        """
+        return (Cotacao.ultimas_por_categoria(ate=ate),
+                {"macho": Cotacao.escada_reposicao("macho", ate=ate),
+                 "femea": Cotacao.escada_reposicao("femea", ate=ate)})
+
+    @staticmethod
+    def com_cotacoes(animais, ate=None, base=None):
         """Hands one quote lookup to a whole list of animals.
 
         Use it whenever you iterate more than one animal: the alternative is a
         query per head.
+
+        Chamar de novo com outra data reaproveita as MESMAS cabeças, trocando
+        só a base: os valores são propriedades calculadas na hora, então o
+        segundo passe devolve o que o rebanho valia naquele pregão. Quem já
+        tem a base na mão -- porque precisa olhar para ela, e não só usá-la --
+        passa em `base` em vez de mandar buscar de novo.
         """
-        cotacoes = Cotacao.ultimas_por_categoria()
-        escadas = {"macho": Cotacao.escada_reposicao("macho"),
-                  "femea": Cotacao.escada_reposicao("femea")}
+        cotacoes, escadas = base or Animal.base_de_cotacoes(ate)
         animais = list(animais)
         for a in animais:
             a._cotacoes = cotacoes
@@ -1048,27 +1064,38 @@ class Cotacao(models.Model):
         ).order_by("-data_pregao").first()
 
     @classmethod
-    def ultimas_por_categoria(cls):
+    def ultimas_por_categoria(cls, ate=None):
         """{categoria: última cotação de ABATE} em três queries.
 
         Só abate: a reposição não é endereçável por categoria sozinha -- a
         mesma `novilha` existe nos dois mercados, e `desmama` existe nos dois
         sexos. Para reposição use `escada_reposicao`.
+
+        `ate` corta o histórico numa data: a cotação mais recente ATÉ aquele
+        pregão, que é como se avalia o rebanho no dia anterior.
         """
-        return {c: cls.objects.filter(mercado=cls.ABATE, categoria=c)
-                              .order_by("-data_pregao").first()
+        qs = cls.objects.filter(mercado=cls.ABATE)
+        if ate is not None:
+            qs = qs.filter(data_pregao__lte=ate)
+        return {c: qs.filter(categoria=c).order_by("-data_pregao").first()
                 for c, _ in cls.CATEGORIAS_ABATE}
 
     @classmethod
-    def escada_reposicao(cls, sexo):
-        """Os pontos (peso_ref_kg, rs_cabeca) do último pregão, para um sexo."""
+    def escada_reposicao(cls, sexo, ate=None):
+        """Os pontos (peso_ref_kg, rs_cabeca) do último pregão, para um sexo.
+
+        `ate` tem o mesmo sentido de `ultimas_por_categoria`: a escada como
+        ela estava naquele dia.
+        """
         femea = e_femea(sexo)
         cats = cls.ESCADA_FEMEA if femea else cls.ESCADA_MACHO
         praca = cls.PRACA_REPOSICAO["femea" if femea else "macho"]
+        qs = cls.objects.filter(mercado=cls.REPOSICAO, praca=praca)
+        if ate is not None:
+            qs = qs.filter(data_pregao__lte=ate)
         pontos = []
         for cat in cats:
-            c = (cls.objects.filter(mercado=cls.REPOSICAO, categoria=cat, praca=praca)
-                 .order_by("-data_pregao").first())
+            c = qs.filter(categoria=cat).order_by("-data_pregao").first()
             if c and c.peso_ref_kg and c.rs_cabeca:
                 pontos.append((float(c.peso_ref_kg), float(c.rs_cabeca)))
         return pontos

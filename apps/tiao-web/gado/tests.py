@@ -17,6 +17,7 @@ from django.urls import reverse
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
+from . import grafico
 from . import precificacao as pr
 from .models import (
     Animal, Categoria, Compra, Comprador, Contraparte, Cotacao, Despesa,
@@ -1365,3 +1366,360 @@ class TestCategoriaPeloPeso(BaseBezerro):
                                peso_kg=Decimal("400.00"))
         self.bezerro.refresh_from_db()
         self.assertEqual(self.bezerro.categoria, "boi magro")
+
+
+# --- A revisão de tela pedida pelo dono depois de ver o app rodando ----------
+
+
+class TestColunaEmArrobaParaTodoBicho(BaseBezerro):
+    """A coluna "Em @ / kg" virou "Em @", e mostra arroba para todo bicho.
+
+    Decisão dele, com a tela na frente: o quilo já está na coluna "Último
+    peso" ao lado, então repetir o quilo ali não dizia nada novo -- e ele quer
+    ter noção da arroba do bezerro, que a coluna escondia justamente de quem
+    é de reposição.
+
+    As três colunas de DINHEIRO seguem por mercado, e isso é o oposto de um
+    descuido: ninguém compra bezerro por arroba. O teste abaixo trava as duas
+    coisas juntas, porque uniformizar as de dinheiro "pra ficar coerente" é
+    exatamente o erro que a decisão dele evita.
+    """
+
+    def test_bezerro_tambem_aparece_em_arroba(self):
+        corpo = self.client.get("/").content.decode()
+        # 168 kg x 55% / 15 = 6,16 @ -- antes a célula do bezerro dizia "168 kg",
+        # o mesmo número da coluna ao lado.
+        self.assertIn("6,16 @", corpo)
+        self.assertIn("11,61 @", corpo)      # a vaca, como sempre foi
+
+    def test_o_cabecalho_nao_promete_mais_duas_unidades(self):
+        corpo = self.client.get("/").content.decode()
+        self.assertIn(">Em @<", corpo)
+        self.assertNotIn("Em @ / kg", corpo)
+
+    def test_as_colunas_de_dinheiro_continuam_cada_uma_no_seu_mercado(self):
+        corpo = self.client.get("/").content.decode()
+        self.assertIn("/kg", corpo)          # o bezerro, por quilo vivo
+        self.assertIn("/@", corpo)           # a vaca e o boi, por arroba
+        # R$ 16,79/kg é o que ele pagou no bezerro; se alguém uniformizar a
+        # coluna para arroba, este número some da tela.
+        self.assertIn("R$ 16,79/kg", corpo)
+
+    def test_a_nota_que_ele_mandou_tirar_saiu(self):
+        corpo = self.client.get("/").content.decode()
+        self.assertNotIn("a coluna troca sozinha", corpo)
+
+    def test_o_rodape_dos_dois_mercados_fica(self):
+        corpo = self.client.get("/").content.decode()
+        self.assertIn("gado de reposição pela curva por quilo", corpo)
+
+
+class TestFiltroDeCategoria(BaseBezerro):
+    """O filtro novo, e o que ele tem de mexer: o resumo de cima.
+
+    Um filtro que muda a tabela e deixa "No pasto: 3" parado em cima mente
+    sobre o que está na tela -- é o defeito clássico de filtro parcial.
+    """
+
+    def test_filtra_a_lista(self):
+        corpo = self.client.get("/?categoria=bezerro").content.decode()
+        self.assertIn("632", corpo)          # o bezerro
+        self.assertNotIn(">2031<", corpo)    # a vaca não
+
+    def test_o_resumo_de_cima_acompanha(self):
+        todos = self.client.get("/").content.decode()
+        so_bezerro = self.client.get("/?categoria=bezerro").content.decode()
+        # 3 cabeças no pasto sem filtro, 1 com o filtro.
+        self.assertIn('<div class="rot">No pasto</div><div class="val">3</div>', todos)
+        self.assertIn('<div class="rot">No pasto</div><div class="val">1</div>', so_bezerro)
+        # E o peso somado, que é a soma da lista filtrada.
+        self.assertIn("168 kg", so_bezerro)
+        self.assertNotIn("942 kg", so_bezerro)   # 387 + 387 + 168
+
+    def test_so_oferece_as_categorias_que_existem_no_rebanho(self):
+        corpo = self.client.get("/").content.decode()
+        # O rebanho tem vaca, boi e bezerro. As outras oito do enum não podem
+        # virar filtro que devolve tela vazia.
+        self.assertIn("?categoria=bezerro", corpo)
+        self.assertIn("?categoria=vaca", corpo)
+        for ausente in ("touro", "novilha", "garrote", "desmama"):
+            self.assertNotIn(f"categoria={ausente}", corpo)
+
+    def test_se_combina_com_os_outros_filtros(self):
+        # A vaca e o boi estão no Sítio II Ypês; o bezerro não tem pasto.
+        corpo = self.client.get(
+            "/?categoria=vaca&propriedade=S%C3%ADtio+II+Yp%C3%AAs").content.decode()
+        self.assertIn(">2031<", corpo)
+        self.assertNotIn(">7001<", corpo)    # boi, mesmo pasto, outra categoria
+        self.assertIn('<div class="rot">No pasto</div><div class="val">1</div>', corpo)
+
+    def test_os_links_dos_outros_filtros_preservam_a_categoria(self):
+        corpo = self.client.get("/?categoria=bezerro").content.decode()
+        # Trocar de pasto não pode apagar a categoria escolhida, nem vice-versa.
+        self.assertIn("categoria=bezerro&amp;situacao=pasto", corpo)
+
+
+class BaseTelaCotacao(TestCase):
+    """Dois pregões COMPLETOS, 17 e 18/09: os dois mercados nas duas datas.
+
+    Deliberadamente não herda de BaseGado: aquele cenário tem abate em 28/08
+    e reposição em 18/09, isto é, nenhuma data com os dois mercados -- que é
+    justamente o caso em que a comparação com o pregão anterior não pode
+    aparecer, e tem teste próprio mais abaixo.
+    """
+
+    ESCADA = {
+        datetime.date(2026, 9, 17): (("desmama", "15.40", "2772.00", "180.00"),
+                                     ("bezerro", "15.21", "3118.05", "205.00"),
+                                     ("garrote", "13.73", "3501.15", "255.00"),
+                                     ("boi magro", "11.91", "4108.95", "345.00")),
+        datetime.date(2026, 9, 18): (("desmama", "15.50", "2790.00", "180.00"),
+                                     ("bezerro", "15.31", "3138.88", "205.00"),
+                                     ("garrote", "13.83", "3527.50", "255.00"),
+                                     ("boi magro", "11.99", "4137.53", "345.00")),
+    }
+    ARROBA = {
+        datetime.date(2026, 9, 17): (("boi", "336.00"), ("novilha", "326.00"),
+                                     ("vaca", "316.00")),
+        datetime.date(2026, 9, 18): (("boi", "338.00"), ("novilha", "328.00"),
+                                     ("vaca", "318.00")),
+    }
+
+    @classmethod
+    def pregao_de_abate(cls, data):
+        for cat, preco in cls.ARROBA[data]:
+            Cotacao.objects.create(categoria=cat, praca="SP Araçatuba",
+                                   data_pregao=data, bruto_a_vista=Decimal(preco),
+                                   bruto_30d=Decimal(preco))
+
+    @classmethod
+    def pregao_de_reposicao(cls, data):
+        for cat, kg, cab, ref in cls.ESCADA[data]:
+            Cotacao.objects.create(
+                mercado=Cotacao.REPOSICAO, unidade=Cotacao.KG, categoria=cat,
+                praca="SP", data_pregao=data, rs_kg=Decimal(kg),
+                rs_cabeca=Decimal(cab), peso_ref_kg=Decimal(ref))
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.vaca = Animal.objects.create(brinco="2031", categoria="vaca",
+                                         sexo="fêmea")
+        Pesagem.objects.create(animal=cls.vaca, data=datetime.date(2026, 9, 1),
+                               peso_kg=Decimal("387.00"))
+        cls.bezerro = Animal.objects.create(brinco="632", categoria="bezerro",
+                                            sexo="macho")
+        Pesagem.objects.create(animal=cls.bezerro, data=datetime.date(2026, 9, 1),
+                               peso_kg=Decimal("168.00"))
+        for data in (datetime.date(2026, 9, 17), datetime.date(2026, 9, 18)):
+            cls.pregao_de_abate(data)
+            cls.pregao_de_reposicao(data)
+
+
+class TestBoiadaNaTelaDeCotacao(BaseTelaCotacao):
+    """O que a tela não tinha: o que a cotação significa para o rebanho DELE.
+
+    Antes, a tela mostrava preço de mercado e deixava a ponte para a cabeça
+    dele: "R$ 338 a arroba" não diz quanto a boiada vale.
+    """
+
+    def test_diz_quanto_a_boiada_vale_hoje(self):
+        corpo = self.client.get(reverse("gado:cotacao")).content.decode()
+        # bezerro 168 kg: abaixo do desmama, 168 x (2790/180) = 2.604,00
+        # vaca 387 kg: 11,61 @ x 318 = 3.691,98
+        self.assertIn("R$ 6.295,98", corpo)
+
+    def test_compara_com_o_pregao_anterior(self):
+        corpo = self.client.get(reverse("gado:cotacao")).content.decode()
+        # No dia 17: 168 x (2772/180) = 2.587,20 e 11,61 @ x 316 = 3.668,76
+        # → 6.255,96. A boiada subiu R$ 40,02 com o pregão de hoje.
+        self.assertIn("+R$ 40,02", corpo)
+        self.assertIn("17/09", corpo)
+
+    def test_a_boiada_vendida_nao_entra_na_conta(self):
+        venda = Movimentacao.objects.create(tipo=Movimentacao.VENDA,
+                                            data=datetime.date(2026, 9, 19))
+        self.vaca.venda = venda
+        self.vaca.save()
+        corpo = self.client.get(reverse("gado:cotacao")).content.decode()
+        self.assertIn("R$ 2.604,00", corpo)      # só o bezerro
+        self.assertNotIn("R$ 6.295,98", corpo)
+
+    def test_nao_cresce_em_queries_com_o_rebanho(self):
+        """Mesma guarda da lista: avaliar a boiada duas vezes (hoje e no
+        pregão anterior) não pode virar uma query por cabeça.
+
+        São 35 fixas: 1 das datas de pregão + 2 do histórico de abate +
+        8 da escada do dia + 2 da boiada com as pesagens + 11 da base do
+        pregão anterior + 11 da base de hoje. O que importa aqui é o FIXAS --
+        o número em si vai mudar quando a página mudar, e o teste falha alto
+        se alguém reabrir o N+1."""
+        for i in range(20):
+            a = Animal.objects.create(brinco=f"T{i}", categoria="boi", sexo="macho")
+            Pesagem.objects.create(animal=a, data=datetime.date(2026, 9, 1),
+                                   peso_kg=Decimal("400"))
+        with self.assertNumQueries(35):
+            self.client.get(reverse("gado:cotacao"))
+        for i in range(60):
+            a = Animal.objects.create(brinco=f"U{i}", categoria="boi", sexo="macho")
+            Pesagem.objects.create(animal=a, data=datetime.date(2026, 9, 1),
+                                   peso_kg=Decimal("400"))
+        with self.assertNumQueries(35):
+            self.client.get(reverse("gado:cotacao"))
+
+
+class TestComparacaoSoQuandoAsDuasDatasSaoComparaveis(BaseTelaCotacao):
+    """Sem base igual nas duas datas, a "variação" não é variação de preço.
+
+    O pregão anterior sem escada de reposição joga todo bezerro no abate --
+    `Animal.mercado` devolve ABATE quando a escada tem menos de dois pontos --
+    e o bezerro passa a ser precificado pela arroba do boi gordo. A diferença
+    entre os dois dias viraria a diferença entre dois MÉTODOS, não entre dois
+    preços, e apareceria como notícia de mercado. Melhor não mostrar.
+    """
+
+    def test_sem_pregao_anterior_nao_inventa_variacao(self):
+        Cotacao.objects.filter(data_pregao=datetime.date(2026, 9, 17)).delete()
+        corpo = self.client.get(reverse("gado:cotacao")).content.decode()
+        self.assertIn("R$ 6.295,98", corpo)      # o valor de hoje continua
+        self.assertNotIn("desde o pregão", corpo)
+
+    def test_pregao_anterior_sem_reposicao_nao_vira_variacao_falsa(self):
+        Cotacao.objects.filter(data_pregao=datetime.date(2026, 9, 17),
+                               mercado=Cotacao.REPOSICAO).delete()
+        corpo = self.client.get(reverse("gado:cotacao")).content.decode()
+        self.assertIn("R$ 6.295,98", corpo)
+        self.assertNotIn("desde o pregão", corpo)
+
+
+class TestTudoDoDiaJuntoEmCima(BaseTelaCotacao):
+    """O que ele reclamou: os blocos de reposição ficaram escondidos embaixo.
+
+    Eram três tabelas de histórico de 15 linhas entre a cotação de abate e a
+    de reposição. Num celular, isso são três telas de rolagem.
+    """
+
+    def test_a_reposicao_vem_antes_do_historico(self):
+        corpo = self.client.get(reverse("gado:cotacao")).content.decode()
+        self.assertLess(corpo.index("Peso de referência"), corpo.index("Histórico"))
+
+    def test_o_peso_de_referencia_continua_em_cada_degrau(self):
+        """Sem ele, "bezerro R$ 15,31 / garrote R$ 13,83" parece que garrote
+        vale menos -- quando o garrote de 255 kg vale R$ 3.527 contra
+        R$ 3.139 do bezerro de 205 kg."""
+        corpo = self.client.get(reverse("gado:cotacao")).content.decode()
+        self.assertIn("205 kg", corpo)
+        self.assertIn("255 kg", corpo)
+        self.assertIn("R$ 3.527,50", corpo)
+
+    def test_as_oito_linhas_de_reposicao_estao_na_tela(self):
+        corpo = self.client.get(reverse("gado:cotacao")).content.decode()
+        for cat in ("desmama", "bezerro", "garrote", "boi magro"):
+            self.assertIn(cat, corpo)
+
+
+class TestHistoricoNumaTabelaSo(BaseTelaCotacao):
+    def test_uma_tabela_com_coluna_de_categoria(self):
+        corpo = self.client.get(reverse("gado:cotacao")).content.decode()
+        # Um cabeçalho "Pregão" só: antes eram três tabelas, uma por categoria.
+        self.assertEqual(corpo.count(">Pregão<"), 1)
+        self.assertIn(">Categoria<", corpo)
+
+    def test_as_tres_categorias_convivem_na_mesma_tabela(self):
+        corpo = self.client.get(reverse("gado:cotacao")).content.decode()
+        for preco in ("R$ 338,00", "R$ 328,00", "R$ 318,00"):
+            self.assertIn(preco, corpo)
+        for preco in ("R$ 336,00", "R$ 326,00", "R$ 316,00"):
+            self.assertIn(preco, corpo)
+
+
+class TestGraficoNoServidor(BaseTelaCotacao):
+    """SVG gerado aqui, sem biblioteca de JavaScript.
+
+    O projeto não tem dependência de front, o CSS é inline no base.html, e
+    esta tela é lida no 3G do sítio. Um <svg> no HTML não tem download, não
+    tem espera e não tem o que dar errado quando a rede não ajuda.
+    """
+
+    def test_o_grafico_e_svg_e_nao_script(self):
+        corpo = self.client.get(reverse("gado:cotacao")).content.decode()
+        self.assertIn("<svg", corpo)
+        self.assertNotIn("<script src", corpo)
+        for biblioteca in ("chart.js", "d3.", "plotly", "echarts"):
+            self.assertNotIn(biblioteca, corpo.lower())
+
+    def test_o_grafico_traz_os_dois_pregoes(self):
+        corpo = self.client.get(reverse("gado:cotacao")).content.decode()
+        self.assertIn("17/09", corpo)
+        self.assertIn("18/09", corpo)
+
+    def test_com_um_pregao_so_nao_desenha_linha_nenhuma(self):
+        Cotacao.objects.filter(data_pregao=datetime.date(2026, 9, 17)).delete()
+        corpo = self.client.get(reverse("gado:cotacao")).content.decode()
+        self.assertNotIn("<svg", corpo)
+        self.assertIn("um pregão", corpo)
+
+    def test_sem_cotacao_nenhuma_a_tela_nao_quebra(self):
+        Cotacao.objects.all().delete()
+        r = self.client.get(reverse("gado:cotacao"))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("Ainda não tenho cotação", r.content.decode())
+
+
+class TestDesenhoDoGrafico(TestCase):
+    """O módulo do gráfico sozinho: entra série, sai SVG."""
+
+    SERIE = [{"nome": "boi gordo", "cor": "#1a1a1a",
+              "pontos": [(datetime.date(2026, 9, 17), 336.0),
+                         (datetime.date(2026, 9, 18), 338.0)]}]
+
+    def test_desenha_uma_linha_por_serie(self):
+        svg = grafico.linha(self.SERIE)
+        self.assertIn("<polyline", svg)
+        self.assertIn("boi gordo", svg)
+
+    def test_o_maior_e_o_menor_viram_rotulo(self):
+        svg = grafico.linha(self.SERIE)
+        self.assertIn("338", svg)
+        self.assertIn("336", svg)
+
+    def test_um_ponto_so_nao_vira_grafico(self):
+        uma = [{"nome": "boi gordo", "cor": "#1a1a1a",
+                "pontos": [(datetime.date(2026, 9, 18), 338.0)]}]
+        self.assertIsNone(grafico.linha(uma))
+
+    def test_sem_ponto_nenhum_nao_vira_grafico(self):
+        self.assertIsNone(grafico.linha([{"nome": "x", "cor": "#000", "pontos": []}]))
+        self.assertIsNone(grafico.linha([]))
+
+    def test_linha_reta_nao_divide_por_zero(self):
+        """Quinze pregões com o mesmo preço é o caso real da novilha."""
+        parada = [{"nome": "novilha", "cor": "#15803d",
+                   "pontos": [(datetime.date(2026, 9, 17), 341.0),
+                              (datetime.date(2026, 9, 18), 341.0)]}]
+        svg = grafico.linha(parada)
+        self.assertIn("<polyline", svg)
+        self.assertNotIn("nan", svg.lower())
+
+    def test_o_nome_da_serie_e_escapado(self):
+        serie = [{"nome": "<script>", "cor": "#000",
+                  "pontos": [(datetime.date(2026, 9, 17), 1.0),
+                             (datetime.date(2026, 9, 18), 2.0)]}]
+        self.assertNotIn("<script>", grafico.linha(serie))
+
+
+class TestCotacaoDeUmaDataAnterior(BaseTelaCotacao):
+    """`ate=` é o que permite avaliar a boiada como ela estava ontem."""
+
+    def test_escada_de_ontem_ignora_o_pregao_de_hoje(self):
+        pontos = Cotacao.escada_reposicao("macho", ate=datetime.date(2026, 9, 17))
+        self.assertIn((180.0, 2772.0), pontos)
+        self.assertNotIn((180.0, 2790.0), pontos)
+
+    def test_arroba_de_ontem_ignora_o_pregao_de_hoje(self):
+        ontem = Cotacao.ultimas_por_categoria(ate=datetime.date(2026, 9, 17))
+        self.assertEqual(ontem["boi"].bruto_a_vista, Decimal("336.00"))
+        self.assertEqual(Cotacao.ultimas_por_categoria()["boi"].bruto_a_vista,
+                         Decimal("338.00"))
+
+    def test_sem_ate_continua_pegando_a_mais_recente(self):
+        self.assertIn((180.0, 2790.0), Cotacao.escada_reposicao("macho"))

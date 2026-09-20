@@ -861,7 +861,13 @@ class Cotacao(models.Model):
 
     @classmethod
     def mais_recente(cls, categoria_ou_sexo):
-        """Latest quote for one category. Always current -- never memoised.
+        """Latest ABATE quote for one category. Always current -- never memoised.
+
+        Só abate, mesmo motivo de `ultimas_por_categoria`: `categoria_de`
+        devolve `novilha` pra novilha e pra fêmea sem categoria, e `novilha`
+        existe nos dois mercados. Sem o filtro, uma linha de reposição mais
+        recente ganha da de abate -- e ela não tem `bruto_a_vista`
+        (CheckConstraint), o que vira campo em branco em `animal.html`.
 
         There WAS a five-minute memo here, to stop the herd list running one
         query per animal. It was wrong twice over. Gunicorn runs three workers
@@ -874,7 +880,7 @@ class Cotacao(models.Model):
         queries once per request, handed to every animal on the page.
         """
         return cls.objects.filter(
-            categoria=cls.categoria_de(categoria_ou_sexo)
+            mercado=cls.ABATE, categoria=cls.categoria_de(categoria_ou_sexo)
         ).order_by("-data_pregao").first()
 
     @classmethod

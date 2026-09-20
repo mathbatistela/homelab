@@ -840,6 +840,27 @@ class TestCotacaoReposicao(TestCase):
         self.assertEqual(Cotacao.ultimas_por_categoria()["novilha"].bruto_a_vista,
                          Decimal("341.00"))
 
+    def test_mais_recente_tambem_ignora_reposicao(self):
+        """A irmã não corrigida do teste acima: `mais_recente` tinha o mesmo defeito.
+
+        `animal.html` usa `a.cotacao_atual.bruto_a_vista` sem checar que existe
+        -- e uma linha de reposição não TEM `bruto_a_vista` (CheckConstraint).
+        Pra novilha, que existe nos dois mercados, isso vira campo em branco
+        na ficha do bicho assim que a reposição fêmea for publicada.
+        """
+        Cotacao.objects.create(
+            mercado=Cotacao.REPOSICAO, unidade=Cotacao.KG, categoria="novilha",
+            praca="SP-F", data_pregao=datetime.date(2026, 9, 19),
+            rs_kg=Decimal("11.52"), rs_cabeca=Decimal("2937.60"),
+            peso_ref_kg=Decimal("255.00"))
+        Cotacao.objects.create(
+            mercado=Cotacao.ABATE, unidade=Cotacao.ARROBA, categoria="novilha",
+            praca="SP Araçatuba", data_pregao=datetime.date(2026, 9, 18),
+            bruto_a_vista=Decimal("341.00"), bruto_30d=Decimal("345.00"))
+        # A de reposição é MAIS RECENTE; ainda assim não pode ser escolhida.
+        self.assertEqual(Cotacao.mais_recente("novilha").bruto_a_vista,
+                         Decimal("341.00"))
+
     def test_desmama_macho_e_femea_convivem(self):
         """As duas desmamas têm preço diferente (180 kg ♂, 165 kg ♀) e não podem colidir."""
         Cotacao.objects.create(

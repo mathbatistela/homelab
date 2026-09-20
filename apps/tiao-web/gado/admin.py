@@ -58,6 +58,9 @@ class FaltandoFilter(admin.SimpleListFilter):
     def lookups(self, request, model_admin):
         return [
             ("brinco", "sem brinco"),
+            # Sem sexo, `Animal.mercado` devolve ABATE em silêncio e o bicho é
+            # precificado pelo boi gordo. É o buraco mais caro da lista.
+            ("sexo", "sem sexo (é ele que decide o preço)"),
             ("categoria", "sem categoria (não dá pra valorar)"),
             ("pesagem", "nunca foi pesado"),
             ("valor", "sem valor de compra"),
@@ -69,6 +72,8 @@ class FaltandoFilter(admin.SimpleListFilter):
         escolha = self.value()
         if escolha == "brinco":
             return qs.filter(brinco__isnull=True)
+        if escolha == "sexo":
+            return qs.filter(sexo__isnull=True)
         if escolha == "categoria":
             return qs.filter(categoria__isnull=True)
         if escolha == "pesagem":
@@ -78,7 +83,8 @@ class FaltandoFilter(admin.SimpleListFilter):
         if escolha == "pasto":
             return qs.filter(propriedade__isnull=True, venda__isnull=True)
         if escolha == "nada":
-            return qs.exclude(brinco__isnull=True).exclude(categoria__isnull=True) \
+            return qs.exclude(brinco__isnull=True).exclude(sexo__isnull=True) \
+                     .exclude(categoria__isnull=True) \
                      .exclude(pesagens__isnull=True).exclude(valor_compra__isnull=True)
         return qs
 

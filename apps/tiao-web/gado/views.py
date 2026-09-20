@@ -73,7 +73,17 @@ def _acoes_tiao(a):
     acoes = []
 
     # O que falta vem primeiro -- é o que o sistema sabe que precisa.
-    if not a.categoria:
+    # SEXO antes de categoria, e um OU outro, nunca os dois: é o sexo que
+    # escolhe a escada de reposição e o rendimento, e sem ele `mercado` devolve
+    # ABATE em silêncio -- bezerro precificado pelo boi gordo, o defeito
+    # original. A categoria o `Pesagem.save()` deriva do peso sozinho assim que
+    # o sexo é conhecido, que é o mesmo que o Workflow 2 manda o bot perguntar.
+    # Pedir as duas daria dois botões com a mesma frase pronta e mandaria ele
+    # preencher justamente o campo que a pesagem seguinte sobrescreve.
+    if not a.sexo:
+        acoes.append(("Dizer se é macho ou fêmea", "é o que decide o preço",
+                      f"Tião, {quem} é "))
+    elif not a.categoria:
         acoes.append(("Dizer o que ele é", "novilha, boi, bezerro…",
                       f"Tião, {quem} é "))
     if a.valor_compra is None:
@@ -114,7 +124,8 @@ def _ficha(request, bicho):
         # Vai pronto no campo do Telegram, faltando só o que ele quer dizer.
         "acoes_tiao": _acoes_tiao(bicho),
         # As pendências vêm primeiro na lista; o template destaca essas.
-        "pendentes": sum(1 for f in (not bicho.categoria, bicho.valor_compra is None,
+        "pendentes": sum(1 for f in (not bicho.sexo, not bicho.categoria,
+                                     bicho.valor_compra is None,
                                      bicho.ultima_pesagem is None) if f),
         "pesagens": list(reversed(bicho._pesagens_ordenadas)),
         "despesas": sorted(despesas, key=lambda d: d.data, reverse=True),

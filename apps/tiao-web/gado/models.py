@@ -361,6 +361,12 @@ class Animal(models.Model):
         faltas = []
         if not self.brinco:
             faltas.append("brinco")
+        # O SEXO vem antes da categoria de propósito: é ele que decide a escada
+        # de reposição e o rendimento, e sem ele `mercado` devolve ABATE em
+        # silêncio -- um bezerro precificado pelo boi gordo, o defeito original.
+        # A categoria, essa, o `Pesagem.save()` deriva sozinho do peso depois.
+        if not self.sexo:
+            faltas.append("sexo (é ele que decide o preço do bicho)")
         if not self.categoria:
             faltas.append("categoria (sem ela não dá pra saber o valor)")
         if self.ultima_pesagem is None:
@@ -530,6 +536,17 @@ class Animal(models.Model):
         return Cotacao.KG if self.mercado == Cotacao.REPOSICAO else Cotacao.ARROBA
 
     @property
+    def troca_de_mercado_pelo_peso(self):
+        """Este bicho pode ver a conta trocar de unidade sozinha?
+
+        Só macho: `mercado` devolve ABATE para fêmea e para quem não tem sexo,
+        sempre. A ficha usa isto para só explicar a troca a quem ela pode
+        acontecer -- prometer a uma vaca que a conta dela já foi por quilo
+        seria mentira.
+        """
+        return bool(self.sexo) and not e_femea(self.sexo)
+
+    @property
     def pago_por_kg(self):
         """Quanto ele pagou por quilo vivo, pelo peso de ENTRADA do animal."""
         p = self.primeira_pesagem
@@ -539,8 +556,41 @@ class Animal(models.Model):
 
     @property
     def cotacao_por_kg(self):
-        """O R$/kg que a curva paga no peso de hoje."""
-        kg = self.peso_atual_kg
+        """O R$/kg que a curva paga no peso de HOJE.
+
+        Fato isolado e verdadeiro -- é o que a ficha mostra em "Pela cotação de
+        reposição, R$ X o quilo vivo". NÃO serve para comparar com o que ele
+        pagou: ver `cotacao_por_kg_na_compra`.
+        """
+        return self._curva_por_kg(self.peso_atual_kg)
+
+    @property
+    def cotacao_por_kg_na_compra(self):
+        """O R$/kg que a curva paga por um bicho do peso de ENTRADA dele.
+
+        É este, e não o do peso de hoje, que pode ser comparado com
+        `pago_por_kg`. Na reposição o R$/kg é FUNÇÃO DO PESO -- é a escada
+        inteira: R$ 15,50 no desmama de 180 kg, R$ 11,99 no boi magro de 345.
+        Avaliar a curva no peso de hoje e o preço pago no peso de entrada
+        compara o quilo de um bezerro com o quilo de um garrote, e como a
+        escada CAI conforme o bicho cresce, a diferença fica mais negativa a
+        cada pesagem nova -- isto é, o número piora justamente quando ele faz
+        o trabalho dele. Não é margem; é a inclinação da escada disfarçada de
+        margem, e a spec §5.1 proíbe contar essa história ao contrário.
+
+        Com os dois lados no peso de entrada a conta vira o análogo fiel do
+        cartão da arroba, cuja solidez vem de o R$/@ não depender do peso:
+        "comprei bem ou mal?". O quanto ele ganhou engordando é outra conta, a
+        da cabeça (`ganho`), e essa já aparece logo abaixo na ficha.
+        """
+        p = self.primeira_pesagem
+        return None if p is None else self._curva_por_kg(float(p.peso_kg))
+
+    def _curva_por_kg(self, kg):
+        # O mercado é o de HOJE nos dois casos, de propósito: quem decide se
+        # este bicho tem conta por quilo é o peso atual dele (é o mesmo teste
+        # que escolhe qual cartão a ficha mostra). O peso que muda entre as
+        # duas propriedades é só o ponto em que a curva é lida.
         if kg is None or self.mercado != Cotacao.REPOSICAO:
             return None
         v = precificacao.valor_reposicao(kg, self._escada_reposicao())
@@ -548,7 +598,13 @@ class Animal(models.Model):
 
     @property
     def ganho_por_kg(self):
-        pago, vale = self.pago_por_kg, self.cotacao_por_kg
+        """Quanto ele pagou acima (negativo) ou abaixo (positivo) do mercado.
+
+        É uma conta sobre a COMPRA, não sobre perda: os dois lados descrevem o
+        mesmo animal, no peso em que ele entrou. Só se move quando o mercado se
+        move -- nunca porque o bicho engordou.
+        """
+        pago, vale = self.pago_por_kg, self.cotacao_por_kg_na_compra
         return None if pago is None or vale is None else vale - pago
 
     # --- O que ele calcula de cabeça toda vez que pesa -----------------------
@@ -939,6 +995,12 @@ class Cotacao(models.Model):
         ]
 
     def __str__(self):
+        # Cada mercado tem a SUA unidade. Antes daqui havia um f-string só, com
+        # "a arroba" fixo, e as 8 linhas de reposição que o cron grava por dia
+        # viravam "bezerro — R$ None a arroba" no título do change form, na
+        # confirmação de exclusão e no histórico do admin.
+        if self.mercado == self.REPOSICAO:
+            return f"{self.get_categoria_display()} — R$ {self.rs_kg} o quilo"
         return f"{self.get_categoria_display()} — R$ {self.bruto_a_vista} a arroba"
 
     # A female that is not a novilha is priced off the vaca gorda page -- the

@@ -800,10 +800,23 @@ class TestAcoesProntas(BaseGado):
 
     def test_o_que_falta_vem_primeiro(self):
         """The page knows what the record lacks; it may as well offer to fill it."""
-        novo = Animal.objects.create(brinco="T500")   # sem categoria, peso nem valor
+        novo = Animal.objects.create(brinco="T500")  # sem sexo, categoria, peso nem valor
         titulos = [t for t, _, _ in self._acoes("T500")]
+        # O sexo encabeça a lista: sem ele `mercado` devolve ABATE em silêncio e
+        # o bicho é precificado pelo boi gordo. E a categoria NÃO aparece junto:
+        # com o sexo respondido o `Pesagem.save()` a deriva do peso sozinho, e
+        # os dois botões teriam a mesma frase pronta.
         self.assertEqual(titulos[:3],
-                         ["Dizer o que ele é", "Dizer quanto custou", "Dizer o peso"])
+                         ["Dizer se é macho ou fêmea", "Dizer quanto custou",
+                          "Dizer o peso"])
+        self.assertNotIn("Dizer o que ele é", titulos)
+
+    def test_com_sexo_respondido_a_categoria_volta_a_ser_perguntada(self):
+        """O sexo substitui a pergunta da categoria; não a apaga."""
+        Animal.objects.create(brinco="T501", sexo="macho")
+        titulos = [t for t, _, _ in self._acoes("T501")]
+        self.assertIn("Dizer o que ele é", titulos)
+        self.assertNotIn("Dizer se é macho ou fêmea", titulos)
 
     def test_bicho_completo_nao_pede_nada(self):
         self.vaca.valor_compra = Decimal("2987.14")
@@ -1143,6 +1156,74 @@ class TestBezerroUsaReposicao(BaseBezerro):
     def test_margem_por_quilo(self):
         # pagou 2.820 por 168 kg = R$ 16,79/kg; a curva paga 15,50/kg no ponto.
         self.assertAlmostEqual(float(self.bezerro.pago_por_kg), 16.79, places=2)
+        self.assertAlmostEqual(
+            float(self.bezerro.cotacao_por_kg_na_compra), 15.50, places=2)
+        # Comprou R$ 1,29 acima do que o mercado pagava num bicho de 168 kg.
+        self.assertAlmostEqual(float(self.bezerro.ganho_por_kg), -1.29, places=2)
+
+
+class TestContaDoQuiloNaoAndaComOPeso(BaseBezerro):
+    """O número da compra não pode piorar porque o bicho engordou.
+
+    Este é o teste que faltava. Na reposição o R$/kg é FUNÇÃO DO PESO -- a
+    escada cai de R$ 15,50 no desmama de 180 kg para R$ 11,99 no boi magro de
+    345. Enquanto `ganho_por_kg` lia a curva no peso de HOJE e o preço pago no
+    peso de ENTRADA, ele comparava dois animais diferentes, e a diferença ficava
+    mais negativa a cada pesagem nova: medido num bezerro real, ia de −R$ 4,79
+    a −R$ 6,59 enquanto o ganho na cabeça subia de −R$ 666 para +R$ 741.
+
+    Vermelho crescente enquanto ele faz o único trabalho que tem. É o que a
+    spec §5.1 chama de contar a história ao contrário, e nenhum teste pegava,
+    porque toda cabeça do banco tem uma pesagem só -- os dois lados da conta
+    usavam o mesmo peso e a contradição só nasceria na primeira pesagem NOVA.
+    """
+
+    def _pesar(self, kg, dia):
+        Pesagem.objects.create(animal=self.bezerro,
+                               data=datetime.date(2026, 10, dia),
+                               peso_kg=Decimal(str(kg)))
+        return Animal.objects.get(pk=self.bezerro.pk)
+
+    def test_o_numero_da_compra_nao_se_mexe_quando_o_bicho_engorda(self):
+        antes = self.bezerro.ganho_por_kg
+        for i, kg in enumerate((200, 230, 260), start=1):
+            bicho = self._pesar(kg, i)
+            self.assertEqual(bicho.peso_atual_kg, float(kg))   # engordou mesmo
+            self.assertEqual(bicho.ganho_por_kg, antes,
+                             f"ganho_por_kg mudou ao pesar {kg} kg")
+            self.assertEqual(bicho.cotacao_por_kg_na_compra,
+                             self.bezerro.cotacao_por_kg_na_compra)
+
+    def test_engordar_nao_deixa_a_conta_mais_vermelha_com_o_ganho_subindo(self):
+        """A contradição exata da revisão: cabeça no verde, quilo no vermelho."""
+        bicho = self._pesar(260, 1)
+        # A cabeça ganhou: 260 kg pela curva vale mais do que os 2.820 pagos.
+        self.assertGreater(float(bicho.ganho), 0)
+        # E o número do quilo NÃO piorou junto -- ficou onde a compra o deixou.
+        self.assertEqual(bicho.ganho_por_kg, self.bezerro.ganho_por_kg)
+
+    def test_cotacao_por_kg_do_dia_continua_existindo_e_cai_com_o_peso(self):
+        """O fato isolado continua certo, e é ele que a linha do valor mostra.
+
+        Ele só não pode ser o subtraendo. A queda aqui é a escada, e está certa:
+        quilo de bicho grande é mais barato que quilo de bicho pequeno.
+        """
+        # Antes de pesar: `self.bezerro` reconsulta as pesagens a cada acesso,
+        # então o valor tem de ser guardado aqui, não lido depois.
+        antes = self.bezerro.cotacao_por_kg
+        bicho = self._pesar(260, 1)
+        self.assertLess(bicho.cotacao_por_kg, antes)
+        self.assertNotEqual(bicho.cotacao_por_kg, bicho.cotacao_por_kg_na_compra)
+
+    def test_a_ficha_fala_de_compra_e_nao_de_perda(self):
+        self._pesar(260, 1)
+        corpo = self.client.get(
+            reverse("gado:animal", args=["632"])).content.decode()
+        self.assertIn("A conta do quilo, na compra", corpo)
+        self.assertIn("Comprou acima do mercado", corpo)
+        # "Perdeu no quilo" era a conclusão errada que a tela tirava sozinha.
+        self.assertNotIn("Perdeu no quilo", corpo)
+        self.assertNotIn("Ganhou no quilo", corpo)
 
 
 class TestTelaRebanhoUnidades(BaseBezerro):

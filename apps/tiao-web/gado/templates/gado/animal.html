@@ -12,19 +12,22 @@
 
 {% if a.unidade == 'kg' and a.pago_por_kg %}
 <div class="conta">
-  <div class="titulo">A conta do quilo</div>
+  <div class="titulo">A conta do quilo, na compra</div>
   <div class="par"><span class="rot">Pagou no quilo</span>
     <span class="val destaque">{{ a.pago_por_kg|reais }}</span></div>
-  <div class="par"><span class="rot">O quilo de referência</span>
-    <span class="val destaque">{{ a.cotacao_por_kg|reais }}</span></div>
-  <div class="par"><span class="rot">{% if a.ganho_por_kg > 0 %}Ganhou{% else %}Perdeu{% endif %} no quilo</span>
+  <div class="par"><span class="rot">O quilo de mercado, num bicho daquele peso</span>
+    <span class="val destaque">{{ a.cotacao_por_kg_na_compra|reais }}</span></div>
+  <div class="par"><span class="rot">Comprou {% if a.ganho_por_kg > 0 %}abaixo{% else %}acima{% endif %} do mercado</span>
     <span class="val destaque {{ a.ganho_por_kg|classe_ganho }}">{{ a.ganho_por_kg|reais_sinal }}</span></div>
   {% if a.primeira_pesagem %}
   <div class="par"><span class="rot">Pelo peso de entrada</span>
     <span class="val">{{ a.primeira_pesagem.peso_kg|numero }} kg
       <br><small>pesado em {{ a.primeira_pesagem.data|date:"d/m/Y" }}</small></span></div>
   {% endif %}
-  <p class="nota">Bicho pra repor é vendido por quilo vivo, não por arroba de carcaça.</p>
+  <p class="nota">Bicho pra repor é vendido por quilo vivo, não por arroba de
+    carcaça. Esta conta é só sobre a compra: compara o que o senhor pagou com o
+    que o mercado paga num bicho do peso em que ele entrou. O que ele rendeu
+    depois, engordando, está logo abaixo, no quadro do valor.</p>
 </div>
 {% elif a.pago_por_arroba %}
 <div class="conta">
@@ -40,6 +43,13 @@
     <span class="val">{{ a.primeira_pesagem.peso_kg|numero }} kg
       <br><small>pesado em {{ a.primeira_pesagem.data|date:"d/m/Y" }}</small></span></div>
   {% endif %}
+  <p class="nota">Esta conta é por arroba de carcaça porque é assim que este
+    bicho se vende hoje.{% if a.troca_de_mercado_pelo_peso %} Bicho pra repor faz a conta
+    por quilo vivo; a partir do peso em que ele vale mais no abate do que na
+    reposição, ela passa pra arroba — e troca sozinha, sem o senhor mexer em
+    nada.{% endif %} O “Pagou na arroba” é conta nossa, tirada do que o senhor
+    pagou pela cabeça: pode ser que o negócio nem tenha sido fechado por
+    arroba.</p>
 </div>
 {% endif %}
 

@@ -11,6 +11,12 @@
 :root{
   --tinta:#1a1a1a; --fraca:#5c5c5c; --linha:#d9d5cd;
   --fundo:#faf8f4; --cartao:#fff; --verde:#15803d; --ambar:#b45309;
+  /* A listra da linha par. Fica ENTRE o branco do --cartao e o #f0ece4 do
+     cabeçalho, e mais perto do branco: se ela chegar no tom do th, a linha
+     alternada compete com o cabeçalho e a tabela fica confusa. Forte demais
+     também cansa -- são 29 linhas de boiada -- e fraca demais some no sol,
+     que é onde esta tela é lida. */
+  --listra:#f6f3ec;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--fundo);color:var(--tinta);
@@ -121,6 +127,14 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 th:first-child,td:first-child{position:sticky;left:0;z-index:2;
   background:var(--cartao);box-shadow:3px 0 5px -2px rgba(0,0,0,.18)}
 th:first-child{background:#f0ece4;z-index:3}
+/* Linha sim, linha não: sem isso o olho perde a linha a meio caminho numa
+   tabela de doze colunas que ainda rola pro lado.
+
+   Depois da regra da coluna fixa, e com especificidade maior de propósito: a
+   primeira célula pinta --cartao para não deixar o resto da linha aparecer
+   por baixo dela enquanto rola, e sem este seletor ganhar dela o brinco
+   ficaria branco no meio de uma linha listrada. */
+tbody tr:nth-child(even) td{background:var(--listra)}
 
 .barra-tabela{display:flex;justify-content:space-between;align-items:center;
   gap:10px;margin-bottom:8px}

@@ -108,9 +108,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Tests run on SQLite. `tiao_user` has no CREATEDB on the homelab Postgres, and
 # granting it there just so a test run can create test_tiao_database would hand
-# a web app a right it must never have in production. Nothing here depends on
-# Postgres-specific behaviour; the CHECK constraint on cotacoes.categoria lives
-# in the database and is exercised by the live cron, not by these tests.
+# a web app a right it must never have in production. O CHECK de
+# cotacoes.categoria hoje vive em Cotacao.Meta.constraints (gado/models.py) e
+# É exercido por estes testes; só o passo que substitui o CHECK legado
+# hand-rolled da migração 0012 é Postgres-específico, e esse passo se
+# reconhece como no-op fora do Postgres.
 if "test" in sys.argv:
     DATABASES = {
         "default": {

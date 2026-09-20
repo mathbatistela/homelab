@@ -761,6 +761,16 @@ class TestCotacaoReposicao(TestCase):
             peso_ref_kg=Decimal("255.00"))
         self.assertEqual(Cotacao.objects.filter(categoria="novilha").count(), 2)
 
+    def test_categoria_invalida_e_recusada(self):
+        # choices= é só validação de formulário; quem grava pelo ORM sem
+        # full_clean() passa direto. O CHECK no banco é a última linha.
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Cotacao.objects.create(
+                mercado=Cotacao.ABATE, unidade=Cotacao.ARROBA,
+                categoria="categoria-invalida-xyz", praca="SP Araçatuba",
+                data_pregao=datetime.date(2026, 9, 18),
+                bruto_a_vista=Decimal("341.00"), bruto_30d=Decimal("345.00"))
+
     def test_reposicao_sem_rs_kg_e_recusada(self):
         with self.assertRaises(IntegrityError), transaction.atomic():
             Cotacao.objects.create(

@@ -712,6 +712,16 @@ class Cotacao(models.Model):
             models.UniqueConstraint(
                 fields=["mercado", "categoria", "praca", "data_pregao"],
                 name="cotacoes_unica_por_pregao"),
+            # choices= é só validação de formulário -- quem grava pelo ORM sem
+            # full_clean() passa direto. Lista POR EXTENSO, nunca como delta
+            # de CATEGORIAS: é a mesma armadilha que já mordeu esta tarefa
+            # uma vez (a spec original tinha perdido 'bezerro' assim).
+            models.CheckConstraint(
+                condition=models.Q(categoria__in=[
+                    "boi", "novilha", "vaca", "desmama", "bezerro", "garrote",
+                    "boi magro", "bezerra", "vaca magra",
+                ]),
+                name="cotacoes_categoria_valida"),
             # Cada mercado preenche o seu lado e deixa o outro vazio. Sem isto
             # uma linha de reposicao sem rs_kg entra e vira preco None na tela.
             models.CheckConstraint(

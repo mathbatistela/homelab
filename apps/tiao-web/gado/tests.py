@@ -744,3 +744,62 @@ class TestAcoesProntas(BaseGado):
     def _acoes_por_id(self, a):
         from .views import _acoes_tiao
         return _acoes_tiao(a)
+
+
+class TestCotacaoReposicao(TestCase):
+    """As duas cotações de novilha coexistem: mercados diferentes, preços diferentes."""
+
+    def test_novilha_de_abate_e_de_reposicao_convivem(self):
+        Cotacao.objects.create(
+            mercado=Cotacao.ABATE, unidade=Cotacao.ARROBA, categoria="novilha",
+            praca="SP Araçatuba", data_pregao=datetime.date(2026, 9, 18),
+            bruto_a_vista=Decimal("341.00"), bruto_30d=Decimal("345.00"))
+        Cotacao.objects.create(
+            mercado=Cotacao.REPOSICAO, unidade=Cotacao.KG, categoria="novilha",
+            praca="SP", data_pregao=datetime.date(2026, 9, 18),
+            rs_kg=Decimal("11.52"), rs_cabeca=Decimal("2937.60"),
+            peso_ref_kg=Decimal("255.00"))
+        self.assertEqual(Cotacao.objects.filter(categoria="novilha").count(), 2)
+
+    def test_reposicao_sem_rs_kg_e_recusada(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Cotacao.objects.create(
+                mercado=Cotacao.REPOSICAO, unidade=Cotacao.KG, categoria="bezerro",
+                praca="SP", data_pregao=datetime.date(2026, 9, 18),
+                peso_ref_kg=Decimal("205.00"))
+
+    def test_abate_com_rs_kg_e_recusado(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Cotacao.objects.create(
+                mercado=Cotacao.ABATE, unidade=Cotacao.ARROBA, categoria="boi",
+                praca="SP Araçatuba", data_pregao=datetime.date(2026, 9, 18),
+                bruto_a_vista=Decimal("346.00"), bruto_30d=Decimal("350.00"),
+                rs_kg=Decimal("15.31"))
+
+    def test_mesma_categoria_e_mercado_no_mesmo_pregao_nao_duplica(self):
+        for _ in range(1):
+            Cotacao.objects.create(
+                mercado=Cotacao.REPOSICAO, unidade=Cotacao.KG, categoria="bezerro",
+                praca="SP", data_pregao=datetime.date(2026, 9, 18),
+                rs_kg=Decimal("15.31"), rs_cabeca=Decimal("3138.88"),
+                peso_ref_kg=Decimal("205.00"))
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Cotacao.objects.create(
+                mercado=Cotacao.REPOSICAO, unidade=Cotacao.KG, categoria="bezerro",
+                praca="SP", data_pregao=datetime.date(2026, 9, 18),
+                rs_kg=Decimal("99.99"), rs_cabeca=Decimal("1.00"),
+                peso_ref_kg=Decimal("205.00"))
+
+    def test_ultimas_por_categoria_ignora_reposicao(self):
+        Cotacao.objects.create(
+            mercado=Cotacao.REPOSICAO, unidade=Cotacao.KG, categoria="novilha",
+            praca="SP-F", data_pregao=datetime.date(2026, 9, 19),
+            rs_kg=Decimal("11.52"), rs_cabeca=Decimal("2937.60"),
+            peso_ref_kg=Decimal("255.00"))
+        Cotacao.objects.create(
+            mercado=Cotacao.ABATE, unidade=Cotacao.ARROBA, categoria="novilha",
+            praca="SP Araçatuba", data_pregao=datetime.date(2026, 9, 18),
+            bruto_a_vista=Decimal("341.00"), bruto_30d=Decimal("345.00"))
+        # A de reposição é MAIS RECENTE; ainda assim não pode ser escolhida.
+        self.assertEqual(Cotacao.ultimas_por_categoria()["novilha"].bruto_a_vista,
+                         Decimal("341.00"))

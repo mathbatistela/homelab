@@ -658,24 +658,71 @@ class Cotacao(models.Model):
     misalign you, and the three category pages don't share a column count.
     """
 
+    ABATE = "abate"
+    REPOSICAO = "reposicao"
+    MERCADOS = [(ABATE, "abate"), (REPOSICAO, "reposição")]
+
+    ARROBA = "arroba"
+    KG = "kg"
+    UNIDADES = [(ARROBA, "R$ por arroba de carcaça"), (KG, "R$ por quilo vivo")]
+
     BOI = "boi"
     NOVILHA = "novilha"
     VACA = "vaca"
-    CATEGORIAS = [(BOI, "boi gordo"), (NOVILHA, "novilha"), (VACA, "vaca gorda")]
+    DESMAMA = "desmama"
+    BEZERRO = "bezerro"
+    GARROTE = "garrote"
+    BOI_MAGRO = "boi magro"
+    BEZERRA = "bezerra"
+    VACA_MAGRA = "vaca magra"
 
+    # Lista COMPLETA, nunca delta: ao redigir a spec a versao em delta perdeu
+    # 'bezerro', que e' exatamente a categoria que motivou este trabalho.
+    CATEGORIAS = [
+        (BOI, "boi gordo"), (NOVILHA, "novilha"), (VACA, "vaca gorda"),
+        (DESMAMA, "desmama"), (BEZERRO, "bezerro"), (GARROTE, "garrote"),
+        (BOI_MAGRO, "boi magro"), (BEZERRA, "bezerra"), (VACA_MAGRA, "vaca magra"),
+    ]
+
+    CATEGORIAS_ABATE = [(BOI, "boi gordo"), (NOVILHA, "novilha"), (VACA, "vaca gorda")]
+
+    mercado = models.CharField("mercado", max_length=16, choices=MERCADOS, default=ABATE)
+    unidade = models.CharField("unidade", max_length=8, choices=UNIDADES, default=ARROBA)
     categoria = models.CharField("categoria", max_length=16, choices=CATEGORIAS)
     praca = models.TextField("praça")
     data_pregao = models.DateField("data do pregão")
-    bruto_a_vista = models.DecimalField("bruto à vista", max_digits=10, decimal_places=2)
-    bruto_30d = models.DecimalField("bruto 30 dias", max_digits=10, decimal_places=2)
+    bruto_a_vista = models.DecimalField("bruto à vista", max_digits=10,
+                                        decimal_places=2, blank=True, null=True)
+    bruto_30d = models.DecimalField("bruto 30 dias", max_digits=10,
+                                    decimal_places=2, blank=True, null=True)
+    rs_kg = models.DecimalField("R$ por quilo vivo", max_digits=10,
+                                decimal_places=2, blank=True, null=True)
+    rs_cabeca = models.DecimalField("R$ por cabeça", max_digits=12,
+                                    decimal_places=2, blank=True, null=True)
+    peso_ref_kg = models.DecimalField("peso de referência", max_digits=8,
+                                      decimal_places=2, blank=True, null=True)
     coletado_em = models.DateTimeField("coletado em", auto_now_add=True)
 
     class Meta:
         db_table = "cotacoes"
         verbose_name = "cotação"
         verbose_name_plural = "cotações"
-        ordering = ["-data_pregao", "categoria"]
-        unique_together = (("categoria", "praca", "data_pregao"),)
+        ordering = ["-data_pregao", "mercado", "categoria"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["mercado", "categoria", "praca", "data_pregao"],
+                name="cotacoes_unica_por_pregao"),
+            # Cada mercado preenche o seu lado e deixa o outro vazio. Sem isto
+            # uma linha de reposicao sem rs_kg entra e vira preco None na tela.
+            models.CheckConstraint(
+                condition=(
+                    models.Q(mercado="abate", unidade="arroba",
+                             bruto_a_vista__isnull=False, rs_kg__isnull=True)
+                    | models.Q(mercado="reposicao", unidade="kg",
+                               rs_kg__isnull=False, peso_ref_kg__isnull=False,
+                               bruto_a_vista__isnull=True)),
+                name="cotacoes_unidade_coerente"),
+        ]
 
     def __str__(self):
         return f"{self.get_categoria_display()} — R$ {self.bruto_a_vista} a arroba"
@@ -708,9 +755,15 @@ class Cotacao(models.Model):
 
     @classmethod
     def ultimas_por_categoria(cls):
-        """{categoria: última cotação} in three queries, whatever the herd size."""
-        return {c: cls.objects.filter(categoria=c).order_by("-data_pregao").first()
-                for c, _ in cls.CATEGORIAS}
+        """{categoria: última cotação de ABATE} em três queries.
+
+        Só abate: a reposição não é endereçável por categoria sozinha -- a
+        mesma `novilha` existe nos dois mercados, e `desmama` existe nos dois
+        sexos. Para reposição use `escada_reposicao`.
+        """
+        return {c: cls.objects.filter(mercado=cls.ABATE, categoria=c)
+                              .order_by("-data_pregao").first()
+                for c, _ in cls.CATEGORIAS_ABATE}
 
 
 # --- Proxy models -------------------------------------------------------------

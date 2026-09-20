@@ -184,14 +184,19 @@ class TestConsultas(BaseGado):
         # The invariant is that the count does not GROW with the herd -- not
         # that it equals some magic number. Asserting the number would break on
         # any harmless change and would not have caught an N+1 anyway.
-        with self.assertNumQueries(7):
+        #
+        # Subiu de 7 para 15 na Tarefa 6: `com_cotacoes` passou a carregar as
+        # duas escadas de reposição (4 categorias x 2 sexos) além das três
+        # cotações de abate -- mas continua uma vez por página, não uma vez
+        # por animal.
+        with self.assertNumQueries(15):
             self.client.get("/")
 
         for i in range(60):
             a = Animal.objects.create(brinco=f"U{i}", categoria="boi", sexo="macho")
             Pesagem.objects.create(animal=a, data=datetime.date(2026, 8, 29),
                                    peso_kg=Decimal("400"))
-        with self.assertNumQueries(7):   # 22 cabeças ou 82: o mesmo
+        with self.assertNumQueries(15):   # 22 cabeças ou 82: o mesmo
             self.client.get("/")
 
 
@@ -936,3 +941,52 @@ class TestTrocaDeRegime(TestCase):
     def test_piso_protege_contra_cotacao_absurda(self):
         """Boi gordo altíssimo empurraria bezerro novo para o regime de abate."""
         self.assertEqual(pr.cruzamento(MACHO, 55.0, 900.00), pr.PISO_CRUZAMENTO)
+
+
+class BaseBezerro(BaseGado):
+    """Cenário compartilhado. SEM métodos de teste, de propósito.
+
+    Herdar de uma classe que TEM testes faz o unittest reexecutar os testes do
+    pai em cada filha. `BaseGado` já segue esse padrão na casa; as Tarefas 8 e
+    10 herdam desta.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.bezerro = Animal.objects.create(brinco="632", categoria="bezerro",
+                                            sexo="macho", valor_compra=Decimal("2820.00"))
+        Pesagem.objects.create(animal=cls.bezerro, data=datetime.date(2026, 9, 19),
+                               peso_kg=Decimal("168.00"))
+        for cat, kg, cab, ref in (("desmama", "15.50", "2790.00", "180.00"),
+                                  ("bezerro", "15.31", "3138.88", "205.00"),
+                                  ("garrote", "13.83", "3527.50", "255.00"),
+                                  ("boi magro", "11.99", "4137.53", "345.00")):
+            Cotacao.objects.create(
+                mercado=Cotacao.REPOSICAO, unidade=Cotacao.KG, categoria=cat,
+                praca="SP", data_pregao=datetime.date(2026, 9, 18),
+                rs_kg=Decimal(kg), rs_cabeca=Decimal(cab), peso_ref_kg=Decimal(ref))
+
+
+class TestBezerroUsaReposicao(BaseBezerro):
+    """O bug que originou este trabalho: 22 das 29 cabeças precificadas errado."""
+
+    def test_bezerro_vale_pela_reposicao_e_nao_pela_arroba_do_boi(self):
+        # 168 kg, abaixo do desmama: 168 x (2790/180) = 2.604,00
+        # Pela arroba do boi gordo daria 168 x 0,55 / 15 x 338 = 2.081,68 -- errado.
+        self.assertEqual(self.bezerro.mercado, Cotacao.REPOSICAO)
+        self.assertEqual(self.bezerro.unidade, Cotacao.KG)
+        self.assertAlmostEqual(float(self.bezerro.valor_atual), 2604.00, places=2)
+
+    def test_bezerro_nao_aparece_com_prejuizo_falso(self):
+        """Ele pagou 2.820 num bicho de 168 kg. O site dizia que valia 2.082."""
+        self.assertGreater(float(self.bezerro.valor_atual), 2500.00)
+
+    def test_vaca_continua_na_arroba_como_antes(self):
+        """Decisão 7: a vaca fica como está. Teste de não-regressão."""
+        self.assertEqual(self.vaca.mercado, Cotacao.ABATE)
+        self.assertEqual(self.vaca.unidade, Cotacao.ARROBA)
+
+    def test_margem_por_quilo(self):
+        # pagou 2.820 por 168 kg = R$ 16,79/kg; a curva paga 15,50/kg no ponto.
+        self.assertAlmostEqual(float(self.bezerro.pago_por_kg), 16.79, places=2)

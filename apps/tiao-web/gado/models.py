@@ -14,6 +14,8 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from . import precificacao
+
 # Carcass yield, the numbers Seu Jader uses. The arroba the market pays is of
 # CARCASS, not live weight: dividing live weight by 15 nearly doubles an
 # animal's value. Same constants as the tiao-cotacao skill.
@@ -447,6 +449,14 @@ class Animal(models.Model):
             return self._cotacoes.get(cat)
         return Cotacao.mais_recente(cat)
 
+    def _escada_reposicao(self):
+        # Mesmo padrão de `cotacao_atual`: usa o que `com_cotacoes` já
+        # carregou para a lista inteira, e só consulta o banco sozinho quando
+        # ninguém carregou por ela -- a página de um único animal.
+        if hasattr(self, "_escadas"):
+            return self._escadas["femea" if e_femea(self.sexo) else "macho"]
+        return Cotacao.escada_reposicao(self.sexo)
+
     @staticmethod
     def com_cotacoes(animais):
         """Hands one quote lookup to a whole list of animals.
@@ -455,10 +465,71 @@ class Animal(models.Model):
         query per head.
         """
         cotacoes = Cotacao.ultimas_por_categoria()
+        escadas = {"macho": Cotacao.escada_reposicao("macho"),
+                  "femea": Cotacao.escada_reposicao("femea")}
         animais = list(animais)
         for a in animais:
             a._cotacoes = cotacoes
+            a._escadas = escadas
         return animais
+
+    @property
+    def mercado(self):
+        """Em que mercado este bicho é vendido HOJE, pelo peso dele.
+
+        A troca acontece no cruzamento das duas curvas, não num peso fixo.
+        Fêmea segue no abate por decisão do dono: as matrizes dele pesam de
+        343 a 563 kg, todas acima do cruzamento feminino de qualquer forma.
+        """
+        # `self.sexo`, NUNCA `self.sexo or self.categoria`: `desmama` serve aos
+        # dois sexos e ficou fora de SEXO_DA_CATEGORIA, então e_femea() de uma
+        # categoria ambígua devolve False -- isto é, MACHO -- em silêncio. Uma
+        # cria fêmea iria para a escada masculina, R$ 15,50/kg em vez de
+        # R$ 13,20/kg. Sem sexo não há escada: devolve ABATE, que não estima.
+        kg = self.peso_atual_kg
+        if kg is None or not self.sexo or e_femea(self.sexo):
+            return Cotacao.ABATE
+        pontos = self._escada_reposicao()
+        # `cotacao_atual`, não `Cotacao.mais_recente_abate` direto: sexo já
+        # está garantido macho aqui, e `categoria_de` de qualquer categoria
+        # masculina cai em BOI -- exatamente a cotação que `cotacao_atual` já
+        # busca, e via `self._cotacoes` quando `com_cotacoes` carregou a
+        # lista. Chamar o classmethod aqui reabriria o N+1: uma query de
+        # abate por animal, o mesmo defeito que a escada já evitava.
+        abate = self.cotacao_atual
+        # len < 2, não "vazio": escada() levanta com menos de dois pontos, e
+        # uma coleta interrompida pela metade devolve um ponto só.
+        if len(pontos) < 2 or not abate or abate.bruto_a_vista is None:
+            return Cotacao.ABATE
+        limite = precificacao.cruzamento(pontos, self.rendimento,
+                                         float(abate.bruto_a_vista))
+        return Cotacao.ABATE if kg >= limite else Cotacao.REPOSICAO
+
+    @property
+    def unidade(self):
+        return Cotacao.KG if self.mercado == Cotacao.REPOSICAO else Cotacao.ARROBA
+
+    @property
+    def pago_por_kg(self):
+        """Quanto ele pagou por quilo vivo, pelo peso de ENTRADA do animal."""
+        p = self.primeira_pesagem
+        if not self.valor_compra or p is None or not p.peso_kg:
+            return None
+        return self.valor_compra / Decimal(str(p.peso_kg))
+
+    @property
+    def cotacao_por_kg(self):
+        """O R$/kg que a curva paga no peso de hoje."""
+        kg = self.peso_atual_kg
+        if kg is None or self.mercado != Cotacao.REPOSICAO:
+            return None
+        v = precificacao.valor_reposicao(kg, self._escada_reposicao())
+        return Decimal(str(round(v / kg, 2))) if v is not None else None
+
+    @property
+    def ganho_por_kg(self):
+        pago, vale = self.pago_por_kg, self.cotacao_por_kg
+        return None if pago is None or vale is None else vale - pago
 
     # --- O que ele calcula de cabeça toda vez que pesa -----------------------
     # "Paguei quanto na arroba?" é a pergunta da engorda: você compra a X a
@@ -599,21 +670,29 @@ class Animal(models.Model):
 
     @property
     def valor_atual(self):
-        """ESTIMATE of what this head would fetch, at the reference quote.
+        """ESTIMATIVA do que esta cabeça renderia, na cotação de referência.
 
-        Not a promise, and the screens must not read like one. The quote is SP
-        Araçatuba's published average; what he is actually paid is whatever the
-        buyer offers, and it varies by buyer and by animal -- two heads in the
-        same lot can go at different prices per arroba. This number is for
-        deciding whether to sell, never for what he will receive.
+        Não é promessa, e as telas não podem soar como uma. No abate a
+        cotação é a média publicada de SP Araçatuba; o que ele recebe de
+        fato é o que o comprador oferece, e varia por comprador e por
+        animal -- duas cabeças do mesmo lote podem sair por arrobas
+        diferentes. Na reposição vem da curva interpolada, não do R$/kg da
+        faixa. Serve para decidir se vende, nunca para o que ele vai
+        receber.
 
-        A sold animal has a real number instead: `valor_venda_apurado`.
+        Um animal vendido tem um número real em vez deste: `valor_venda_apurado`.
         """
-
-        arrobas, cot = self.peso_arrobas, self.cotacao_atual
-        if arrobas is None or cot is None:
+        kg = self.peso_atual_kg
+        if kg is None:
             return None
-        return Decimal(str(arrobas)) * cot.bruto_a_vista
+        if self.mercado == Cotacao.REPOSICAO:
+            v = precificacao.valor_reposicao(kg, self._escada_reposicao())
+            return Decimal(str(round(v, 2))) if v is not None else None
+        cot = self.cotacao_atual
+        if cot is None or cot.bruto_a_vista is None:
+            return None
+        return Decimal(str(round(
+            precificacao.valor_abate(kg, self.rendimento, float(cot.bruto_a_vista)), 2)))
 
 
 class Pesagem(models.Model):
@@ -764,8 +843,20 @@ class Cotacao(models.Model):
     # closest female quote the market publishes. Same mapping the bot uses.
     PAGINA = {"novilha": NOVILHA, "vaca": VACA, "bezerra": VACA, "femea": VACA}
 
+    ESCADA_MACHO = ("desmama", "bezerro", "garrote", "boi magro")
+    ESCADA_FEMEA = ("desmama", "bezerra", "novilha", "vaca magra")
+    # Mesmas strings que cotacao_diaria.PRACA_REPOSICAO grava (Tarefa 3). É a
+    # praça que separa a desmama macho da desmama fêmea, porque a chave única
+    # não tem sexo. As duas pontas têm de concordar literalmente.
+    PRACA_REPOSICAO = {"macho": "SP", "femea": "SP-F"}
+
     @classmethod
     def categoria_de(cls, categoria_ou_sexo):
+        """Página de abate correspondente. Só serve ao ABATE.
+
+        A reposição não é endereçável por categoria sozinha -- veja
+        `escada_reposicao` e `ultimas_por_categoria`.
+        """
         return cls.PAGINA.get(_sem_acento(categoria_ou_sexo), cls.BOI)
 
     @classmethod
@@ -797,6 +888,20 @@ class Cotacao(models.Model):
         return {c: cls.objects.filter(mercado=cls.ABATE, categoria=c)
                               .order_by("-data_pregao").first()
                 for c, _ in cls.CATEGORIAS_ABATE}
+
+    @classmethod
+    def escada_reposicao(cls, sexo):
+        """Os pontos (peso_ref_kg, rs_cabeca) do último pregão, para um sexo."""
+        femea = e_femea(sexo)
+        cats = cls.ESCADA_FEMEA if femea else cls.ESCADA_MACHO
+        praca = cls.PRACA_REPOSICAO["femea" if femea else "macho"]
+        pontos = []
+        for cat in cats:
+            c = (cls.objects.filter(mercado=cls.REPOSICAO, categoria=cat, praca=praca)
+                 .order_by("-data_pregao").first())
+            if c and c.peso_ref_kg and c.rs_cabeca:
+                pontos.append((float(c.peso_ref_kg), float(c.rs_cabeca)))
+        return pontos
 
 
 # --- Proxy models -------------------------------------------------------------

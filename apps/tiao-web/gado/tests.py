@@ -1039,3 +1039,34 @@ class TestTelaRebanhoUnidades(BaseBezerro):
             reverse("gado:animal", args=["632"])).content.decode()
         self.assertIn("A conta do quilo", corpo)
         self.assertNotIn("A conta da arroba", corpo)
+
+
+class TestFichaExplicaOMercadoCerto(BaseBezerro):
+    """A explicação embaixo do "Deve dar mais ou menos" tem de falar a língua
+    do mercado do bicho, não sempre a do abate.
+
+    O defeito: pra um bezerro de reposição (mercado kg), a ficha dizia "Pela
+    cotação de boi gordo, R$ 338,00 a arroba" e "Contando rendimento de 55%"
+    embaixo de um valor que na verdade veio da curva de reposição -- o método
+    do OUTRO mercado, contradizendo o cartão "A conta do quilo" logo acima,
+    que já dizia que este bicho não se vende por arroba.
+    """
+
+    def test_bezerro_de_reposicao_nao_fala_de_arroba_nem_rendimento(self):
+        corpo = self.client.get(
+            reverse("gado:animal", args=["632"])).content.decode()
+        self.assertNotIn("Contando rendimento de", corpo)
+        self.assertNotIn("a arroba", corpo)
+        self.assertNotIn("Araçatuba", corpo)
+        self.assertIn("Pela cotação de reposição", corpo)
+        self.assertIn("R$ 15,50", corpo)
+        self.assertIn("o quilo vivo", corpo)
+
+    def test_boi_de_abate_continua_falando_de_arroba_e_rendimento(self):
+        corpo = self.client.get(
+            reverse("gado:animal", args=["7001"])).content.decode()
+        self.assertIn("Contando rendimento de", corpo)
+        self.assertIn("a arroba", corpo)
+        self.assertIn("Araçatuba", corpo)
+        self.assertNotIn("Pela cotação de reposição", corpo)
+        self.assertNotIn("o quilo vivo", corpo)

@@ -72,7 +72,12 @@
   <div class="par"><span class="rot">{% if a.ganho > 0 %}Ganho{% else %}Prejuízo{% endif %}</span>
     <span class="val destaque {{ a.ganho|classe_ganho }}">{{ a.ganho|reais_sinal }}</span></div>
   {% endif %}
-  {% if a.cotacao_atual and a.cotacao_atual.bruto_a_vista %}
+  {% if a.unidade == 'kg' %}
+    {% if a.cotacao_por_kg %}
+    <div class="par"><span class="rot">Pela cotação de reposição</span>
+      <span class="val">{{ a.cotacao_por_kg|reais }} o quilo vivo</span></div>
+    {% endif %}
+  {% elif a.cotacao_atual and a.cotacao_atual.bruto_a_vista %}
   <div class="par"><span class="rot">Pela cotação de</span>
     <span class="val">{{ a.cotacao_atual.get_categoria_display }},
       {{ a.cotacao_atual.bruto_a_vista|reais }} a arroba
@@ -80,9 +85,15 @@
   <div class="par"><span class="rot">Contando rendimento de</span>
     <span class="val">{{ a.rendimento|floatformat:0 }}%</span></div>
   {% endif %}
+  {% if a.unidade == 'kg' %}
+  <p class="aviso">Isso é conta pela curva de reposição, que estima o preço
+    pelo peso de hoje. Cada comprador paga o dele, e o preço pode mudar de um
+    negócio pro outro.</p>
+  {% else %}
   <p class="aviso">Isso é conta pela cotação de Araçatuba, que é uma média de
     mercado. Cada comprador paga o dele, e o preço pode mudar de uma cabeça pra
     outra no mesmo negócio.</p>
+  {% endif %}
 </div>
 
 <div class="cartao">

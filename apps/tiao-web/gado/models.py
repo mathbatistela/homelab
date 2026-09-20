@@ -174,12 +174,17 @@ class Movimentacao(models.Model):
         Contraparte, models.DO_NOTHING, blank=True, null=True,
         verbose_name="contraparte", related_name="movimentacoes")
     quantidade = models.IntegerField("quantidade", blank=True, null=True)
-    # A deal is priced in one of three ways, and which one depends on who is on
-    # the other side. A frigorífico buys by the arroba; a neighbour buys the lot
-    # for a round number. Whichever he knows goes in; the rest is derived.
+    # A deal is priced in one of the ways below, and which one depends on who
+    # is on the other side. A frigorífico buys ready cattle by the arroba;
+    # someone buying calves for reposição buys by the quilo vivo; a neighbour
+    # buys the lot for a round number. Whichever he knows goes in; the rest is
+    # derived.
     preco_arroba = models.DecimalField(
         "preço da arroba", max_digits=10, decimal_places=2, blank=True, null=True,
         help_text="Quando o negócio foi fechado por arroba")
+    preco_kg = models.DecimalField(
+        "preço do quilo", max_digits=10, decimal_places=2, blank=True, null=True,
+        help_text="Quando o negócio foi fechado por quilo vivo (reposição)")
     observacoes = models.TextField("observações", blank=True, null=True)
     criado_em = models.DateTimeField("criado em", auto_now_add=True)
 
@@ -290,6 +295,17 @@ class Animal(models.Model):
         "preço da arroba desta cabeça", max_digits=10, decimal_places=2,
         blank=True, null=True,
         help_text="Quando esta cabeça saiu por arroba diferente da do negócio")
+    preco_kg_venda = models.DecimalField(
+        "preço do quilo desta cabeça", max_digits=10, decimal_places=2,
+        blank=True, null=True,
+        help_text="Quando esta cabeça saiu por quilo diferente do negócio")
+    # O que ele digitou sobre a venda -- nunca recalculado depois. A Tarefa 10
+    # vai propor correção automática de categoria pelo peso; esse campo fica
+    # de fora disso, porque descreve o que de fato aconteceu, não uma
+    # estimativa.
+    categoria_venda = models.CharField(
+        "categoria na venda", max_length=16, choices=Categoria, blank=True, null=True,
+        help_text="Como o bicho saiu — fato histórico, nunca recalculado")
 
     class Meta:
         db_table = "animais"
@@ -311,6 +327,10 @@ class Animal(models.Model):
                 condition=models.Q(categoria__in=Categoria.values)
                 | models.Q(categoria__isnull=True),
                 name="animais_categoria_valida"),
+            models.CheckConstraint(
+                condition=models.Q(categoria_venda__in=Categoria.values)
+                | models.Q(categoria_venda__isnull=True),
+                name="animais_categoria_venda_valida"),
         ]
 
     def __str__(self):
@@ -610,32 +630,61 @@ class Animal(models.Model):
             return None
         return kg * (self.rendimento / 100.0) / KG_POR_ARROBA
 
+    def _venda_por_preco_unitario(self):
+        """Níveis 2 e 3 de `valor_venda_apurado`: um preço por quilo ou por
+        arroba, da cabeça ou do negócio.
+
+        Devolve `(valor, rótulo)`, ou `(None, None)` quando nenhum dos dois
+        níveis tem preço. Uma única conta serve `valor_venda_apurado` e
+        `origem_valor_venda` de propósito -- as duas jamais podem discordar
+        sobre de onde o número veio.
+        """
+        peso = self.peso_na_venda
+        arrobas = self.arrobas_na_venda
+        # Nível 2 -- o que ele disse sobre ESTA cabeça.
+        if self.preco_kg_venda is not None and peso is not None:
+            valor = Decimal(str(peso)) * self.preco_kg_venda
+            rotulo = f"{peso:.0f} kg × R$ {self.preco_kg_venda} (quilo desta cabeça)"
+            return valor, rotulo.replace(".", ",")
+        if self.preco_arroba_venda is not None and arrobas is not None:
+            valor = Decimal(str(round(arrobas, 4))) * self.preco_arroba_venda
+            rotulo = f"{arrobas:.2f} @ × R$ {self.preco_arroba_venda} (arroba desta cabeça)"
+            return valor, rotulo.replace(".", ",")
+        # Nível 3 -- o que ele disse sobre o NEGÓCIO inteiro.
+        if self.venda.preco_kg is not None and peso is not None:
+            valor = Decimal(str(peso)) * self.venda.preco_kg
+            rotulo = f"{peso:.0f} kg × R$ {self.venda.preco_kg} o quilo"
+            return valor, rotulo.replace(".", ",")
+        if self.venda.preco_arroba is not None and arrobas is not None:
+            valor = Decimal(str(round(arrobas, 4))) * self.venda.preco_arroba
+            rotulo = f"{arrobas:.2f} @ × R$ {self.venda.preco_arroba}"
+            return valor, rotulo.replace(".", ",")
+        return None, None
+
     @property
     def valor_venda_apurado(self):
         """What this head fetched, from whichever fact he actually has.
 
-        He prices a sale in one of four ways, depending on the buyer and on the
-        animal:
+        He prices a sale at one of four levels of specificity, from what he
+        said about THIS head to what he said about the whole lot:
 
-          1. per head -- "essa saiu por 5.200"
-          2. by THIS head's arroba -- heads in the same deal can go at
-             different prices, decided one by one
-          3. by the deal's arroba -- one R$/@ for everything
-          4. one number for the lot -- selling to a neighbour
+          1. per head, an absolute value -- "essa saiu por 5.200"
+          2. per head, a unit price -- kg vivo or arroba, decided one by one
+          3. per deal, a unit price -- one R$/kg or R$/@ for everything
+          4. per deal, one number for the lot -- selling to a neighbour
 
-        They are tried in that order, most specific first. What he typed always
-        wins over anything derived, so editing a single head later does not get
-        silently recomputed away.
+        They are tried in that order, most specific first, regardless of
+        unit: a head priced by arroba still beats a deal priced by the kilo.
+        What he typed always wins over anything derived, so editing a single
+        head later does not get silently recomputed away.
         """
         if not self.vendido:
             return None
         if self.valor_venda is not None:
             return self.valor_venda
-        preco = self.preco_arroba_venda or self.venda.preco_arroba
-        if preco is not None:
-            arrobas = self.arrobas_na_venda
-            if arrobas is not None:
-                return Decimal(str(round(arrobas, 4))) * preco
+        valor, _ = self._venda_por_preco_unitario()
+        if valor is not None:
+            return valor
         return self.venda.valor_por_cabeca
 
     @property
@@ -646,11 +695,9 @@ class Animal(models.Model):
             return None
         if self.valor_venda is not None:
             return "valor por cabeça"
-        preco = self.preco_arroba_venda or self.venda.preco_arroba
-        if preco is not None and self.arrobas_na_venda is not None:
-            propria = " (arroba desta cabeça)" if self.preco_arroba_venda else ""
-            return (f"{self.arrobas_na_venda:.2f} @ × R$ {preco}{propria}"
-                    .replace(".", ","))
+        _, rotulo = self._venda_por_preco_unitario()
+        if rotulo is not None:
+            return rotulo
         if self.venda.valor_por_cabeca is not None:
             return "rateio do total da venda"
         return None

@@ -99,11 +99,12 @@ class AnimalAdmin(ModelAdmin):
         ("Onde está", {"fields": ("propriedade",)}),
         ("Compra", {"fields": ("compra", "valor_compra")}),
         ("Venda", {"fields": ("venda", "valor_venda", "preco_arroba_venda",
-                              "peso_venda"),
+                              "preco_kg_venda", "categoria_venda", "peso_venda"),
                    "description": "Preenchidos do mais específico ao menos: valor "
-                                  "por cabeça vence tudo; depois a arroba desta "
-                                  "cabeça, quando ela saiu por preço próprio; "
-                                  "depois a arroba do negócio; por último o rateio "
+                                  "por cabeça vence tudo; depois o preço desta "
+                                  "cabeça, por arroba ou por quilo, quando ela saiu "
+                                  "por preço próprio; depois o preço do negócio, "
+                                  "por arroba ou por quilo; por último o rateio "
                                   "do total. Deixe em branco o que não souber."}),
         ("Outros", {"fields": ("observacoes",)}),
     )
@@ -186,7 +187,7 @@ class DespesaAdmin(ModelAdmin):
 
 
 class MovimentacaoAdminBase(ModelAdmin):
-    list_display = ("data", "comprador", "quantidade", "preco_arroba",
+    list_display = ("data", "comprador", "quantidade", "preco_arroba", "preco_kg",
                     "valor_display", "apurado_display", "diferenca_display")
     list_filter = ("data",)
     search_fields = ("comprador__nome", "observacoes")

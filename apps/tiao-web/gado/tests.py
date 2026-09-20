@@ -622,6 +622,71 @@ class TestTresJeitosDeVender(BaseGado):
         self.assertIn("320", corpo)
 
 
+class TestVendaPorQuilo(BaseGado):
+    """Bezerro pra reposição não é vendido pela arroba de carcaça -- é vendido
+    pelo quilo vivo. `Movimentacao.preco_kg` e `Animal.preco_kg_venda` cobrem
+    esse método de venda, no mesmo esquema de precedência que já vale pra
+    arroba: a cabeça vence o negócio, seja qual for a unidade."""
+
+    def test_venda_por_quilo_apura_o_valor(self):
+        venda = Movimentacao.objects.create(
+            tipo=Movimentacao.VENDA, data=datetime.date(2026, 10, 1),
+            preco_kg=Decimal("14.00"))
+        a = Animal.objects.create(brinco="700", categoria="garrote", sexo="macho",
+                                  venda=venda, peso_venda=Decimal("250.00"),
+                                  categoria_venda="garrote")
+        self.assertAlmostEqual(float(a.valor_venda_apurado), 3500.00, places=2)
+        self.assertIn("quilo", a.origem_valor_venda)
+
+    def test_categoria_da_venda_nao_e_recalculada(self):
+        """Saiu como garrote: é fato histórico, não derivação."""
+        venda = Movimentacao.objects.create(
+            tipo=Movimentacao.VENDA, data=datetime.date(2026, 10, 1),
+            preco_kg=Decimal("14.00"))
+        a = Animal.objects.create(brinco="701", categoria="boi magro", sexo="macho",
+                                  venda=venda, peso_venda=Decimal("400.00"),
+                                  categoria_venda="garrote")
+        a.refresh_from_db()
+        self.assertEqual(a.categoria_venda, "garrote")
+
+    def test_preco_do_quilo_desta_cabeca_vence_o_do_negocio(self):
+        """Dentro do mesmo lote, cabeças podem sair por preço de quilo diferente
+        -- o comprador decide, bicho por bicho."""
+        venda = Movimentacao.objects.create(
+            tipo=Movimentacao.VENDA, data=datetime.date(2026, 10, 1),
+            preco_kg=Decimal("14.00"))
+        a = Animal.objects.create(brinco="702", categoria="garrote", sexo="macho",
+                                  venda=venda, peso_venda=Decimal("250.00"),
+                                  preco_kg_venda=Decimal("15.00"))
+        # 250 x 15,00 = 3750,00 -- não 3.500,00, que seria o preço do negócio
+        self.assertAlmostEqual(float(a.valor_venda_apurado), 3750.00, places=2)
+        self.assertIn("quilo desta cabeça", a.origem_valor_venda)
+
+    def test_precedencia_e_por_especificidade_nao_por_unidade(self):
+        """A arroba DESTA cabeça vence o quilo do NEGÓCIO -- ela é mais
+        específica, mesmo estando numa unidade diferente. Resolver isso num
+        `self.preco_kg_venda or self.venda.preco_kg` só, antes de olhar pra
+        arroba da cabeça, esconderia esse preço em silêncio."""
+        venda = Movimentacao.objects.create(
+            tipo=Movimentacao.VENDA, data=datetime.date(2026, 10, 1),
+            preco_kg=Decimal("14.00"))
+        a = Animal.objects.create(brinco="703", categoria="boi", sexo="macho",
+                                  venda=venda, peso_venda=Decimal("450.00"),
+                                  preco_arroba_venda=Decimal("300.00"))
+        # 450 x 55% / 15 = 16,5 @ x 300 = 4.950,00 -- não 450 x 14 = 6.300,00
+        self.assertAlmostEqual(float(a.valor_venda_apurado), 4950.00, places=2)
+        self.assertIn("arroba desta cabeça", a.origem_valor_venda)
+
+    def test_negocios_mostra_o_preco_do_quilo(self):
+        """A coluna "A arroba" da tela de negócios não pode virar travessão só
+        porque o negócio foi fechado por quilo."""
+        Movimentacao.objects.create(
+            tipo=Movimentacao.VENDA, data=datetime.date(2026, 10, 1),
+            comprador=self.leilao, quantidade=1, preco_kg=Decimal("14.00"))
+        corpo = self.client.get(reverse("gado:negocios")).content.decode()
+        self.assertIn("R$ 14,00", corpo)
+
+
 class TestEstimativaNaoEPromessa(BaseGado):
     """The Araçatuba quote is a reference average, not what he will be paid.
 

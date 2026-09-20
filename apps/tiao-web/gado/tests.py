@@ -813,3 +813,17 @@ class TestCotacaoReposicao(TestCase):
         # A de reposição é MAIS RECENTE; ainda assim não pode ser escolhida.
         self.assertEqual(Cotacao.ultimas_por_categoria()["novilha"].bruto_a_vista,
                          Decimal("341.00"))
+
+    def test_desmama_macho_e_femea_convivem(self):
+        """As duas desmamas têm preço diferente (180 kg ♂, 165 kg ♀) e não podem colidir."""
+        Cotacao.objects.create(
+            mercado=Cotacao.REPOSICAO, unidade=Cotacao.KG, categoria="desmama",
+            praca="SP", data_pregao=datetime.date(2026, 9, 18),
+            rs_kg=Decimal("15.50"), rs_cabeca=Decimal("2790.00"),
+            peso_ref_kg=Decimal("180.00"))
+        Cotacao.objects.create(
+            mercado=Cotacao.REPOSICAO, unidade=Cotacao.KG, categoria="desmama",
+            praca="SP-F", data_pregao=datetime.date(2026, 9, 18),
+            rs_kg=Decimal("13.20"), rs_cabeca=Decimal("2178.00"),
+            peso_ref_kg=Decimal("165.00"))
+        self.assertEqual(Cotacao.objects.filter(categoria="desmama").count(), 2)
